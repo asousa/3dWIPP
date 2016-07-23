@@ -1,11 +1,11 @@
 IDIR =include
-CC=g++
+CC=c++
 CFLAGS=-I$(IDIR)
 
 # compiled module directory
 ODIR =build
 # Libraries
-LDIR =lib
+LDIR =/shared/users/asousa/software/lib
 # output binary directory
 BDIR =bin
 # source files here
@@ -21,11 +21,11 @@ OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 # Rules for making individual objects
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) -L$(LDIR) 
 
 # Rule to link everything together + generate executable
 wipp: $(OBJ)
-	$(CC) -o $(BDIR)/$@ $^ $(CFLAGS)
+	$(CC) -o $(BDIR)/$@ $^ $(CFLAGS) -L$(LDIR) 
 
 # Safety rule for any file named "clean"
 .PHONY: clean
