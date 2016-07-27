@@ -8,7 +8,6 @@
 #include <sstream>
 #include <iterator>
 #include <string>
-// #include <string>
 #include <vector>
 #include <map>
 #include <consts.h>
@@ -19,51 +18,12 @@
 
 using namespace std;
 
-
-// Structure for holding an entire rayfile (yuge)
-typedef struct {
-    int size;
-    float w;                        // frequency (angular)
-    float stopcond;                   // Stop condition
-    float nspec;                      // Number of species in plasmasphere model
-    // float ray_num;         // Ray index number
-    vector <float> time;            // Group time
-    vector <float> pos_x;
-    vector <float> pos_y;
-    vector <float> pos_z;
-    vector <float> vprel_x;
-    vector <float> vprel_y;
-    vector <float> vprel_z;
-    vector <float> vgrel_x;
-    vector <float> vgrel_y;
-    vector <float> vgrel_z;
-    vector <float> n_x;
-    vector <float> n_y;
-    vector <float> n_z;
-    vector <float> B0_x;
-    vector <float> B0_y;
-    vector <float> B0_z;
-
-    // Variable-length stuff (depending on number of constituents in model)
-    vector <vector <float> > qs;    // species charge
-    vector <vector <float> > ms;    // species mass
-    vector <vector <float> > Ns;    // Uh...
-    vector <vector <float> > nus;   // yeah
-
-} rayF;
-
-
-// Prototypes:
-// void resize_rayfile(rayF &ray, int newsize);
-
-
-int read_rayfile(string fileName) 
+map <int, rayF> read_rayfile(string fileName) 
 { 
     FILE * filePtr;
     ifstream file;
     string token;
     string line;
-
     rayF rf;
     int linecounter = 0;
     // int vec_length = 100;
@@ -105,12 +65,6 @@ int read_rayfile(string fileName)
             vector <float> Nsv;
             vector <float> nuv;
 
-            // v.clear();
-            // iss.clear();
-            // qsv.clear();
-            // msv.clear();
-            // Nsv.clear();
-            // nuv.clear();
 
             // --------------- SCANF way -----------------
             // sscanf(line.c_str(), "%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e",
@@ -198,10 +152,6 @@ int read_rayfile(string fileName)
             raylist[ray_num].B0_y.push_back(v[16]);
             raylist[ray_num].B0_z.push_back(v[17]);
 
-            // vector <float> qsv;
-            // vector <float> msv;
-            // vector <float> Nsv;
-            // vector <float> nuv;
             for (int i = 0; i < nspec; i++) {
                 // cout << i << ' ';
                 qsv.push_back(v[20 + 0*nspec + i]);
@@ -222,27 +172,28 @@ int read_rayfile(string fileName)
     
         cout << "Total lines: " << linecounter << "\n";
 
-        // Confirm we loaded everything
-        for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter)
-            {
-                float key = iter->first;
-                rayF val = iter->second;
-                printf("Ray number %g: freq: %g nspec: %g\n",key, val.w, val.nspec);
+        // // Confirm we loaded everything
+        // for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter)
+        //     {
+        //         float key = iter->first;
+        //         rayF val = iter->second;
+        //         printf("Ray number %g: freq: %g nspec: %g\n",key, val.w, val.nspec);
 
-                // Print out all elements in a vector
-                vector<float> vec = val.B0_x;
-                for (vector<float>::iterator it = vec.begin(); it != vec.end(); ++it)
-                    printf("%g ",*it);
-                cout << "\n";
+        //         // Print out all elements in a vector
+        //         vector<float> vec = val.B0_x;
+        //         for (vector<float>::iterator it = vec.begin(); it != vec.end(); ++it)
+        //             printf("%g ",*it);
+        //         cout << "\n";
 
-            }
+        //     }
 
     } else {   // Couldn't open the file
 
         cout << "Something's Fucky\n";
     }
 
-    return 0; // Return statement.
+    // return 0; // Return statement.
+    return raylist;
 } // Closing Main.
 
 

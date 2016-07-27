@@ -1,11 +1,14 @@
 IDIR =include
 CC=c++
+
 CFLAGS=-I$(IDIR)
 
 # compiled module directory
 ODIR =build
 # Libraries
-LDIR =/shared/users/asousa/software/lib
+LDIR =lib
+	
+	
 # output binary directory
 BDIR =bin
 # source files here
@@ -19,13 +22,20 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 _OBJ = wipp_main.o wipp_fileutils.o 
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
+
+# XFORM = lib/xform_double
 # Rules for making individual objects
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS) -L$(LDIR) 
 
 # Rule to link everything together + generate executable
-wipp: $(OBJ)
-	$(CC) -o $(BDIR)/$@ $^ $(CFLAGS) -L$(LDIR) 
+wipp: $(OBJ) libxformd.a
+	# $(MAKE) -C $(XFORM)
+	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) -lxformd -lgfortran -o $(BDIR)/$@
+
+libxformd.a:
+	$(MAKE) -C lib/xform_double
+
 
 # Safety rule for any file named "clean"
 .PHONY: clean
@@ -34,3 +44,4 @@ wipp: $(OBJ)
 clean:
 	rm -f $(ODIR)/*
 	rm -f $(BDIR)/*
+	$(MAKE) -C $(XFORM) clean
