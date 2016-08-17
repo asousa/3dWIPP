@@ -1,12 +1,13 @@
 IDIR =include
+EIGEN_DIR=lib/eigen/
 CC=c++
 
-CFLAGS=-I$(IDIR)
-
+CFLAGS=-I$(IDIR) -I$(EIGEN_DIR)
 # compiled module directory
 ODIR =build
 # Libraries
 LDIR =lib
+
 	
 	
 # output binary directory
@@ -19,14 +20,14 @@ _DEPS = wipp.h consts.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 # Objects to build
-_OBJ = wipp_main.o wipp_fileutils.o 
+_OBJ = wipp_main.o wipp_fileutils.o damping_ngo.o math_utils.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
 # XFORM = lib/xform_double
 # Rules for making individual objects
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS) -L$(LDIR) 
+	$(CC) -c -o $@ $< $(CFLAGS) -I$(EIGEN_DIR) -L$(LDIR) 
 
 # Rule to link everything together + generate executable
 wipp: $(OBJ) libxformd.a

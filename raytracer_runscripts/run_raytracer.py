@@ -20,24 +20,33 @@ ray_bin_dir    = os.path.join(raytracer_root, 'bin')
 R_E = 6371.0    # km
 
 # ----------- Simulation params ----------------
-t_max = 10       # Maximum duration in seconds
-f = 200         # Hertz
+t_max = 10.     # Maximum duration in seconds
 
 dt0 = 0.01      # Initial timestep in seconds
-dtmax = 0.1     # Maximum allowable timestep in seconds
+dtmax = 0.5     # Maximum allowable timestep in seconds
 root = 2        # Which root of the Appleton-Hartree equation
                 # (2=whistler in magnetosphere)
 fixedstep = 0   # Don't use fixed step sizes, that's a bad idea.
-maxerr = 1e-5   # Error bound for adaptive timestepping
+maxerr = 1e-4   # Error bound for adaptive timestepping
 maxsteps = 1e4  # Max number of timesteps (abort if reached)
-modelnum = 3    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
+modelnum = 4    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
 use_IGRF = 1    # Magnetic field model (1 for IGRF, 0 for dipole)
 use_tsyg = 1    # Use the Tsyganenko magnetic field model corrections
 
-minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
+minalt   = (R_E + 1000)*1e3 # cutoff threshold in meters
+
+
 # GCPM grid to use (plasmasphere model)
 # interpfile = os.path.join(project_root,'raytracer_runscripts','gcpm_models','gcpm_kp40_20010101_0000_MLD01.txt')
-interpfile = '/shared/users/asousa/software/foust_raytracer/bin/gcpm_kp4_2001001_L10_80x80x80_noderiv.txt'
+if modelnum==3:
+    interpfile = '/shared/users/asousa/software/foust_raytracer/bin/gcpm_kp4_2001001_L10_80x80x80_noderiv.txt'
+if modelnum==4:
+    interpfile = '/shared/users/asousa/software/foust_raytracer/bin/gcpm_kp4_2001001_L10_random_5000_20000_0_200000_600000.txt'
+    scattered_interp_window_scale = 1.5
+    scattered_interp_order = 2
+    scattered_interp_exact = 0
+    scattered_interp_local_window_scale = 5
+
 
 # Simulation time
 ray_datenum = dt.datetime(2001, 01, 04, 03, 00, 00);
@@ -65,10 +74,10 @@ print Dst
 
 # ---------- Ray inputs -----------------
 
-inp_lats = [45]
-inp_lons = [0, 90, 135, 180]
-launch_alt = (R_E + 5000)*1e3 # meters
-freqs    = np.array([1000]) 
+inp_lats = [45, 46]
+inp_lons = [180, 181] #np.arange(0,360, step=45)
+launch_alt = (R_E + 2000.)*1e3 # meters
+freqs    = np.array([1000, 1100]) 
 
 inp_w = 2.0*np.pi*freqs
 
@@ -90,7 +99,7 @@ N = len(inp_coords)
 # Write rays to the input file
 f = open(ray_inpfile,'w+')
 for pos0, w0 in zip(inp_coords.data, ws):
-    dir0 = pos0/np.linalg.norm(pos0)
+    dir0 = pos0/np.linalg.norm(pos0)    # radial outward
     f.write('%g %g %g %g %g %g %g\n'%(pos0[0],pos0[1],pos0[2],dir0[0], dir0[1],dir0[2], w0))
 f.close()
 

@@ -41,9 +41,23 @@ int main(int argc, char *argv[])
     raylist = read_rayfile(fileName);
 
     itime = 0;
-    x_in[0] = raylist[1].pos_x[0];
-    x_in[1] = raylist[1].pos_x[1];
-    x_in[2] = raylist[1].pos_x[2];
+    // x_in[0] = raylist[1].pos_x[0];
+    // x_in[1] = raylist[1].pos_x[1];
+    // x_in[2] = raylist[1].pos_x[2];
+
+    // damping_ngo(raylist[0]);
+    for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
+        damping_ngo(iter->second);
+    }   
+
+
+
+
+
+
+
+
+
 
     // printf("x_in is: %g, %g, %g\n",x_in[0], x_in[1], x_in[2]);
     // sm_to_geo_d_(&itime, x_in, x_out);

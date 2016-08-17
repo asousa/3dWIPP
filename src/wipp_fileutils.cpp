@@ -28,23 +28,23 @@ map <int, rayF> read_rayfile(string fileName)
     int linecounter = 0;
     // int vec_length = 100;
 
-    // Temp floats for fscanf:
-    float ray_num, stopcond, time;
-    // float pos_x, pos_y, pos_z;
-    // float vprel_x, vprel_y, vprel_z;
-    // float vgrel_x, vgrel_y, vgrel_z;
-    // float n_x, n_y, n_z;
-    // float B0_x, B0_y, B0_z;
-    float w, nspec;
+    // Temp doubles for fscanf:
+    double ray_num, stopcond, time;
+    // double pos_x, pos_y, pos_z;
+    // double vprel_x, vprel_y, vprel_z;
+    // double vgrel_x, vgrel_y, vgrel_z;
+    // double n_x, n_y, n_z;
+    // double B0_x, B0_y, B0_z;
+    double w, nspec;
     
     map <int, rayF > raylist;
-    // vector <float> v;
+    // vector <double> v;
     // istringstream iss;
 
-    // vector <float> qsv;
-    // vector <float> msv;
-    // vector <float> Nsv;
-    // vector <float> nuv;
+    // vector <double> qsv;
+    // vector <double> msv;
+    // vector <double> Nsv;
+    // vector <double> nuv;
 
 
 
@@ -57,13 +57,14 @@ map <int, rayF> read_rayfile(string fileName)
         cout << "Successfully opened " << fileName << "\n";
                 
         while (getline(file, line)) {
-            vector <float> v;
+            vector <double> v;
             istringstream iss;
 
-            vector <float> qsv;
-            vector <float> msv;
-            vector <float> Nsv;
-            vector <float> nuv;
+            vector <double> qsv;
+            vector <double> msv;
+            vector <double> Nsv;
+            vector <double> nuv;
+            vector <double> B0, n, pos, vprel, vgrel;
 
 
             // --------------- SCANF way -----------------
@@ -104,11 +105,11 @@ map <int, rayF> read_rayfile(string fileName)
             // // Build an istream that holds the input string
             iss.str(line);
 
-            // // Iterate over the istream, using >> to grab floats
+            // // Iterate over the istream, using >> to grab doubles
             // // and push_back to store them in the vector
-            copy(istream_iterator<float>(iss), istream_iterator<float>(), back_inserter(v));
+            copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
 
-            // for (vector<float>::iterator it = v.begin(); it != v.end(); ++it)
+            // for (vector<double>::iterator it = v.begin(); it != v.end(); ++it)
             //     printf("%g ",*it);
             // cout << "\n";
 
@@ -132,39 +133,74 @@ map <int, rayF> read_rayfile(string fileName)
 
             raylist[ray_num].time.push_back(v[2]);
 
-            raylist[ray_num].pos_x.push_back(v[3]);
-            raylist[ray_num].pos_y.push_back(v[4]);
-            raylist[ray_num].pos_z.push_back(v[5]);
+            // raylist[ray_num].pos_x.push_back(v[3]);
+            // raylist[ray_num].pos_y.push_back(v[4]);
+            // raylist[ray_num].pos_z.push_back(v[5]);
+            pos.push_back(v[3]);
+            pos.push_back(v[4]);
+            pos.push_back(v[5]);
+            raylist[ray_num].pos.push_back(pos);
 
-            raylist[ray_num].vprel_x.push_back(v[6]);
-            raylist[ray_num].vprel_y.push_back(v[7]);
-            raylist[ray_num].vprel_z.push_back(v[8]);
+            // raylist[ray_num].vprel_x.push_back(v[6]);
+            // raylist[ray_num].vprel_y.push_back(v[7]);
+            // raylist[ray_num].vprel_z.push_back(v[8]);
             
-            raylist[ray_num].vgrel_x.push_back(v[9]);
-            raylist[ray_num].vgrel_y.push_back(v[10]);
-            raylist[ray_num].vgrel_z.push_back(v[11]);
+            vprel.push_back(v[6]);
+            vprel.push_back(v[7]);
+            vprel.push_back(v[8]);
+            raylist[ray_num].vprel.push_back(vprel);
 
-            raylist[ray_num].n_x.push_back(v[12]);
-            raylist[ray_num].n_y.push_back(v[13]);
-            raylist[ray_num].n_z.push_back(v[14]);
+            // raylist[ray_num].vgrel_x.push_back(v[9]);
+            // raylist[ray_num].vgrel_y.push_back(v[10]);
+            // raylist[ray_num].vgrel_z.push_back(v[11]);
             
-            raylist[ray_num].B0_x.push_back(v[15]);
-            raylist[ray_num].B0_y.push_back(v[16]);
-            raylist[ray_num].B0_z.push_back(v[17]);
+            vgrel.push_back(v[9]);
+            vgrel.push_back(v[10]);
+            vgrel.push_back(v[11]);
+            raylist[ray_num].vgrel.push_back(vgrel);
+
+            // raylist[ray_num].n_x.push_back(v[12]);
+            // raylist[ray_num].n_y.push_back(v[13]);
+            // raylist[ray_num].n_z.push_back(v[14]);
+            n.push_back(v[12]);
+            n.push_back(v[13]);
+            n.push_back(v[14]);
+            raylist[ray_num].n.push_back(n);
+
+            B0.push_back(v[15]);
+            B0.push_back(v[16]);
+            B0.push_back(v[17]);
+
+            raylist[ray_num].B0.push_back(B0);
+
+            // raylist[ray_num].B0_x.push_back(v[15]);
+            // raylist[ray_num].B0_y.push_back(v[16]);
+            // raylist[ray_num].B0_z.push_back(v[17]);
+
+
+
 
             for (int i = 0; i < nspec; i++) {
                 // cout << i << ' ';
-                qsv.push_back(v[20 + 0*nspec + i]);
-                msv.push_back(v[20 + 1*nspec + i]);
+                // qsv.push_back(v[20 + 0*nspec + i]);
+                // msv.push_back(v[20 + 1*nspec + i]);
                 Nsv.push_back(v[20 + 2*nspec + i]);
                 nuv.push_back(v[20 + 3*nspec + i]);
 
                 // cout << Nsv[i] << ' ';
             }
-            raylist[ray_num].qs.push_back(qsv);
-            raylist[ray_num].ms.push_back(msv);
             raylist[ray_num].Ns.push_back(Nsv);
             raylist[ray_num].nus.push_back(nuv);
+
+            // Qs, Ms are constants for the whole ray. 
+            // I mean why wouldn't they be, right, right
+            if (raylist[ray_num].qs.size() == 0) {
+                for (int i = 0; i < nspec; i++) {
+                    raylist[ray_num].qs.push_back(v[20 + 0*nspec + i]);
+                    raylist[ray_num].ms.push_back(v[20 + 1*nspec + i]);
+                }
+            }
+            
             
             linecounter++;
 
@@ -175,14 +211,25 @@ map <int, rayF> read_rayfile(string fileName)
         // // Confirm we loaded everything
         // for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter)
         //     {
-        //         float key = iter->first;
+        //         double key = iter->first;
         //         rayF val = iter->second;
         //         printf("Ray number %g: freq: %g nspec: %g\n",key, val.w, val.nspec);
 
-        //         // Print out all elements in a vector
-        //         vector<float> vec = val.B0_x;
-        //         for (vector<float>::iterator it = vec.begin(); it != vec.end(); ++it)
-        //             printf("%g ",*it);
+        //         // // Print out all elements in a vector
+        //         // vector<vector <double> > vec = val.nus;
+        //         // cout << vec.size() << "\n";
+        //         // cout << vec[0].size();
+        //         for (int i=0; i < val.B0.size(); i++) {
+        //             for (int j=0; j < val.B0[0].size(); j++) {
+        //                 cout << val.B0[i][j] << " ";
+        //             }
+        //             cout << "\n";
+        //         }
+        //         // for (vector<double>::iterator it = vec.begin(); it != vec.end(); ++it)                
+        //         //     cout << it->first;
+
+        //         // // for (vector<double>::iterator it = vec.begin(); it != vec.end(); ++it)
+        //         // //     printf("%g ",*it);
         //         cout << "\n";
 
         //     }
