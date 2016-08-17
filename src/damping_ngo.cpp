@@ -37,6 +37,7 @@ void damping_ngo(rayF ray) {
 
     double wps2;
     complex<double> R, L, P, S, D; // Stix parameters
+    complex<double> a, b;
 
     complex<double> wcs;
     // complex<double> whs;
@@ -45,7 +46,7 @@ void damping_ngo(rayF ray) {
     double kperp, kpar;
     double theta;
 
-
+    double sin_th, cos_th, sin_th_sq, cos_th_sq;
 
 
     itime_in[0] = 2012045;          // yyyyddd
@@ -135,24 +136,30 @@ void damping_ngo(rayF ray) {
 
         // Get K-vector and parallel / perp components WRT B0:
         k = n*ray.w/C;
-        kmag = k.norm();
-
         Bhat = B0.array()/B0.norm();
         kpar = k.dot(Bhat); //k.array()*Bhat.array();
-
         kperp = (k - kpar*Bhat).norm();
 
         // Theta is the angle between parallel and perpendicular K
         theta = atan2(kperp, kpar);
 
+        // Some trig.
+        sin_th = sin(theta);
+        cos_th = cos(theta);
+        sin_th_sq = pow(sin_th,2);
+        cos_th_sq = pow(cos_th,2);
+
+        a = S*sin_th_sq + P*cos_th_sq;
+        b = R*L*sin_th_sq + P*S*(1+cos_th_sq);
+
         if (ray.time[ii] < 0.1) {
-        cout << "Bhat: " << Bhat << "\n";
-        cout << "K: " << k << "\n";
-        cout << "kperp: " << kperp << " Kpar: " << kpar  << "\n";
-        // cout << "K: " << k << "\n";
-        printf("t: %0.2f w: %0.2f, B0: %e: Theta: %f\n",ray.time[ii],ray.w, B0mag,theta);
-        printf("%0.2f %0.2f %0.2f %0.2f %0.2f\n",real(R),real(L),real(P),real(S),real(D));
-    }
+            cout << "Bhat: " << Bhat << "\n";
+            cout << "K: " << k << "\n";
+            cout << "kperp: " << kperp << " Kpar: " << kpar  << "\n";
+            // cout << "K: " << k << "\n";
+            printf("t: %0.2f w: %0.2f, B0: %e: Theta: %f\n",ray.time[ii],ray.w, B0mag,theta);
+            printf("%0.2f %0.2f %0.2f %0.2f %0.2f\n",real(R),real(L),real(P),real(S),real(D));
+        }
 
     }
 
