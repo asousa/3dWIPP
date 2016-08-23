@@ -1,3 +1,6 @@
+#include <Eigen/Core>
+
+
 #include <stdio.h>
 #include <math.h>
 #include "time.h"
@@ -14,11 +17,34 @@
 #include <wipp.h>
 
 
-// #include <boost/algorithm/string.hpp>
 
 using namespace std;
 
-map <int, rayF> read_rayfile(string fileName) 
+map <int, rayF> read_rayfile(string fileName)
+/* Read data from a ray file. Returns a map of structs;
+   1 key per individual ray in the file.
+    Each structure contains:
+
+    Coordinates:
+    ray.pos   (n x 3 double)   Position in SM cartesian coordinates
+    ray.vprel (n x 3 double)   Phase velocity (relative to c)
+    ray.vgrel (n x 3 double)   Group velocity (relative to c)
+    ray.n     (n x 3 double)   Index of refraction along each axis
+    ray.B0    (n x 3 double)   Background magnetic field vector
+
+    Constants:
+    ray.w         double                    Wave angular frequency (radians)
+    ray.stopcond  double                    Reason for raytracing termination (see docs)
+    ray.nspec     double                    number of species used in plasmasphere model
+    
+    Plasma parameters:
+    ray.qs    (nspec x 1 double)            Species charge in coulombs
+    ray.ms    (nspec x 1 double)            Species mass in kg
+    ray.Ns    (n x nspec double)            Species number density in m^-3
+    ray.nus   (n x nspec double)            Species collision frequencies in s^-1
+
+*/
+
 { 
     FILE * filePtr;
     ifstream file;
@@ -133,35 +159,21 @@ map <int, rayF> read_rayfile(string fileName)
 
             raylist[ray_num].time.push_back(v[2]);
 
-            // raylist[ray_num].pos_x.push_back(v[3]);
-            // raylist[ray_num].pos_y.push_back(v[4]);
-            // raylist[ray_num].pos_z.push_back(v[5]);
             pos.push_back(v[3]);
             pos.push_back(v[4]);
             pos.push_back(v[5]);
             raylist[ray_num].pos.push_back(pos);
-
-            // raylist[ray_num].vprel_x.push_back(v[6]);
-            // raylist[ray_num].vprel_y.push_back(v[7]);
-            // raylist[ray_num].vprel_z.push_back(v[8]);
             
             vprel.push_back(v[6]);
             vprel.push_back(v[7]);
             vprel.push_back(v[8]);
             raylist[ray_num].vprel.push_back(vprel);
-
-            // raylist[ray_num].vgrel_x.push_back(v[9]);
-            // raylist[ray_num].vgrel_y.push_back(v[10]);
-            // raylist[ray_num].vgrel_z.push_back(v[11]);
             
             vgrel.push_back(v[9]);
             vgrel.push_back(v[10]);
             vgrel.push_back(v[11]);
             raylist[ray_num].vgrel.push_back(vgrel);
 
-            // raylist[ray_num].n_x.push_back(v[12]);
-            // raylist[ray_num].n_y.push_back(v[13]);
-            // raylist[ray_num].n_z.push_back(v[14]);
             n.push_back(v[12]);
             n.push_back(v[13]);
             n.push_back(v[14]);
@@ -172,13 +184,6 @@ map <int, rayF> read_rayfile(string fileName)
             B0.push_back(v[17]);
 
             raylist[ray_num].B0.push_back(B0);
-
-            // raylist[ray_num].B0_x.push_back(v[15]);
-            // raylist[ray_num].B0_y.push_back(v[16]);
-            // raylist[ray_num].B0_z.push_back(v[17]);
-
-
-
 
             for (int i = 0; i < nspec; i++) {
                 // cout << i << ' ';

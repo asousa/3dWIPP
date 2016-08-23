@@ -23,20 +23,22 @@ R_E = 6371.0    # km
 t_max = 10.     # Maximum duration in seconds
 
 dt0 = 0.01      # Initial timestep in seconds
-dtmax = 0.5     # Maximum allowable timestep in seconds
+dtmax = 0.01     # Maximum allowable timestep in seconds
 root = 2        # Which root of the Appleton-Hartree equation
                 # (2=whistler in magnetosphere)
 fixedstep = 0   # Don't use fixed step sizes, that's a bad idea.
 maxerr = 1e-4   # Error bound for adaptive timestepping
-maxsteps = 1e4  # Max number of timesteps (abort if reached)
-modelnum = 4    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
-use_IGRF = 1    # Magnetic field model (1 for IGRF, 0 for dipole)
-use_tsyg = 1    # Use the Tsyganenko magnetic field model corrections
+maxsteps = 1e5  # Max number of timesteps (abort if reached)
+modelnum = 1    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
+use_IGRF = 0    # Magnetic field model (1 for IGRF, 0 for dipole)
+use_tsyg = 0    # Use the Tsyganenko magnetic field model corrections
 
-minalt   = (R_E + 1000)*1e3 # cutoff threshold in meters
+minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
 
 
 # GCPM grid to use (plasmasphere model)
+if modelnum==1:
+    configfile = '/shared/users/asousa/WIPP/3dWIPP/outputs/newray.in'
 # interpfile = os.path.join(project_root,'raytracer_runscripts','gcpm_models','gcpm_kp40_20010101_0000_MLD01.txt')
 if modelnum==3:
     interpfile = '/shared/users/asousa/software/foust_raytracer/bin/gcpm_kp4_2001001_L10_80x80x80_noderiv.txt'
@@ -74,10 +76,14 @@ print Dst
 
 # ---------- Ray inputs -----------------
 
-inp_lats = [45, 46]
-inp_lons = [180, 181] #np.arange(0,360, step=45)
-launch_alt = (R_E + 2000.)*1e3 # meters
-freqs    = np.array([1000, 1100]) 
+# inp_lats = [45, 46]
+# inp_lons = [180, 181] #np.arange(0,360, step=45)
+# launch_alt = (R_E + 2000.)*1e3 # meters
+inp_lats = [45]
+inp_lons = [180]
+launch_alt = (R_E + 1000.)*1e3
+
+freqs    = np.array([1000]) 
 
 inp_w = 2.0*np.pi*freqs
 

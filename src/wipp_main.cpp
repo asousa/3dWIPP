@@ -1,14 +1,19 @@
+#include <Eigen/Core>
+
 #include <stdio.h>
 #include <math.h>
 #include "time.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <iostream>
+#include <fstream>
 
 #include <consts.h>
 #include <wipp.h>
 
 using namespace std;
+using namespace Eigen;
+
 
 // External functions we'll use (libxformd for coordinate transforms)
 extern "C" void sm_to_geo_d_(int* itime, double* x_in, double* x_out);
@@ -20,6 +25,8 @@ extern "C" void pol_to_cart_d_(double* lat, double* lon, double* radius, double*
 int main(int argc, char *argv[]) 
 {
     map <int, rayF> raylist;
+    map <int, VectorXd> damplist;
+
 
     double x_in[3];
     double x_out[3];
@@ -27,12 +34,17 @@ int main(int argc, char *argv[])
 
     // char *fileName;
     string fileName;
+    char damping_fileName[100];
+    // ostringstream damping_fileName;
+    FILE * outputFile;
+
 
     if (argc != 2) {
         fileName = "python/four_adjacent.ray";
     } else {
         fileName = argv[1];
     }
+
 
 
     // fileName= "rayfile.ray";
@@ -46,8 +58,44 @@ int main(int argc, char *argv[])
     // x_in[2] = raylist[1].pos_x[2];
 
     // damping_ngo(raylist[0]);
+
     for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
+        printf("damping ray # %d\n",iter->first);
+        // Calculate damping and append it to the object
         damping_ngo(iter->second);
+
+        // for (int i=0; i < iter->second.damping.size(); i++) {
+        //     printf("t: %0.2f  pwr: %f\n",iter->second.time[i], iter->second.damping[i]);
+        // }
+    }   
+
+
+    // Print to a file (for debugging)
+
+    for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
+
+        sprintf(damping_fileName, "damping_%2.0f.txt",iter->second.w/(2*PI));
+        // outputFile.open(damping_fileName);
+        outputFile = fopen(damping_fileName, "w");
+
+        if (outputFile != NULL) {
+            printf("Hey! Opened %s!\n",damping_fileName);
+
+            for (int i=0; i < iter->second.damping.size(); i++) {
+                fprintf(outputFile,"%0.4f\t%0.4f\n",iter->second.time[i], iter->second.damping[i]);
+                // printf("t: %0.2f  pwr: %f\n",iter->second.time[i], iter->second.damping[i]);
+            }
+            fclose(outputFile);
+
+        } else {
+            printf("Ugh, didn't open file!\n");
+        }
+
+
+
+        // for (int i=0; i < iter->second.damping.size(); i++) {
+        //     printf("t: %0.2f  pwr: %f\n",iter->second.time[i], iter->second.damping[i]);
+        // }
     }   
 
 
