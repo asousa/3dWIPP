@@ -62,8 +62,8 @@ int main(int argc, char *argv[])
     for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
         printf("damping ray # %d\n",iter->first);
         // Calculate damping and append it to the object
-        damping_ngo(iter->second);
-
+        // damping_ngo(iter->second);
+        damping_foust(iter->second);
         // for (int i=0; i < iter->second.damping.size(); i++) {
         //     printf("t: %0.2f  pwr: %f\n",iter->second.time[i], iter->second.damping[i]);
         // }

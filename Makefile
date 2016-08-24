@@ -1,8 +1,11 @@
 IDIR =include
 EIGEN_DIR=lib/eigen/
+MATLAB_DIR=/usr/local/MATLAB/R2012a/extern/include
 CC=c++
 
-CFLAGS=-I$(IDIR) -I$(EIGEN_DIR)
+CFLAGS=-I$(IDIR) -I$(EIGEN_DIR) -I$(MATLAB_DIR)
+MATLAB_FLAGS = -L /usr/local/MATLAB/R2012a/bin/glnxa64 -leng -lm -lmx -lmex -lmat -lut -Wl,-rpath=/usr/local/MATLAB/R2012a/bin/glnxa64
+
 # compiled module directory
 ODIR =build
 # Libraries
@@ -19,20 +22,23 @@ SRC_DIR=src
 _DEPS = wipp.h consts.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
+
 # Objects to build
-_OBJ = wipp_main.o wipp_fileutils.o damping_ngo.o math_utils.o
+_OBJ = wipp_main.o wipp_fileutils.o damping_ngo.o damping_foust.o math_utils.o \
+	   kp_to_pp.o polyfit.o psd_model.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
 # XFORM = lib/xform_double
 # Rules for making individual objects
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
+
 	$(CC) -c -o $@ $< $(CFLAGS) -I$(EIGEN_DIR) -L$(LDIR) 
 
 # Rule to link everything together + generate executable
 wipp: $(OBJ) libxformd.a
 	# $(MAKE) -C $(XFORM)
-	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) -lxformd -lgfortran -o $(BDIR)/$@
+	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) -lxformd -lgfortran $(MATLAB_FLAGS) -o $(BDIR)/$@
 
 libxformd.a:
 	$(MAKE) -C lib/xform_double
