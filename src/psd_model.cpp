@@ -362,8 +362,7 @@ double psd_model::hybrid_psd(double vperp, double vpar, double n_fit, double An_
 
     }
 
-
-
+    return f;
 }
 
 
