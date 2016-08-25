@@ -179,7 +179,7 @@ vector<double> psd_model::CRRES_fit_params(double L, double MLT, double AE_level
     // the closest values for E and J_perp.
     // 
     // This is a port of "get_fit_params.m" by dgolden.
-    
+
     int row, col;
     mxArray *L_mx;
     mxArray *MLT_mx;
@@ -310,7 +310,7 @@ double psd_model::suprathermal(double vperp, double vpar) {
     return f;
 }
 
-double psd_model::crres_psd(double vperp, double vpar) {
+double psd_model::crres_psd(double vperp, double vpar, double n, double An) {
     // Suprathermal distribution, model-driven.
     // This is what we'll use outside the plasmasphere.
 
@@ -335,6 +335,35 @@ double psd_model::crres_psd(double vperp, double vpar) {
     // % Convert to s^3/m^6 from s^3/cm^6 
     f = f*pow(100.,6);
     return f;
+}
+
+double psd_model::hybrid_psd(double vperp, double vpar, double n_fit, double An_fit, double L, double L_pp) {
+    double f;
+    double f_polar, f_crres;
+    double w_polar, w_crres;
+
+    if (L_pp - L > 1) {
+        // Way inside plasmasphere:
+        f = this->suprathermal(vperp, vpar);
+    } else if (L - L_pp > 1) {
+        // Way outside plasmasphere:
+        f = this->crres_psd(vperp, vpar, n_fit, An_fit);
+    } else {
+        // Blend between the two:
+        f_polar = this->suprathermal(vperp, vpar);
+        f_crres = this->crres_psd(vperp, vpar, n, An);
+
+        w_polar = exp(5*(L_pp - L))/(1 + exp(5*(L_pp - L))); // higher weight inside plasmasphere
+        w_crres = exp(5*(L - L_pp))/(1 + exp(5*(L - L_pp))); // higher weight outside plasmasphere
+
+        // Find centroid in log space
+        f = exp((log(f_polar)*log(w_polar) + log(f_crres)*log(w_crres))
+                         /(log(w_polar) + log(w_crres)) );
+
+    }
+
+
+
 }
 
 

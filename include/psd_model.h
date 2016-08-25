@@ -31,7 +31,9 @@ public:
     vector<double> CRRES_fit_params(double L, double MLT, double AE_level);
     void initialize(char* inp_filename);
     double suprathermal(double vperp, double vpar);
-    double crres_psd(double vperp, double vpar);
+    double crres_psd(double vperp, double vpar, double n, double An);
+    double hybrid_psd(double vperp, double vpar, double n_fit, double An_fit, double L, double L_pp);
+
 
 private:
     void replace_NaNs(mxArray* arr);
