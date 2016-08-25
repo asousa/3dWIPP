@@ -128,17 +128,15 @@ void damping_foust(rayF &ray) {
 
     cout << L_pp << "\n";
 
-
-
-    char input_dir[100] = "damping_standalone/crres_data";
+    char crres_data_file[100] = "damping_standalone/crres_data_clean/crres_clean.mat";
     psd_model crres_hybrid_psd;
 
-    crres_hybrid_psd.initialize(input_dir);
+    crres_hybrid_psd.initialize(crres_data_file);
 
-    crres_hybrid_psd.CRRES_fit_params(0.0, 0.0, 0.0);
+    crres_hybrid_psd.CRRES_fit_params(2.2, 1, 3);
 
-    double f = crres_hybrid_psd.suprathermal(3,4);
-    cout << f << "\n";
+    // double f = crres_hybrid_psd.suprathermal(3,4);
+    // cout << f << "\n";
 
     // suprathermal_fit_params(L_pp, 0, 3);
 
