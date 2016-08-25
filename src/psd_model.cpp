@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 #include <math.h>
-#include "time.h"
+// #include "time.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <iostream>
@@ -13,14 +13,14 @@
 #include <wipp.h>
 #include <psd_model.h>
 
-#include <complex>
-#include <cmath>
+// #include <complex>
+// #include <cmath>
 
 #include <sys/types.h>
 #include <dirent.h>
-#include <regex.h>
+// #include <regex.h>
 
-#include "mat.h"
+#include "mat.h"    // Matlab file-access libraries
 
 
 using namespace std;
@@ -343,23 +343,26 @@ double psd_model::hybrid_psd(double vperp, double vpar, double n_fit, double An_
     double w_polar, w_crres;
 
     if (L_pp - L > 1) {
+        // cout << "inside:\n";
         // Way inside plasmasphere:
         f = this->suprathermal(vperp, vpar);
     } else if (L - L_pp > 1) {
+        // cout << "outside:\n";
         // Way outside plasmasphere:
         f = this->crres_psd(vperp, vpar, n_fit, An_fit);
     } else {
+        // cout << "hybrid:\n";
         // Blend between the two:
         f_polar = this->suprathermal(vperp, vpar);
-        f_crres = this->crres_psd(vperp, vpar, n, An);
+        f_crres = this->crres_psd(vperp, vpar, n_fit, An_fit);
 
+        cout << "f_polar: " << f_polar << " f_crres: " << f_crres << "\n";
         w_polar = exp(5*(L_pp - L))/(1 + exp(5*(L_pp - L))); // higher weight inside plasmasphere
         w_crres = exp(5*(L - L_pp))/(1 + exp(5*(L - L_pp))); // higher weight outside plasmasphere
 
         // Find centroid in log space
-        f = exp((log(f_polar)*log(w_polar) + log(f_crres)*log(w_crres))
-                         /(log(w_polar) + log(w_crres)) );
-
+        f = exp( (log(f_polar)*w_polar + log(f_crres)*w_crres)
+                         /(w_polar + w_crres) );
     }
 
     return f;

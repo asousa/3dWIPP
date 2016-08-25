@@ -128,17 +128,24 @@ void damping_foust(rayF &ray) {
 
     cout << L_pp << "\n";
 
-    char crres_data_file[100] = "damping_standalone/crres_data_clean/crres_clean.mat";
-    psd_model crres_hybrid_psd;
 
-    crres_hybrid_psd.initialize(crres_data_file);
+    // ----------- Here's how we get the phase-space density model: ----------
+    //  (equivalent to:   [n_fit, An_fit] = get_fit_params(L, MLT, AE_level, false);
+    //                     fe = @(vperp, vpar) crres_polar_hybrid_psd(vperp, vpar, n_fit, An_fit, L, L_pp);    char crres_data_file[100] = "damping_standalone/crres_data_clean/crres_clean.mat";
+    
+    psd_model psd;
+    psd.initialize(crres_data_file);
+    //               [n,  An]                        L,  MLT, AE
+    vector<double> fit_params = psd.CRRES_fit_params(2.2, 1, 3);
+    // Inputs are: 
+    //                     vperp, vpar, n,             An,            L, L_pp
+    double f = psd.hybrid_psd(1,  2,    fit_params[0], fit_params[1], 3, 2);
+    cout << "f: " << f << "\n";
+    // -----------------------------------------------------------------------
 
-    crres_hybrid_psd.CRRES_fit_params(2.2, 1, 3);
 
-    // double f = crres_hybrid_psd.suprathermal(3,4);
-    // cout << f << "\n";
-
-    // suprathermal_fit_params(L_pp, 0, 3);
+    // Here's where you left off!
+    //  --- damp_single, line 136:  wce_h and onward.
 
 
 } // damping_ngo
