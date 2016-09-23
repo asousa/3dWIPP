@@ -30,6 +30,7 @@ void psd_model::initialize(char* inp_filename) {
     MATFile *pmat;
     DIR* dp;
     
+    this->filename = inp_filename;
     const mwSize *dims;
     
     // mxArray *MLT;
@@ -113,7 +114,18 @@ void psd_model::initialize(char* inp_filename) {
         // }
 }
 
+void psd_model::set_params(double L_sh_in, double L_pp_in, double MLT_in, double AE_level_in) {
 
+    L_sh = L_sh_in;
+    L_pp = L_pp_in;
+    MLT  = MLT_in;
+    AE_level = AE_level_in;
+
+    vector<double> fit_params = CRRES_fit_params(L_sh, MLT, AE_level);
+    n_fit = fit_params[0];
+    An_fit= fit_params[1];
+    
+}
 void psd_model::replace_NaNs(mxArray* arr) {
     // Allegedly the CRRES data uses 1e12 to denote a NaN.
     /* Declare variables */ 
@@ -207,7 +219,7 @@ vector<double> psd_model::CRRES_fit_params(double L, double MLT, double AE_level
     double m;
 
     double AE_target = round(AE_level);
-    cout << "AE_target: " << AE_target << "\n";
+    // cout << "AE_target: " << AE_target << "\n";
 
     // AE is either 1, 2, or 3 (after rounding)
     if ( (AE_target < 1) || (AE_target > 3) ) {
@@ -259,22 +271,22 @@ vector<double> psd_model::CRRES_fit_params(double L, double MLT, double AE_level
         }   // AE level
     }   // Loop over each entry in crres_data
     
-    cout << "Log_E: \n";
-    print_vector(log_E);
-    cout << "Log_Jperp: \n";
-    print_vector(log_Jp);
+    // cout << "Log_E: \n";
+    // print_vector(log_E);
+    // cout << "Log_Jperp: \n";
+    // print_vector(log_Jp);
 
 
     // Linear fit:
     polyfit(log_E, log_Jp, p, 1);
     
-    cout << "Polyfit coeffs: \n";
-    print_vector(p);
+    // cout << "Polyfit coeffs: \n";
+    // print_vector(p);
 
     J0 = exp(p[0]);
     m  = -1.0*p[1];
 
-    cout << "J0: " << J0 << " m: " << m << "\n";
+    // cout << "J0: " << J0 << " m: " << m << "\n";
     n = 2*m + 2;
     // Watch out here! M_EL is our electron mass in consts.h,
     // but there's an "M_E" defined somewhere too.
@@ -283,8 +295,8 @@ vector<double> psd_model::CRRES_fit_params(double L, double MLT, double AE_level
     fit_params.push_back(n);
     fit_params.push_back(An);
 
-    cout << "Fit Params: \n";
-    print_vector(fit_params);
+    // cout << "Fit Params: \n";
+    // print_vector(fit_params);
 
     return fit_params;
 }
@@ -337,16 +349,17 @@ double psd_model::crres_psd(double vperp, double vpar, double n, double An) {
     return f;
 }
 
-double psd_model::hybrid_psd(double vperp, double vpar, double n_fit, double An_fit, double L, double L_pp) {
+// double psd_model::hybrid_psd(double vperp, double vpar, double n_fit, double An_fit, double L, double L_pp) {
+double psd_model::hybrid_psd(double vperp, double vpar) {
     double f;
     double f_polar, f_crres;
     double w_polar, w_crres;
 
-    if (L_pp - L > 1) {
+    if (L_pp - L_sh > 1) {
         // cout << "inside:\n";
         // Way inside plasmasphere:
         f = this->suprathermal(vperp, vpar);
-    } else if (L - L_pp > 1) {
+    } else if (L_sh - L_pp > 1) {
         // cout << "outside:\n";
         // Way outside plasmasphere:
         f = this->crres_psd(vperp, vpar, n_fit, An_fit);
@@ -356,9 +369,9 @@ double psd_model::hybrid_psd(double vperp, double vpar, double n_fit, double An_
         f_polar = this->suprathermal(vperp, vpar);
         f_crres = this->crres_psd(vperp, vpar, n_fit, An_fit);
 
-        cout << "f_polar: " << f_polar << " f_crres: " << f_crres << "\n";
-        w_polar = exp(5*(L_pp - L))/(1 + exp(5*(L_pp - L))); // higher weight inside plasmasphere
-        w_crres = exp(5*(L - L_pp))/(1 + exp(5*(L - L_pp))); // higher weight outside plasmasphere
+        // cout << "f_polar: " << f_polar << " f_crres: " << f_crres << "\n";
+        w_polar = exp(5*(L_pp - L_sh))/(1 + exp(5*(L_pp - L_sh))); // higher weight inside plasmasphere
+        w_crres = exp(5*(L_sh - L_pp))/(1 + exp(5*(L_sh - L_pp))); // higher weight outside plasmasphere
 
         // Find centroid in log space
         f = exp( (log(f_polar)*w_polar + log(f_crres)*w_crres)

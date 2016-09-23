@@ -25,7 +25,7 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 # Objects to build
 _OBJ = wipp_main.o wipp_fileutils.o damping_ngo.o damping_foust.o math_utils.o \
-	   kp_to_pp.o polyfit.o psd_model.o
+	   kp_to_pp.o polyfit.o psd_model.o integrand.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
@@ -36,9 +36,13 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS) -I$(EIGEN_DIR) -L$(LDIR) 
 
 # Rule to link everything together + generate executable
-wipp: $(OBJ) libxformd.a
+wipp: $(OBJ) libxformd.a $(ODIR)/gauss_legendre.o
 	# $(MAKE) -C $(XFORM)
-	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) -lxformd -lgfortran $(MATLAB_FLAGS) -o $(BDIR)/$@
+	$(CC) $(CFLAGS) $(OBJ) $(ODIR)/gauss_legendre.o -L $(LDIR) -lxformd -lgfortran $(MATLAB_FLAGS) -o $(BDIR)/$@
+
+$(ODIR)/gauss_legendre.o: $(SRC_DIR)/gauss_legendre.c $(IDIR)/gauss_legendre.h
+
+	gcc -c -o $@ $< $(CFLAGS)
 
 libxformd.a:
 	$(MAKE) -C lib/xform_double

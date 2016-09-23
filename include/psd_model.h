@@ -15,8 +15,14 @@ class psd_model {
 
     double An, n;
 
+    double L_sh, L_pp;  // L-shell and L-plasmapause
+    double MLT, AE_level;
+    
     mxArray* crres_data;
     int num_entries;
+
+    // vector<double> fit_params;
+    double n_fit, An_fit;   // Fit params
 
     // Vectors of pointers to 2d matrices for MLT, Jperp, L, and t_b
     // (from the CRRES data files)
@@ -32,7 +38,10 @@ public:
     void initialize(char* inp_filename);
     double suprathermal(double vperp, double vpar);
     double crres_psd(double vperp, double vpar, double n, double An);
-    double hybrid_psd(double vperp, double vpar, double n_fit, double An_fit, double L, double L_pp);
+    // double hybrid_psd(double vperp, double vpar, double n_fit, double An_fit, double L, double L_pp);
+    double hybrid_psd(double vperp, double vpar);
+
+    void set_params(double L_sh_in, double L_pp_in, double MLT_in, double AE_level_in);
 
 
 private:
