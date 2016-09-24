@@ -20,9 +20,10 @@ using namespace std;
 using namespace Eigen;
 
 void integrand::initialize(psd_model& f_in, double kperp_in, double kpar_in, 
-                           double w_in, int m_low_in, int m_hi_in, double wch_in,
+                           double w_in, double n_in, int m_low_in, int m_hi_in, double wch_in,
                            double R_in, double L_in, double P_in, double S_in) {
 
+    // Current parameters:
     kperp = kperp_in;
     kpar = kpar_in;
     w = w_in;
@@ -30,7 +31,7 @@ void integrand::initialize(psd_model& f_in, double kperp_in, double kpar_in,
     m_hi  = m_hi_in;    // Highest resonance mode
     wch = wch_in;   
 
-
+    // Pointer to psd model:
     f = f_in;
 
     // Stix params:
@@ -41,9 +42,13 @@ void integrand::initialize(psd_model& f_in, double kperp_in, double kpar_in,
 
 // % angle of wavenormal with respect to B0
     theta = atan2(kperp,kpar);
+
     // % Refractive index
-    n_sq = ( C*C/(w*w) ) * (kperp*kperp + kpar*kpar);
-    n = sqrt(n_sq);
+    // n_sq = ( C*C/(w*w) ) * (kperp*kperp + kpar*kpar);
+    // n = sqrt(n_sq);
+    n = n_in;
+    n_sq = n*n;
+    // cout << "n (in): " << n << "\n";
 
     // % cos(theta)
     ct = cos(theta);
@@ -98,8 +103,9 @@ double integrand::evaluate_vperpnorm(double vperp) {
     return C*evaluate(vperp*C);
 }
 
-double integrand::evaluate_t(double t, void* data) {
+double integrand::evaluate_t(double t) {
     double eps = DBL_EPSILON; // double-precision epsilon, from limits.h
+    // cout << "evaluate_t: " << t << "\n";
     return ((1+eps)/(t*t + eps))*evaluate_vperpnorm((1-t+eps)/(t+eps));
 }
 

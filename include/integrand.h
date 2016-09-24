@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <map>
-
+#include <psd_model.h>
 #include <mat.h>
 
 
@@ -21,8 +21,8 @@ double R, L, P, S;
 psd_model f;
 
 public: 
-    void initialize(psd_model& f_in, double kperp_in, double kpar_in, double w_in, 
-                   int m_low_in, int m_hi_in, double wch_in,
+    void initialize(psd_model& f_in, double kperp_in, double kpar_in, 
+                   double w_in, double n_in, int m_low_in, int m_hi_in, double wch_in,
                    double R_in, double L_in, double P_in, double S_in);
 
     // simple evaluation
@@ -30,7 +30,7 @@ public:
     // normalized by speed of light
     double evaluate_vperpnorm(double vperp);
     // remapped onto finite range [0, 1]
-    double evaluate_t(double vperp, void* data);
+    double evaluate_t(double vperp);
 
 private:
     double fG1(double vperp, double vpar);

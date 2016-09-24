@@ -55,8 +55,10 @@ void damping_foust(rayF &ray) {
     Vector3d n_vec;
     Vector3d k;
     Vector3d Ns;
-
+    Vector3d vgrel;
     Vector3d Bhat;
+    Vector3d pos_prev;
+
 
     double kpar, kperp;
     double theta;
@@ -75,6 +77,13 @@ void damping_foust(rayF &ray) {
     double a, b;
     double B0mag;
     double wps2, whs;
+
+    // results of integration
+    double Di, ki;
+    double ki_along_vg;
+    // Integrand object
+    integrand integ;
+
     // Change this to an input, you doof
     double AE_level = 3;
 
@@ -101,9 +110,8 @@ void damping_foust(rayF &ray) {
     // I don't understand what this is yet.
     AN = AN_CM_DIST * pow( 10.0 , (12.0-(4.0*Q_DIST)) );
 
-
     // Initialize ray power with zeros
-    VectorXd ray_pwr = VectorXd::Zero(ray.time.size());
+    // VectorXd ray_pwr = VectorXd::Zero(ray.time.size());
 
     // Initial power
     ray.damping = vector<double> (ray.time.size(), 0.0);
@@ -124,13 +132,14 @@ void damping_foust(rayF &ray) {
     psd.initialize(crres_data_file);
 
     // Step through the ray:
-    for (int ii=0; ii < ray.time.size(); ii++) {
+    for (int ii=1; ii < ray.time.size(); ii++) {
 
         B0    = Map<VectorXd>(ray.B0[ii].data(), 3,1);
         pos   = Map<VectorXd>(ray.pos[ii].data(),3,1);
+        pos_prev = Map<VectorXd>(ray.pos[ii-1].data(),3,1);
         n_vec = Map<VectorXd>(ray.n[ii].data(),3,1);
         Ns    = Map<VectorXd>(ray.Ns[ii].data(),3,1);
-
+        vgrel = Map<VectorXd>(ray.vgrel[ii].data(),3,1);
         // Get local L-shell:
         lat = atan(pos[2]/sqrt(pow(pos[0],2) + pow(pos[1],2)));
         r = pos.norm();
@@ -167,6 +176,7 @@ void damping_foust(rayF &ray) {
 
 
         n = n_vec.norm();
+        // cout << "n (out): " << n << "\n";
 
         // ---------- Evaluate Stix parameters: ------
         wps2 = 0;
@@ -198,35 +208,54 @@ void damping_foust(rayF &ray) {
 
         // ---------- hot_dispersion_imag.m ------
 
-        integrand integ;
         int m_low = -1;
         int m_hi  = 1;
 
         integ.initialize(psd, kperp, kpar, 
-                        ray.w, m_low, m_hi, wce_h, 
+                        ray.w, n, m_low, m_hi, wce_h, 
                         R, L, P, S);
 
         // cout << integ.evaluate_t(0.5) << "\n";
 
+
         // // Integrate it!
-        // double tmp_integ = gauss_legendre(2, eff, NULL, 0, 2*PI);
-        // cout << "tmp integ: " << tmp_integ << "\n";
+        Di = gauss_legendre(40, integrand_wrapper, (void*) &integ, 0., 1.);
+        ki = -(ray.w/C)*(0.5)*(1./(4.*n*(2.*a*n*n-b))) * Di;
+        // (ki is the output of spatialdamping.m)
+
+        // ki_along_vg = ki*(k*vgrel(ii,:)')/(norm(k)*norm(vgrel(ii,:)));
+        ki_along_vg = ki*(k.dot(vgrel)/(k.norm()*vgrel.norm()));
+
+        double dist = (pos - pos_prev).norm();
+
+        // cout << "dist: " << dist << "\n";
+        ray.damping[ii] = ray.damping[ii-1]*exp(-dist*ki_along_vg);        
+
+        cout << "damping: " << ray.damping[ii] << "\n";
+
+        // cout << "Di: " << Di << " ki: " << ki << "\n";
+
+
+
 
 
     } // Step through ray
 
 
-for (double t=0; t < 2*PI; t+=0.01) {
-    double tmp_integ = gauss_legendre(20, eff, NULL, 0, t);
-    cout << "t: " << t << " integ: " << tmp_integ << "\n";
+// for (double t=0; t < 2*PI; t+=0.01) {
+//     double tmp_integ = gauss_legendre(20, eff, NULL, 0, t);
+//     cout << "t: " << t << " integ: " << tmp_integ << "\n";
 
-}
+// }
 
 } // damping_ngo
 
 
 // Here's a working place to write an integrand. But how do we point it to
 // a method of an object? Hmm.
-double eff(double x, void* data) {
-    return x;
+double integrand_wrapper(double x, void* data) {
+
+    integrand* integ = (integrand*)data;
+    return integ->evaluate_t(x);
+
 }

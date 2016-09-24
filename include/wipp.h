@@ -4,7 +4,8 @@
 
 #include <vector>
 #include <map>
-
+#include <integrand.h>
+#include <psd_model.h>
 #include <mat.h>
 
 using namespace std;
@@ -50,7 +51,7 @@ void print_vector(vector<double> u);
 
 // Porting the Damping Code:
 void damping_foust(rayF &rayfile);
-double eff(double x, void* data);
+double integrand_wrapper(double x, void* data);
 
 double kp_to_pp(double kp);
 void polyfit(const vector<double> &xv, const vector<double> &yv, vector<double> &coeff, int order);
