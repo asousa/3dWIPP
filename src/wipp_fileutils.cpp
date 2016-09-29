@@ -1,51 +1,32 @@
-#include <Eigen/Core>
-
-
-#include <stdio.h>
-#include <math.h>
-#include "time.h"
-#include <unistd.h>
-#include <stdlib.h>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <iterator>
-#include <string>
-#include <vector>
-#include <map>
-#include <consts.h>
-#include <wipp.h>
-
-
+#include <damping.h>
 
 using namespace std;
+using namespace Eigen;
 
-map <int, rayF> read_rayfile(string fileName)
-/* Read data from a ray file. Returns a map of structs;
-   1 key per individual ray in the file.
-    Each structure contains:
 
-    Coordinates:
-    ray.pos   (n x 3 double)   Position in SM cartesian coordinates
-    ray.vprel (n x 3 double)   Phase velocity (relative to c)
-    ray.vgrel (n x 3 double)   Group velocity (relative to c)
-    ray.n     (n x 3 double)   Index of refraction along each axis
-    ray.B0    (n x 3 double)   Background magnetic field vector
+map<int, rayF> read_rayfile(string fileName) {
+   // Read data from a ray file. Returns a map of structs;
+   // 1 key per individual ray in the file.
+   //  Each structure contains:
 
-    Constants:
-    ray.w         double                    Wave angular frequency (radians)
-    ray.stopcond  double                    Reason for raytracing termination (see docs)
-    ray.nspec     double                    number of species used in plasmasphere model
+   //  Coordinates:
+   //  ray.pos   (n x 3 double)   Position in SM cartesian coordinates
+   //  ray.vprel (n x 3 double)   Phase velocity (relative to c)
+   //  ray.vgrel (n x 3 double)   Group velocity (relative to c)
+   //  ray.n     (n x 3 double)   Index of refraction along each axis
+   //  ray.B0    (n x 3 double)   Background magnetic field vector
+
+   //  Constants:
+   //  ray.w         double                    Wave angular frequency (radians)
+   //  ray.stopcond  double                    Reason for raytracing termination (see docs)
+   //  ray.nspec     double                    number of species used in plasmasphere model
     
-    Plasma parameters:
-    ray.qs    (nspec x 1 double)            Species charge in coulombs
-    ray.ms    (nspec x 1 double)            Species mass in kg
-    ray.Ns    (n x nspec double)            Species number density in m^-3
-    ray.nus   (n x nspec double)            Species collision frequencies in s^-1
+   //  Plasma parameters:
+   //  ray.qs    (nspec x 1 double)            Species charge in coulombs
+   //  ray.ms    (nspec x 1 double)            Species mass in kg
+   //  ray.Ns    (n x nspec double)            Species number density in m^-3
+   //  ray.nus   (n x nspec double)            Species collision frequencies in s^-1
 
-*/
-
-{ 
     FILE * filePtr;
     ifstream file;
     string token;
@@ -92,42 +73,6 @@ map <int, rayF> read_rayfile(string fileName)
             vector <double> nuv;
             vector <double> B0, n, pos, vprel, vgrel;
 
-
-            // --------------- SCANF way -----------------
-            // sscanf(line.c_str(), "%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e%e",
-            //     &ray_num, &stopcond, &time, 
-            //     &pos_x,   &pos_y,    &pos_z,
-            //     &vprel_x, &vprel_y,  &vprel_z,
-            //     &vgrel_x, &vgrel_y,  &vgrel_z,
-            //     &n_x,     &n_y,      &n_z,
-            //     &B0_x,    &B0_y,     &B0_z,
-            // //     &w,       &nspec);
-
-            // raylist[ray_num].time.push_back(time);
-
-            // raylist[ray_num].pos_x.push_back(pos_x);
-            // raylist[ray_num].pos_y.push_back(pos_y);
-            // raylist[ray_num].pos_z.push_back(pos_z);
-
-            // raylist[ray_num].vprel_x.push_back(vprel_x);
-            // raylist[ray_num].vprel_y.push_back(vprel_y);
-            // raylist[ray_num].vprel_z.push_back(vprel_z);
-            
-            // raylist[ray_num].vgrel_x.push_back(vgrel_x);
-            // raylist[ray_num].vgrel_y.push_back(vgrel_y);
-            // raylist[ray_num].vgrel_z.push_back(vgrel_z);
-
-            // raylist[ray_num].n_x.push_back(n_x);
-            // raylist[ray_num].n_y.push_back(n_y);
-            // raylist[ray_num].n_z.push_back(n_z);
-            
-            // raylist[ray_num].B0_x.push_back(B0_x);
-            // raylist[ray_num].B0_y.push_back(B0_y);
-            // raylist[ray_num].B0_z.push_back(B0_z);
-            // ------------------------------------------
-
-
-            // // Try it with stringstream too
             // // Build an istream that holds the input string
             iss.str(line);
 
@@ -135,16 +80,11 @@ map <int, rayF> read_rayfile(string fileName)
             // // and push_back to store them in the vector
             copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
 
-            // for (vector<double>::iterator it = v.begin(); it != v.end(); ++it)
-            //     printf("%g ",*it);
-            // cout << "\n";
-
             // single-valued parameters
             ray_num = v[0];
             stopcond = v[1];
             w = v[18];
             nspec = v[19];
-
 
             // Start a new entry if not in the dictionary already:
             if (raylist.count(ray_num) == 0) {
@@ -186,13 +126,8 @@ map <int, rayF> read_rayfile(string fileName)
             raylist[ray_num].B0.push_back(B0);
 
             for (int i = 0; i < nspec; i++) {
-                // cout << i << ' ';
-                // qsv.push_back(v[20 + 0*nspec + i]);
-                // msv.push_back(v[20 + 1*nspec + i]);
                 Nsv.push_back(v[20 + 2*nspec + i]);
                 nuv.push_back(v[20 + 3*nspec + i]);
-
-                // cout << Nsv[i] << ' ';
             }
             raylist[ray_num].Ns.push_back(Nsv);
             raylist[ray_num].nus.push_back(nuv);
@@ -206,51 +141,16 @@ map <int, rayF> read_rayfile(string fileName)
                 }
             }
             
-            
             linecounter++;
 
         }  // Parse loop
-    
         cout << "Total lines: " << linecounter << "\n";
 
-        // // Confirm we loaded everything
-        // for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter)
-        //     {
-        //         double key = iter->first;
-        //         rayF val = iter->second;
-        //         printf("Ray number %g: freq: %g nspec: %g\n",key, val.w, val.nspec);
-
-        //         // // Print out all elements in a vector
-        //         // vector<vector <double> > vec = val.nus;
-        //         // cout << vec.size() << "\n";
-        //         // cout << vec[0].size();
-        //         for (int i=0; i < val.B0.size(); i++) {
-        //             for (int j=0; j < val.B0[0].size(); j++) {
-        //                 cout << val.B0[i][j] << " ";
-        //             }
-        //             cout << "\n";
-        //         }
-        //         // for (vector<double>::iterator it = vec.begin(); it != vec.end(); ++it)                
-        //         //     cout << it->first;
-
-        //         // // for (vector<double>::iterator it = vec.begin(); it != vec.end(); ++it)
-        //         // //     printf("%g ",*it);
-        //         cout << "\n";
-
-        //     }
-
     } else {   // Couldn't open the file
-
-        cout << "Something's Fucky\n";
+        cout << "Couldn't open file\n";
     }
 
-    // return 0; // Return statement.
     return raylist;
 } // Closing Main.
-
-
-
-
-
 
 
