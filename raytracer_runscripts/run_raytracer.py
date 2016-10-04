@@ -1,7 +1,7 @@
 import numpy as np
 # import pandas as pd
 # import pickle
-# from scipy import interpolate
+from scipy import interpolate
 # import matplotlib.pyplot as plt
 import os
 # import itertools
@@ -10,11 +10,17 @@ import time
 import datetime as dt
 from index_helpers import load_TS_params
 from index_helpers import load_Dst
+from index_helpers import load_Kp
+from index_helpers import load_ae
 from spacepy import coordinates as coord
 from spacepy.time import Ticktock
 
+import bisect   # fast searching of sorted lists
+
+
 project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 raytracer_root = '/shared/users/asousa/software/foust_raytracer/'
+damping_root = '/shared/users/asousa/WIPP/3dWIPP/damping/'
 ray_bin_dir    = os.path.join(raytracer_root, 'bin')
 
 R_E = 6371.0    # km
@@ -29,12 +35,11 @@ root = 2        # Which root of the Appleton-Hartree equation
 fixedstep = 0   # Don't use fixed step sizes, that's a bad idea.
 maxerr = 1e-4   # Error bound for adaptive timestepping
 maxsteps = 1e5  # Max number of timesteps (abort if reached)
-modelnum = 1    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
-use_IGRF = 0    # Magnetic field model (1 for IGRF, 0 for dipole)
-use_tsyg = 0    # Use the Tsyganenko magnetic field model corrections
+modelnum = 3    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
+use_IGRF = 1    # Magnetic field model (1 for IGRF, 0 for dipole)
+use_tsyg = 1    # Use the Tsyganenko magnetic field model corrections
 
 minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
-
 
 # GCPM grid to use (plasmasphere model)
 if modelnum==1:
@@ -51,11 +56,15 @@ if modelnum==4:
 
 
 # Simulation time
-ray_datenum = dt.datetime(2001, 01, 04, 03, 00, 00);
+ray_datenum = dt.datetime(2010, 06, 04, 03, 17, 00);
+
+# Damping parameters:
+damp_mode = 1  # 0 for old 2d damping code, 1 for modern code
 
 # Change this once you set up parallel stuff!
 ray_inpfile = os.path.join(ray_bin_dir,'ray_inputs.txt')
 ray_outfile = os.path.join(project_root,'outputs','rayout.ray')
+damp_outfile = os.path.join(project_root,'outputs','rayout_damped.ray')
 dumpfile    = os.path.join(project_root,'output','dumpout.txt')
 
 # Clean up previous files:
@@ -72,18 +81,18 @@ Pdyn, ByIMF, BzIMF, W = load_TS_params(ray_datenum)
 
 # Load Dst
 Dst = load_Dst(ray_datenum)
-print Dst
+# print Dst
 
 # ---------- Ray inputs -----------------
 
 # inp_lats = [45, 46]
 # inp_lons = [180, 181] #np.arange(0,360, step=45)
 # launch_alt = (R_E + 2000.)*1e3 # meters
-inp_lats = [45]
-inp_lons = [180]
-launch_alt = (R_E + 1000.)*1e3
+inp_lats = [45, 46]
+inp_lons = [179, 180]
+launch_alt = (R_E + 2000.)*1e3
 
-freqs    = np.array([1000]) 
+freqs    = np.array([1000, 1100]) 
 
 inp_w = 2.0*np.pi*freqs
 
@@ -139,6 +148,30 @@ elif modelnum == 4:
     cmd += ' --scattered_interp_local_window_scale=%g'%scattered_interp_local_window_scale
 
 print cmd
+# Start the raytracer
 os.system(cmd)
 
+
+# ------- Run Damping Code ------------
+
+# Get closest Kp value (Or should we interpolate?)
+tvec, kvec = load_Kp()
+
+tt = bisect.bisect_left(tvec, ray_datenum)
+Kp = kvec[tt]
+# ii = interpolate.interp1d(tvec, kvec)
+# Kp = ii(ray_datenum)
+
+# Get closest AE value
+tvec, avec = load_ae()
+tt = bisect.bisect_left(tvec, ray_datenum)
+AE = np.log10(avec[tt])
+
+# print Kp, AE
+
+damp_cmd = '%sbin/damping -i %s -o %s -k %g -a %g -m %d'%(damping_root, ray_outfile, damp_outfile, Kp, AE, damp_mode)
+print damp_cmd
+
+# Start the damping code
+os.system(damp_cmd)
 

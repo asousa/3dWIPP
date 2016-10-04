@@ -63,6 +63,11 @@ def read_rayfile(rayfile):
         data['Ns'] =  tmp.loc[:,20 + 2*data['Nspec']:20 + 3*data['Nspec'] - 1]
         data['nus']=  tmp.loc[:,20 + 3*data['Nspec']:20 + 4*data['Nspec'] - 1]
 
+        # read damping data too, if we have it:
+        if (tmp.shape[1] > 20+4*data['Nspec']):
+            data['damping'] = tmp.loc[:,20+4*data['Nspec']]
+
+            
         out.append(data)
     return out
 

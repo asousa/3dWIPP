@@ -1,12 +1,24 @@
 // wipp.h
 #ifndef wipp_H
 #define wipp_H
-
+#include <Eigen/Core>
+#include <stdio.h>
+#include <math.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <iterator>
+#include <string>
 #include <vector>
 #include <map>
-#include <integrand.h>
-#include <psd_model.h>
-#include <mat.h>
+
+#include <consts.h>
+
+// #include <integrand.h>
+// #include <psd_model.h>
+// #include <mat.h>
 
 using namespace std;
 
@@ -34,10 +46,10 @@ typedef struct rayfile_struct {
 } rayF;
 
 // rayfile loader
-map<int, rayF> read_rayfile(string fileName);
+// map<int, rayF> read_rayfile(string fileName);
 
 // Landau damping
-void damping_ngo(rayF &rayfile);
+// void damping_ngo(rayF &rayfile);
 
 // Math functions
 double l2_norm(vector<double> u);
@@ -47,14 +59,21 @@ vector<double> add(vector<double>u, vector<double> v);
 
 // Helpers
 void print_vector(vector<double> u);
+map<int, rayF> read_rayfile(string fileName);
 
 
+ // Coordinate transforms:
+int sm2geo_init(char fname[],int *deg_ext,int *deg_day,int maxcoeff,double coeff[]);
+
+void sm2geo(double fday,int deg_want,                        
+             int deg_ext,int deg_day,double coeff[], 
+             double smcoeff[],double geocoeff[]);
 // Porting the Damping Code:
-void damping_foust(rayF &rayfile);
-double integrand_wrapper(double x, void* data);
+// void damping_foust(rayF &rayfile);
+// double integrand_wrapper(double x, void* data);
 
-double kp_to_pp(double kp);
-void polyfit(const vector<double> &xv, const vector<double> &yv, vector<double> &coeff, int order);
+// double kp_to_pp(double kp);
+// void polyfit(const vector<double> &xv, const vector<double> &yv, vector<double> &coeff, int order);
 
 // // Plasmasphere phase-space density model (for damping)
 // class psd_model {

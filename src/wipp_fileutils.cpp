@@ -1,4 +1,4 @@
-#include <damping.h>
+#include <wipp.h>
 
 using namespace std;
 using namespace Eigen;
