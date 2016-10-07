@@ -24,11 +24,11 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 
 # Objects to build
-_OBJ = wipp_main.o wipp_fileutils.o math_utils.o
+_OBJ = wipp_main.o wipp_fileutils.o math_utils.o wipp_methods.o wipp_legacy_methods.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
-# XFORM = lib/xform_double
+XFORM = lib/xform_double
 IRBEM = lib/irbem-code
 # GEOPACK = lib/geopack
 # Rules for making individual objects
@@ -37,10 +37,10 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS) -L$(LDIR) 
 
 # Rule to link everything together + generate executable
-wipp: $(OBJ) $(LDIR)/liboneradesp.a
+wipp: $(OBJ) $(LDIR)/liboneradesp.a $(LDIR)/libxformd.a
 # wipp: $(OBJ) $(LDIR)/libxformd.a $(LDIR)/liboneradesp.a
 	# $(MAKE) -C $(XFORM)
-	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) -loneradesp -lgfortran  -o $(BDIR)/$@
+	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) -loneradesp -lgfortran -lxformd -o $(BDIR)/$@
 
 # $(ODIR)/sm2geo.o: $(SRC_DIR)/sm2geo.c
 
@@ -50,7 +50,7 @@ $(LDIR)/libxformd.a:
 	$(MAKE) -C $(XFORM)
 
 $(LDIR)/liboneradesp.a:
-	$(MAKE) -C $(IRBEM) OS=linux64 ENV=gfortran64 all
+	$(MAKE) -C $(IRBEM) OS=linux64 ENV=gnu64 all
 	mv $(IRBEM)/source/liboneradesp_linux_x86_64.a $(LDIR)/liboneradesp.a
 
 # Safety rule for any file named "clean"
@@ -61,6 +61,6 @@ clean:
 	rm -f $(ODIR)/*
 	rm -f $(BDIR)/*
 	rm -f $(LDIR)/libxformd.a
-	rm -f $(LDIR)/libirbem.so
+	rm -f $(LDIR)/liboneradesp.a
 	$(MAKE) -C $(XFORM) clean
 	$(MAKE) -C $(IRBEM) clean

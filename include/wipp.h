@@ -37,6 +37,14 @@ typedef struct rayfile_struct {
     vector <vector <double> > n;
     vector <vector <double> > B0;
 
+    // Simulation time
+    int iyr;
+    int idoy;
+    int isec;
+
+    // Origin coordinates
+    double in_radius, in_lat, in_lon, in_w;
+
     // Variable-length stuff (depending on number of constituents in model)
     vector <double> qs;    // species charge
     vector <double> ms;    // species mass
@@ -61,13 +69,44 @@ vector<double> add(vector<double>u, vector<double> v);
 void print_vector(vector<double> u);
 map<int, rayF> read_rayfile(string fileName);
 
+// Science!
+double input_power_scaling(vector <double> flash_loc, vector <double> ray_loc,  double mag_lat, double w, double i0);
+double ionoAbsorp(float lat, long f);
+float interpPt(float *xI, float *yI, int n, float xO);
 
- // Coordinate transforms:
-int sm2geo_init(char fname[],int *deg_ext,int *deg_day,int maxcoeff,double coeff[]);
+// ---- Coordinate transforms ----
+// lib_onera_desp (the Cospar IRBEM library, which is the internal support for SpacePy):
 
-void sm2geo(double fday,int deg_want,                        
-             int deg_ext,int deg_day,double coeff[], 
-             double smcoeff[],double geocoeff[]);
+extern "C" void coord_trans_vec1_(long* ntime, long* sysaxesIN, long* sysaxesOUT, long* iyr,long* idoy, double* secs, double* xIN, double* xOUT);
+// extern "C" void coord_trans1__(long* sysaxesIN, long* sysaxesOUT, long* iyr,long* idoy, long* secs, double* xIN, double* xOUT);
+
+extern "C" void sm2geo1_(long* iyr,long* idoy, double* secs, double* xSM, double* xGEO);
+extern "C" void geo2sm1_(long* iyr,long* idoy, double* secs, double* xGEO, double* xSM);
+
+extern "C" void geo2mag1_(long* iyr, double* xGEO, double* xMAG);
+// cartesian - spherical (trig terms in degrees!)
+extern "C" void car_sph_(double* xCAR, double* r, double* lat, double* loni);
+extern "C" void sph_car_(double* r, double* lat, double* loni, double* xCAR);
+
+
+
+// External functions we'll use (libxformd for coordinate transforms)
+extern "C" void sm_to_geo_d_(int* itime, double* x_in, double* x_out);
+extern "C" void sm_to_mag_d_(int* itime, double* x_in, double* x_out);
+extern "C" void geo_to_sm_d_(int* itime, double* x_in, double* x_out);
+extern "C" void cart_to_pol_d_(double* x_in, double* lat, double* lon, double* radius);
+extern "C" void pol_to_cart_d_(double* lat, double* lon, double* radius, double* x_out);
+
+
+
+
+
+//  // Coordinate transforms:
+// int sm2geo_init(char fname[],int *deg_ext,int *deg_day,int maxcoeff,double coeff[]);
+
+// void sm2geo(double fday,int deg_want,                        
+//              int deg_ext,int deg_day,double coeff[], 
+//              double smcoeff[],double geocoeff[]);
 // Porting the Damping Code:
 // void damping_foust(rayF &rayfile);
 // double integrand_wrapper(double x, void* data);

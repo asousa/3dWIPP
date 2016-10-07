@@ -26,7 +26,7 @@ ray_bin_dir    = os.path.join(raytracer_root, 'bin')
 R_E = 6371.0    # km
 
 # ----------- Simulation params ----------------
-t_max = 10.     # Maximum duration in seconds
+t_max = 5.     # Maximum duration in seconds
 
 dt0 = 0.01      # Initial timestep in seconds
 dtmax = 0.01     # Maximum allowable timestep in seconds
@@ -65,6 +65,7 @@ damp_mode = 1  # 0 for old 2d damping code, 1 for modern code
 ray_inpfile = os.path.join(ray_bin_dir,'ray_inputs.txt')
 ray_outfile = os.path.join(project_root,'outputs','rayout.ray')
 damp_outfile = os.path.join(project_root,'outputs','rayout_damped.ray')
+ray_header   = os.path.join(project_root,'outputs','rayout_header.txt')
 dumpfile    = os.path.join(project_root,'output','dumpout.txt')
 
 # Clean up previous files:
@@ -75,13 +76,18 @@ if os.path.exists(ray_outfile):
     os.remove(ray_outfile)
 if os.path.exists(dumpfile):
     os.remove(dumpfile)
+if os.path.exists(ray_header):
+    os.remove(ray_header)
 
 # Load solar wind parameters (for Tsykadenko corrections)
 Pdyn, ByIMF, BzIMF, W = load_TS_params(ray_datenum)
 
 # Load Dst
 Dst = load_Dst(ray_datenum)
-# print Dst
+
+yearday = '%d%03d'%(ray_datenum.year, ray_datenum.timetuple().tm_yday)
+milliseconds_day = (ray_datenum.second + ray_datenum.minute*60 + ray_datenum.hour*60*60)*1e3  \
+                +  ray_datenum.microsecond*1e-3
 
 # ---------- Ray inputs -----------------
 
@@ -103,24 +109,33 @@ lons = lons.flatten()
 ws   = ws.flatten()
 alts = launch_alt*np.ones_like(lats)
 
+
 # Create spacepy coordinate structures
 inp_coords = coord.Coords(zip(alts, lats, lons), 'GEO', 'sph', units=['m','deg','deg'])
 inp_coords.ticks = Ticktock(np.tile(ray_datenum, len(inp_coords))) # add ticks
+
+# Write ray header file (for WIPP code):
+# Should I really be doing this here? Feels a little sloppy but oh well
+# Format is:
+# H (index) (yr) (day of year) (sec in day) (radius) (lat) (lon) (ang. frequency)
+f = open(ray_header, 'w+')
+for ind, (pos0, w0) in enumerate(zip(inp_coords.data, ws)):
+    f.write('H %d %d %d %d %d %d %d %d\n'%(ind + 1, ray_datenum.year, ray_datenum.timetuple().tm_yday, milliseconds_day*1e-3,
+                                        pos0[0], pos0[1], pos0[2], w0))
+
+
 
 # Rotate to SM cartesian coordinates
 inp_coords = inp_coords.convert('SM','car')
 N = len(inp_coords)
 
-# Write rays to the input file
+# Write rays to the input file (used by the raytracer):
 f = open(ray_inpfile,'w+')
 for pos0, w0 in zip(inp_coords.data, ws):
     dir0 = pos0/np.linalg.norm(pos0)    # radial outward
-    f.write('%g %g %g %g %g %g %g\n'%(pos0[0],pos0[1],pos0[2],dir0[0], dir0[1],dir0[2], w0))
+    f.write('%1.15e %1.15e %1.15e %1.15e %1.15e %1.15e %1.15e\n'%(pos0[0],pos0[1],pos0[2],dir0[0], dir0[1],dir0[2], w0))
 f.close()
 
-yearday = '%d%03d'%(ray_datenum.year, ray_datenum.timetuple().tm_yday)
-milliseconds_day = (ray_datenum.second + ray_datenum.minute*60 + ray_datenum.hour*60*60)*1e3  \
-                +  ray_datenum.microsecond*1e-3
 
 # --------- Build the run command --------
 
@@ -175,3 +190,7 @@ print damp_cmd
 # Start the damping code
 os.system(damp_cmd)
 
+
+# Concatenate header and damping file
+# os.system('cat %s >> %s'%(damp_outfile, ray_header))
+# os.system('mv %s %s'%(ray_header, damp_outfile))
