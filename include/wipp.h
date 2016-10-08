@@ -23,7 +23,7 @@
 using namespace std;
 
 // Structure for holding an entire rayfile (yuge)
-typedef struct rayfile_struct {
+typedef struct rayF {
     int size;
     double w;                          // frequency (angular)
     double stopcond;                   // Stop condition
@@ -50,7 +50,10 @@ typedef struct rayfile_struct {
     vector <double> ms;    // species mass
     vector <vector <double> > Ns;    // number density of species (m^-3)
     vector <vector <double> > nus;   // collision frequencies
-    vector <double> damping;
+    vector <double> damping;         // Damping vector (normalized to 1)
+
+    double inp_pwr;                  // input power of ray
+
 } rayF;
 
 // rayfile loader
@@ -70,30 +73,41 @@ void print_vector(vector<double> u);
 map<int, rayF> read_rayfile(string fileName);
 
 // Science!
-double input_power_scaling(vector <double> flash_loc, vector <double> ray_loc,  double mag_lat, double w, double i0);
+double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, double w, double i0);
 double ionoAbsorp(float lat, long f);
 float interpPt(float *xI, float *yI, int n, float xO);
+
+
+
+void interp_vector(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, double* out);
+
+
 
 // ---- Coordinate transforms ----
 // lib_onera_desp (the Cospar IRBEM library, which is the internal support for SpacePy):
 
-extern "C" void coord_trans_vec1_(long* ntime, long* sysaxesIN, long* sysaxesOUT, long* iyr,long* idoy, double* secs, double* xIN, double* xOUT);
-// extern "C" void coord_trans1__(long* sysaxesIN, long* sysaxesOUT, long* iyr,long* idoy, long* secs, double* xIN, double* xOUT);
+// extern "C" void coord_trans_vec1_(long* ntime, long* sysaxesIN, long* sysaxesOUT, long* iyr,long* idoy, double* secs, double* xIN, double* xOUT);
+// // extern "C" void coord_trans1__(long* sysaxesIN, long* sysaxesOUT, long* iyr,long* idoy, long* secs, double* xIN, double* xOUT);
 
-extern "C" void sm2geo1_(long* iyr,long* idoy, double* secs, double* xSM, double* xGEO);
-extern "C" void geo2sm1_(long* iyr,long* idoy, double* secs, double* xGEO, double* xSM);
+// extern "C" void sm2geo1_(long* iyr,long* idoy, double* secs, double* xSM, double* xGEO);
+// extern "C" void geo2sm1_(long* iyr,long* idoy, double* secs, double* xGEO, double* xSM);
 
-extern "C" void geo2mag1_(long* iyr, double* xGEO, double* xMAG);
-// cartesian - spherical (trig terms in degrees!)
-extern "C" void car_sph_(double* xCAR, double* r, double* lat, double* loni);
-extern "C" void sph_car_(double* r, double* lat, double* loni, double* xCAR);
+// extern "C" void geo2mag1_(long* iyr, double* xGEO, double* xMAG);
+// // cartesian - spherical (trig terms in degrees!)
+// extern "C" void car_sph_(double* xCAR, double* r, double* lat, double* loni);
+// extern "C" void sph_car_(double* r, double* lat, double* loni, double* xCAR);
 
 
-
-// External functions we'll use (libxformd for coordinate transforms)
+// ----- libxformd (Coordinate transform library used in the raytracer) -----
 extern "C" void sm_to_geo_d_(int* itime, double* x_in, double* x_out);
-extern "C" void sm_to_mag_d_(int* itime, double* x_in, double* x_out);
 extern "C" void geo_to_sm_d_(int* itime, double* x_in, double* x_out);
+
+extern "C" void sm_to_mag_d_(int* itime, double* x_in, double* x_out);
+extern "C" void mag_to_sm_d_(int* itime, double* x_in, double* x_out);
+
+extern "C" void geo_to_mag_d_(int* itime, double* x_in, double* x_out);
+extern "C" void mag_to_geo_d_(int* itime, double* x_in, double* x_out);
+
 extern "C" void cart_to_pol_d_(double* x_in, double* lat, double* lon, double* radius);
 extern "C" void pol_to_cart_d_(double* lat, double* lon, double* radius, double* x_out);
 

@@ -15,6 +15,8 @@ from index_helpers import load_ae
 from spacepy import coordinates as coord
 from spacepy.time import Ticktock
 
+import xflib  # Fortran xform-double library (coordinate transforms)
+
 import bisect
 
 project_root = '/shared/users/asousa/WIPP/3dWIPP/'
@@ -23,7 +25,7 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 R_E = 6371.0    # km
 
 # Simulation time
-ray_datenum = dt.datetime(2000, 01, 1, 0, 0, 00);
+ray_datenum = dt.datetime(2010, 06, 04, 03, 17, 00);
 
 iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
@@ -49,23 +51,34 @@ print "day: ", idoy
 print "sec: ", isec
 
 inp_lats = [45]
-inp_lons = [17]
-launch_alt = 1;
+inp_lons = [180]
+launch_alt = (R_E + 5)*1e3;
 
-freqs    = np.array([23]) 
+# freqs    = np.array([23]) 
 
-inp_w = 2.0*np.pi*freqs
+# inp_w = 2.0*np.pi*freqs
 
 
-lats, lons, ws = np.meshgrid(inp_lats, inp_lons, inp_w)
+lats, lons = np.meshgrid(inp_lats, inp_lons)
 lats = lats.flatten()
 lons = lons.flatten()
-ws   = ws.flatten()
 alts = launch_alt*np.ones_like(lats)
 
-# Create spacepy coordinate structures
-inp_coords = coord.Coords(zip(alts, lats, lons), 'GEO', 'sph', units=['Re','deg','deg'])
-inp_coords.ticks = Ticktock(np.tile(ray_datenum.isoformat(), len(inp_coords)),'ISO') # add ticks
+# # Create spacepy coordinate structures
+# inp_coords = coord.Coords(zip(alts, lats, lons), 'GEO', 'sph', units=['Re','deg','deg'])
+# inp_coords.ticks = Ticktock(np.tile(ray_datenum.isoformat(), len(inp_coords)),'ISO') # add ticks
+
+
+# Create coordinates
+inp_coords = zip(alts, lats, lons)  # Geographic
+
+# Coordinate transformation library
+xf = xflib.xflib(lib_path='/shared/users/asousa/WIPP/3dWIPP/python/libxformd.so')
+
+print "Inputs (geomagnetic RLL)"
+for r in inp_coords: print r
+
+
 
 os.chdir(project_root)
 
@@ -74,20 +87,21 @@ os.system('make')
 
 # run it
 wipp_cmd = 'bin/wipp -i %s -t %s -u %d -v %d -a %g -b %g -c %g'%(inp_rayfile, iyr, idoy, isec,
-                inp_coords.radi[0], inp_coords.lati[0], inp_coords.long[0])
+                inp_coords[0][0], inp_coords[0][1], inp_coords[0][2])
 print wipp_cmd
 
 
 print "geo spherical (py):"
-print inp_coords.data
-# inp_coords = inp_coords.convert('MAG','car')
-# Rotate to SM cartesian coordinates
-inp_coords = inp_coords.convert('GEO','car')
+print inp_coords
+
+inp_coords = [xf.s2c(r) for r in inp_coords]
 print "geo cartesian (py):"
-print inp_coords.data
-inp_coords = inp_coords.convert('SM','car')
-print "SM cartesian (py):"
-print inp_coords.data
+for r in inp_coords: print r
+
+
+inp_coords = [xf.geo2sm(r, ray_datenum) for r in inp_coords]
+print "SM (py):"
+for r in inp_coords: print r
 # Build wipp code
 
 os.system(wipp_cmd)
