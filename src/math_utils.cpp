@@ -1,15 +1,4 @@
-// #include <stdio.h>
-// #include <math.h>
-// #include <unistd.h>
-// #include <stdlib.h>
-// #include <iostream>
-// #include <fstream>
-// #include <sstream>
-// #include <iterator>
-// #include <string>
-// #include <vector>
-// #include <map>
-// #include <consts.h>
+
 #include <wipp.h>
 
 
@@ -54,3 +43,5 @@ vector<double> add(vector<double>u, vector<double> v) {
         out[i] = u[i] + v[i];
     }
 }
+
+

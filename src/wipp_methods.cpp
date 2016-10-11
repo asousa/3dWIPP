@@ -55,7 +55,7 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 } 
 
 
-void interp_vector(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, double* out) {
+void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* out) {
     // raylist: an array of pointers to the 8 corner rays
     // nx, ny, nz: location within the grid (0..1) to interpolate at
     // t_ind: time index
@@ -70,15 +70,106 @@ void interp_vector(rayF** raylist, double n_x, double n_y, double n_z, int t_ind
     W[6] = n_y*(1. - n_x)*n_z;
     W[7] = n_x*n_y*n_z*1.;
 
-    print_vector(vector<double>(W, W+8));
+    // print_vector(vector<double>(W, W+8));
 
     for (int jj=0; jj<8; jj++){  // Corner rays
 
         // Vector-valued
         for (int ii=0; ii<3; ii++){  // X, Y, Z
-            out[ii] += W[jj] * (raylist[jj]->pos[t_ind][ii]);
+            out->pos[ii] += W[jj] * (raylist[jj]->pos[t_ind][ii]);
+            out->vgrel[ii] += W[jj] * (raylist[jj]->pos[t_ind][ii]);
+
         }
         // scalar-valued here
+        // cout << "corner w: " << raylist[jj]->w << "\n";
+        out->w += W[jj]*(raylist[jj]->w);
+
     }
 
 }
+
+
+void calc_stix_parameters(rayF* ray) {
+    // Calculate Stix parameters for an entire ray (all timesteps)
+    // Results are stored in the ray structure.
+
+    double w, whs, wps2;
+    double R, L, P, S, D, a, b;
+    double kpar, kperp, kmag;
+    double theta;
+    double B0mag;
+    double sin_th, cos_th, sin_th_sq, cos_th_sq;
+
+
+    Vector3d B0;
+    Vector3d Bhat;
+    Vector3d n_vec;
+    Vector3d k;
+    cout << "Stix params... \n";
+    for (int ii=0; ii < ray->time.size(); ii++) {
+        // ---------- Evaluate Stix parameters: ------
+        cout << "t: " << ii << "\n"; 
+        wps2 = 0;
+        R = 1.;
+        L = 1.;
+        P = 1.;
+
+        w = ray->w;
+        B0    = Map<VectorXd>(ray->B0[ii].data(), 3,1);
+        n_vec = Map<VectorXd>(ray->n[ii].data(),3,1);
+
+        k = n_vec*w/C;
+        kmag = k.norm();
+        Bhat = B0.array()/B0.norm();
+        kpar = k.dot(Bhat); //k.array()*Bhat.array();
+        kperp = (k - kpar*Bhat).norm();
+
+        // Theta is the angle between parallel and perpendicular K
+        theta = atan2(kperp, kpar);
+
+        // Some trig.
+        sin_th = sin(theta);
+        cos_th = cos(theta);
+        sin_th_sq = pow(sin_th,2);
+        cos_th_sq = pow(cos_th,2);
+
+
+        // Sum over constituents
+        for (int jj=0; jj < ray->Ns[ii].size(); jj++) {
+            
+            // Ns*(Qs^2)/(ms*Eps_0)
+            wps2 = ray->Ns[ii][jj]*pow(ray->qs[jj],2) \
+                   /(ray->ms[jj]*EPS0);
+            // qB/m
+            whs  = ray->qs[jj]*B0mag/ray->ms[jj];
+
+            // Complex modification to whs -- for now, ignore. (8.19.2016)
+            // wcs  = whs * ray.w/(ray.w + 1i*ray.nus[ii][jj]);
+
+            R-= wps2/(w*(w + whs));
+            L-= wps2/(w*(w - whs));
+            P-= wps2/(w*w);
+        }
+        S = (R + L)/2.;
+        D = (R - L)/2.;
+
+        a = S*sin_th_sq + P*cos_th_sq;
+        b = R*L*sin_th_sq + P*S*(1+cos_th_sq);
+
+
+        ray->stixR.push_back(R);
+        ray->stixL.push_back(L);
+        ray->stixP.push_back(P);
+        ray->stixS.push_back(S);
+        ray->stixD.push_back(D);
+        ray->stixA.push_back(a);
+        ray->stixB.push_back(b);
+
+        // --------------------------------------------
+
+    } // ii (timestep)
+
+
+
+}
+

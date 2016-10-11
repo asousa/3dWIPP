@@ -54,7 +54,50 @@ typedef struct rayF {
 
     double inp_pwr;                  // input power of ray
 
+    // Stix parameters
+    vector <double> stixP;
+    vector <double> stixR;
+    vector <double> stixL;
+    vector <double> stixS;
+    vector <double> stixD;
+    vector <double> stixA;
+    vector <double> stixB;    
+
 } rayF;
+
+// Structure for holding a single timestep of a ray (smol)
+typedef struct rayT {
+    double w;                          // frequency (angular)
+    double nspec;                      // Number of species in plasmasphere model
+    // double ray_num;                 // Ray index number
+    double time;            // Group time
+
+    double pos[3];
+    double vprel[3];
+    double vgrel[3];
+    double n[3];
+    double B0[3];
+
+    // Variable-length stuff (depending on number of constituents in model)
+    vector <double> qs;    // species charge
+    vector <double> ms;    // species mass
+    vector <double> Ns;    // number density of species (m^-3)
+    vector <double> nus;   // collision frequencies
+    
+    double damping;        // Damping vector (normalized to 1)
+    double inp_pwr;        // input power of ray
+
+    // Stix parameters
+    double stixP;
+    double stixR;
+    double stixL;
+    double stixS;
+    double stixD;
+    double stixA;
+    double stixB;
+
+} rayT;
+
 
 // rayfile loader
 // map<int, rayF> read_rayfile(string fileName);
@@ -77,9 +120,8 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 double ionoAbsorp(float lat, long f);
 float interpPt(float *xI, float *yI, int n, float xO);
 
-
-
-void interp_vector(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, double* out);
+void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* out);
+void calc_stix_parameters(rayF* ray);
 
 
 
