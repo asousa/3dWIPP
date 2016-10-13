@@ -22,7 +22,6 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 
     f = w/(2.0*PI);
 
-
     // cout << "flash loc: " << flash_loc[0] << " " << flash_loc[1] << " " << flash_loc[2] << "\n";
     // cout << "flash loc: " << ray_loc[0] << " " << ray_loc[1] << " " << ray_loc[2] << "\n";
    
@@ -78,12 +77,18 @@ void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_i
         for (int ii=0; ii<3; ii++){  // X, Y, Z
             out->pos[ii] += W[jj] * (raylist[jj]->pos[t_ind][ii]);
             out->vgrel[ii] += W[jj] * (raylist[jj]->pos[t_ind][ii]);
-
         }
         // scalar-valued here
         // cout << "corner w: " << raylist[jj]->w << "\n";
         out->w += W[jj]*(raylist[jj]->w);
 
+        out->stixR += W[jj]*(raylist[jj]->stixR[t_ind]);
+        out->stixL += W[jj]*(raylist[jj]->stixL[t_ind]);
+        out->stixP += W[jj]*(raylist[jj]->stixP[t_ind]);
+        out->stixS += W[jj]*(raylist[jj]->stixS[t_ind]);
+        out->stixD += W[jj]*(raylist[jj]->stixD[t_ind]);
+        out->stixA += W[jj]*(raylist[jj]->stixA[t_ind]);
+        out->stixB += W[jj]*(raylist[jj]->stixB[t_ind]);
     }
 
 }
@@ -105,10 +110,10 @@ void calc_stix_parameters(rayF* ray) {
     Vector3d Bhat;
     Vector3d n_vec;
     Vector3d k;
-    cout << "Stix params... \n";
+    // cout << "Stix params... \n";
     for (int ii=0; ii < ray->time.size(); ii++) {
         // ---------- Evaluate Stix parameters: ------
-        cout << "t: " << ii << "\n"; 
+        // cout << "t: " << ii << "\n"; 
         wps2 = 0;
         R = 1.;
         L = 1.;
@@ -117,6 +122,8 @@ void calc_stix_parameters(rayF* ray) {
         w = ray->w;
         B0    = Map<VectorXd>(ray->B0[ii].data(), 3,1);
         n_vec = Map<VectorXd>(ray->n[ii].data(),3,1);
+
+        B0mag = B0.norm();
 
         k = n_vec*w/C;
         kmag = k.norm();
@@ -157,6 +164,22 @@ void calc_stix_parameters(rayF* ray) {
         b = R*L*sin_th_sq + P*S*(1+cos_th_sq);
 
 
+
+
+        // if (ii==1) {
+        //     cout << "wps2: " << wps2 << " whs: " << whs << "\n";
+        //     cout << "Stix Params [0]: ";
+        //     cout << R << " ";
+        //     cout << L << " ";
+        //     cout << P << " ";
+        //     cout << S << " ";
+        //     cout << D << " ";
+        //     cout << a << " ";
+        //     cout << b << "\n";
+        // }
+        // cout << cur_rays[dd]->time.size() << " ";
+
+
         ray->stixR.push_back(R);
         ray->stixL.push_back(L);
         ray->stixP.push_back(P);
@@ -168,7 +191,130 @@ void calc_stix_parameters(rayF* ray) {
         // --------------------------------------------
 
     } // ii (timestep)
+}
 
+
+void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int idoy, double isec) {
+
+    // First: trace the field line from output location:
+    double kext = 0;    // External field model (0 for none)
+    int options[5];
+        options[0] = 1;     // Compute L* and phi
+        options[1] = 30;     // Interval in days between updating the IGRF model (0 = 1 year)
+        options[2] = 0;     // Resolution to compute L* to [0..9] (0 suggested)
+        options[3] = 0;     // Another resolution setting (0 suggested)
+        options[4] = 0;     // Internal mag. field model (0 = igrf, 1 = eccentric tilted dipole)
+    int sysaxes = 7;       // Coordinate system of input data (6 = MAG cartesian)
+    double ds = 1e-3;       // Integration step size along field line (in Earth radii)
+
+    double maginput[25] = {0};    // Model parameters
+
+    double posit[3000][3];  // Output space -- up to 3000 vector coordinates
+    int Nposit;          // Actual number of entries
+
+    double x_in[3];         // inputs to the field line tracer (mag cartesian, Re)
+    double x_out[3];
+
+    int itime_in[2];
+    itime_in[0] = 1000*iyr + idoy;
+    itime_in[1] = isec*1e3;
+
+    double radius = 1; //(R_E + H_IONO)/R_E;
+
+    double R0 = 1;
+
+    double olat, olon, orad;
+    double lm;
+    double blocal[3000];
+    double bmin;
+    double xj;
+    double lat_in, lon_in;
+
+    // lat_in = D2R*lat;
+    // lon_in = D2R*lon;
+    // pol_to_cart_d_(&lat_in, &lon_in, &radius, x_in);
+
+    // trace_field_line_towards_earth1_(&kext, options, &sysaxes, 
+    //             &iyr, &idoy, &isec,
+    //             x_in, x_in + 1, x_in + 2,
+    //             maginput, &ds, posit, &Nposit);
+
+    x_in[0] = 1;
+    x_in[1] = 45;
+    x_in[2] = 0;
+    
+
+    // sph_car_(&radius, &lat, &lon, x_in);
+
+    cout << "calling field line duder\n";
+    trace_field_line2_1_(&kext, options, &sysaxes,
+                &iyr, &idoy, &isec,
+                x_in, x_in + 1, x_in + 2,
+                maginput, &R0, &lm, 
+                blocal, &bmin, &xj,
+                posit, &Nposit);
+
+
+
+    cout << "recieved " << Nposit << " elements\n";
+    // Write the output for debugging:
+
+    cout << "R0: " << R0 << " Lm: " << lm;
+    cout << " blocal: " << blocal[0] << " bmin: " << bmin << " xj: " << xj << "\n";
+
+
+        cout << "Start: " << posit[0][0] << ", " << posit[0][1] << ", " << posit[0][2] << "\n";
+        cout << "End: "   << posit[Nposit-1][0] << ", " << posit[Nposit - 1][1] << ", " << posit[Nposit -1][2] << "\n"; 
+
+             // IRBEM cast
+            geo2mag1_(&iyr, posit[0], x_out);
+            car_sph_(x_out, &orad, &olat, &olon);
+
+            // olat = R2D*olat; olon = R2D*olon;
+            cout << "Start: " << orad << ", " << olat << ", " << olon <<"\n";
+
+             // IRBEM cast
+            geo2mag1_(&iyr, posit[Nposit - 1], x_out);
+            car_sph_(x_out, &orad, &olat, &olon);
+            cout << "End: " << orad << ", " << olat << ", " << olon <<"\n";
+
+            // // olat = R2D*olat; olon = R2D*olon;
+            // cout << "End: " << orad << ", " << olat << ", " << olon <<"\n";
+
+
+
+    // FILE *file = fopen("/shared/users/asousa/WIPP/3dWIPP/outputs/fieldlinelog.txt", "w");    
+
+    // if (file != NULL) {
+    //     cout << "logging\n";
+
+        for (long i=0; i < Nposit; i++) {
+
+        cout << posit[i][0] << ", " << posit[i][1] << ", " << posit[i][2] << "\n";
+
+            // Xformd cast
+            // geo_to_mag_d_(itime_in, posit[i], x_out);
+            // cart_to_pol_d_(x_out, &olat, &olon, &orad);
+
+            // // IRBEM cast
+            // geo2mag1_(&iyr, posit[i], x_out);
+            // car_sph_(x_out, &orad, &olat, &olon);
+
+            // // olat = R2D*olat; olon = R2D*olon;
+            // cout << "i: " << i << " -- " << orad << ", " << olat << ", " << olon <<"\n";
+            // // cout << "i: " << i << " -- " << posit[i][0] << ", " << posit[i][1] << ", " << posit[i][2] <<"\n";
+
+        }
+
+    // } else {
+    //     cout << "something's fucky\n";
+    // }
+
+
+    // // Loop through possible EA segments:
+    // for (int ii=0; ii < NUM_EA; ii++) {
+
+    // }
 
 
 }

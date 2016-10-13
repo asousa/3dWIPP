@@ -44,11 +44,11 @@ int main(int argc, char *argv[])
 
     double dd;
 
-    double pos_interp[3];
-    double weight_ind[3];
+    // Energy and velocity grids at output
+    double v_tot_arr[NUM_E], E_tot_arr[NUM_E];
 
 
-    rayT* r_cur;    // Current interpolated ray (single time frame)
+    rayT* r_cur;    // Current interpolated ray (single timestep)
     double* start_pos;
 
     rayF* ray;
@@ -57,26 +57,31 @@ int main(int argc, char *argv[])
     // (does this copy or just point? I hope it points.)
     rayF* cur_rays[8];
 
-    // // Inputs to the IRBEM coordinate transform library
-    // long ntimes, c1, c2;
-
-    FILE * outputFile;
+    // FILE * outputFile;
 
     // Default parameters:
     inpFileName = "input.ray";
     outFileName = "output.ray";
 
-    long iyr;     // Year
-    long idoy;      // Day of year
+    int iyr;     // Year
+    int idoy;      // Day of year
     double isec; // Seconds into day (UTC)
 
     // Fine-scale interpolation steps:
     int num_lats_fine  = 4;
     int num_lons_fine  = 4; 
     int num_freqs_fine = 4;
+
+    double freq_step_size;
+    double lat_step_size;
+    double lon_step_size;
     
+    EA_segment EA_array[NUM_EA];
 
-
+    // Location to determine output at (geomagnetic)
+    // To do: set this up as a grid
+    double outLat = 45;
+    double outLon = 0;
 
      // Parse input arguments:
     int opt = 0;
@@ -127,15 +132,23 @@ int main(int argc, char *argv[])
     cout << "---- 3D WIPP ----\n";
 
 
+    // Set up output grids (energy, velocity, space)
+
+    //initialize the velocity and energy arrays
+    for(int i=0; i<NUM_E; i++) {
+        E_tot_arr[i] = pow(10, (E_EXP_BOT+ DE_EXP*i) ); // energy in eV
+        v_tot_arr[i] = C*sqrt(1 - pow( (E_EL/(E_EL+E_tot_arr[i])) ,2) );
+    }
+
+    init_EA_array(EA_array, outLat, outLon, iyr, idoy, isec);
+
+
 
     cout << "flash geo: ";
     print_vector(vector<double>(flash_pos, flash_pos + 3));
     double flash_I0 = 100e3;
     
-
     int yearday = iyr*1000 + idoy;
-
-
     itime_in[0] = yearday;
     itime_in[1] = isec*1e3;
 
@@ -147,8 +160,8 @@ int main(int argc, char *argv[])
     pol_to_cart_d_(&lat0, &lon0, &rad0, tmp_coords);
     mag_to_sm_d_(itime_in, tmp_coords, flash_pos_sm);
 
-    cout << "SM (libxformd): ";
-    print_vector(vector<double>(flash_pos_sm, flash_pos_sm + 3));
+    // cout << "SM (libxformd): ";
+    // print_vector(vector<double>(flash_pos_sm, flash_pos_sm + 3));
 
 
     // Load the rayfile:
@@ -159,12 +172,12 @@ int main(int argc, char *argv[])
     // Preprocess ray files: 
     for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
     
-        cout << "Ray origin (SM):\n";
+        // cout << "Ray origin (SM):\n";
 
         ray = &(iter->second);
 
         start_pos = &(ray->pos[0].data()[0]);
-        print_vector(ray->pos[0]);
+        // print_vector(ray->pos[0]);
 
 
         // Get magnetic lat:
@@ -180,14 +193,16 @@ int main(int argc, char *argv[])
         ray->in_lat = maglat0;
         ray->in_lon = maglon0;
 
-        cout << "dd: " << ray->inp_pwr << "\n";
-
+        // cout << "dd: " << ray->inp_pwr << "\n";
 
         // Calculate Stix parameters:
         calc_stix_parameters(ray);
-        
     }
 
+
+
+    // Choose the 8 corner rays we'll work with (this is where you'll iterate
+    // over the larger set)
     cur_rays[0] = &(raylist.at(1));
     cur_rays[1] = &(raylist.at(2));
     cur_rays[2] = &(raylist.at(3));
@@ -198,14 +213,22 @@ int main(int argc, char *argv[])
     cur_rays[7] = &(raylist.at(8));
 
 
-    // cout << "sanity check: " << cur_rays[7]->inp_pwr << "\n";
+    cout << "sanity check: " << cur_rays[1]->stixB[0] << "\n";
 
 
     // for (int dd = 0; dd < 8; dd++) {
-    //     cout << cur_rays[dd]->time.size() << " ";
+    //     cout << "Stix Params [0]: ";
+    //     cout << cur_rays[dd]->stixR[1] << " ";
+    //     cout << cur_rays[dd]->stixL[1] << " ";
+    //     cout << cur_rays[dd]->stixP[1] << " ";
+    //     cout << cur_rays[dd]->stixS[1] << " ";
+    //     cout << cur_rays[dd]->stixD[1] << " ";
+    //     cout << cur_rays[dd]->stixA[1] << " ";
+    //     cout << cur_rays[dd]->stixB[1] << "\n";
+    //     // cout << cur_rays[dd]->time.size() << " ";
     // }
 
-    // cout << "\n";
+    cout << "\n";
 
     // Get the length of the shortest ray in the batch:
     int tmaxes[] = {cur_rays[0]->time.size(),
@@ -245,7 +268,7 @@ int main(int argc, char *argv[])
                     maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
 
                     // Print for debugging:
-                    printf("(%g, %g, %g)\tmag lat, lon: (%g, %g): freq: %g hz\n",ii, jj, kk, maglat0,maglon0, (r_cur->w)/(2.*PI));
+                    // printf("(%g, %g, %g)\tmag lat, lon: (%g, %g): freq: %g hz\n",ii, jj, kk, maglat0,maglon0, (r_cur->w)/(2.*PI));
 
                 }   // kk
             }   // jj

@@ -98,6 +98,24 @@ typedef struct rayT {
 
 } rayT;
 
+// Structure for holding parameters for a single EA segment 
+// (planes perpendicular to field line of interest, where we
+// will calculate scattering at)
+typedef struct EA_segment {
+
+    Eigen::Vector3d ea_norm;          // Vector normal to crossing plane
+    Eigen::Vector3d field_line_pos;    // Location in plane where field line intersects
+
+    double L_sh;                       // L shell
+    double radius;                     // Radius around field line to consider a crossing
+
+    double dist_to_n;
+    double dist_to_s;
+    // Should we do Stix parameters here? They're a constant of the background
+    // medium, not of the wave... but we'd have to get the plasmasphere model.
+
+} EA_segment;
+
 
 // rayfile loader
 // map<int, rayF> read_rayfile(string fileName);
@@ -122,6 +140,7 @@ float interpPt(float *xI, float *yI, int n, float xO);
 
 void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* out);
 void calc_stix_parameters(rayF* ray);
+void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int idoy, double isec);
 
 
 
@@ -134,10 +153,11 @@ void calc_stix_parameters(rayF* ray);
 // extern "C" void sm2geo1_(long* iyr,long* idoy, double* secs, double* xSM, double* xGEO);
 // extern "C" void geo2sm1_(long* iyr,long* idoy, double* secs, double* xGEO, double* xSM);
 
-// extern "C" void geo2mag1_(long* iyr, double* xGEO, double* xMAG);
+extern "C" void geo2mag1_(int* iyr, double* xGEO, double* xMAG);
+
 // // cartesian - spherical (trig terms in degrees!)
-// extern "C" void car_sph_(double* xCAR, double* r, double* lat, double* loni);
-// extern "C" void sph_car_(double* r, double* lat, double* loni, double* xCAR);
+extern "C" void car_sph_(double* xCAR, double* r, double* lat, double* loni);
+extern "C" void sph_car_(double* r, double* lat, double* loni, double* xCAR);
 
 
 // ----- libxformd (Coordinate transform library used in the raytracer) -----
@@ -150,52 +170,25 @@ extern "C" void mag_to_sm_d_(int* itime, double* x_in, double* x_out);
 extern "C" void geo_to_mag_d_(int* itime, double* x_in, double* x_out);
 extern "C" void mag_to_geo_d_(int* itime, double* x_in, double* x_out);
 
+// (in radians)
 extern "C" void cart_to_pol_d_(double* x_in, double* lat, double* lon, double* radius);
 extern "C" void pol_to_cart_d_(double* lat, double* lon, double* radius, double* x_out);
 
+// ----- liboneradesp (Cospar IRBEM library -- IGRF wrapper, field line tracer, etc)
+
+// Field line raytracer
+extern "C" void trace_field_line_towards_earth1_(double* kext,long options[5], long* sysaxes, 
+                long* iyear, long* idoy, double *isec,
+                double* x1, double* x2, double* x3,
+                double* maginput, double* ds, double posit[3000][3], int* Nposit);
 
 
-
-
-//  // Coordinate transforms:
-// int sm2geo_init(char fname[],int *deg_ext,int *deg_day,int maxcoeff,double coeff[]);
-
-// void sm2geo(double fday,int deg_want,                        
-//              int deg_ext,int deg_day,double coeff[], 
-//              double smcoeff[],double geocoeff[]);
-// Porting the Damping Code:
-// void damping_foust(rayF &rayfile);
-// double integrand_wrapper(double x, void* data);
-
-// double kp_to_pp(double kp);
-// void polyfit(const vector<double> &xv, const vector<double> &yv, vector<double> &coeff, int order);
-
-// // Plasmasphere phase-space density model (for damping)
-// class psd_model {
-//     char* dir_name;
-
-//     double An, n;
-
-//     // Vectors of pointers to 2d matrices for MLT, Jperp, L, and t_b
-//     // (from the CRRES data files)
-//     vector <mxArray*> MLT_v;
-//     vector <mxArray*> J_perp_v;
-//     vector <mxArray*> L_v;
-//     vector <mxArray*> t_b_v;
-//     vector <double> energy_v;
-//     vector <double> AE_v;
-
-// public: 
-//     pair<double,double> CRRES_fit_params(double L, double MLT, double AE_level);
-//     void initialize(char* input_dir);
-//     double suprathermal(double vperp, double vpar);
-//     double crres_psd(double vperp, double vpar);
-
-// private:
-//     void replace_NaNs(mxArray* arr);
-//     void count_NaNs(mxArray* arr);
-
-// };
+extern "C" void trace_field_line2_1_(double* kext, int options[5], int* sysaxes,
+                int* iyear, int* idoy, double* isec,
+                double* x1, double* x2, double* x3,
+                double* maginput, double* R0, double* lm, 
+                double* blocal, double* bmin, double* xj,
+                double posit[3000][3], int* Nposit);
 
 
 #endif
