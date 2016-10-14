@@ -196,120 +196,64 @@ void calc_stix_parameters(rayF* ray) {
 
 void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int idoy, double isec) {
 
-    // First: trace the field line from output location:
-    double kext = 0;    // External field model (0 for none)
-    int options[5];
-        options[0] = 1;     // Compute L* and phi
-        options[1] = 30;     // Interval in days between updating the IGRF model (0 = 1 year)
-        options[2] = 0;     // Resolution to compute L* to [0..9] (0 suggested)
-        options[3] = 0;     // Another resolution setting (0 suggested)
-        options[4] = 0;     // Internal mag. field model (0 = igrf, 1 = eccentric tilted dipole)
-    int sysaxes = 7;       // Coordinate system of input data (6 = MAG cartesian)
-    double ds = 1e-3;       // Integration step size along field line (in Earth radii)
-
-    double maginput[25] = {0};    // Model parameters
-
-    double posit[3000][3];  // Output space -- up to 3000 vector coordinates
-    int Nposit;          // Actual number of entries
-
-    double x_in[3];         // inputs to the field line tracer (mag cartesian, Re)
+    double x_in[3];         
     double x_out[3];
+
+    double b_out[3];
 
     int itime_in[2];
     itime_in[0] = 1000*iyr + idoy;
     itime_in[1] = isec*1e3;
 
-    double radius = 1; //(R_E + H_IONO)/R_E;
 
-    double R0 = 1;
+    x_in = {1, lat, lon};
 
-    double olat, olon, orad;
-    double lm;
-    double blocal[3000];
-    double bmin;
-    double xj;
-    double lat_in, lon_in;
+    cout << "orig: ";
+    print_array(x_in, 3);
 
-    // lat_in = D2R*lat;
-    // lon_in = D2R*lon;
-    // pol_to_cart_d_(&lat_in, &lon_in, &radius, x_in);
+    // double r = 1;
+    // double latin = lat*D2R;
+    // double lonin = lon*D2R;
 
-    // trace_field_line_towards_earth1_(&kext, options, &sysaxes, 
-    //             &iyr, &idoy, &isec,
-    //             x_in, x_in + 1, x_in + 2,
-    //             maginput, &ds, posit, &Nposit);
+    // pol_to_cart_d_(&latin, &lonin, &r, x_out);
 
-    x_in[0] = 1;
-    x_in[1] = 45;
-    x_in[2] = 0;
-    
+    // cout << "xformd: ";
+    // print_array(x_out, 3);
 
-    // sph_car_(&radius, &lat, &lon, x_in);
-
-    cout << "calling field line duder\n";
-    trace_field_line2_1_(&kext, options, &sysaxes,
-                &iyr, &idoy, &isec,
-                x_in, x_in + 1, x_in + 2,
-                maginput, &R0, &lm, 
-                blocal, &bmin, &xj,
-                posit, &Nposit);
+    // sph_car_(&r, &lat, &lon, x_out);
 
 
+    // cout << "IRBEM: ";
+    // print_array(x_out, 3);
 
-    cout << "recieved " << Nposit << " elements\n";
-    // Write the output for debugging:
+    // degcar(x_in);
+    // cout << "cart: ";
+    // print_array(x_in, 3);
 
-    cout << "R0: " << R0 << " Lm: " << lm;
-    cout << " blocal: " << blocal[0] << " bmin: " << bmin << " xj: " << xj << "\n";
+    // cardeg(x_in);
+    // cout << "back: ";
+    // print_array(x_in, 3);
 
+    int Nsteps;
+    // bmodel_dipole(x_in, b_out);
+    // cout << "b (sph): ";
+    // print_array(b_out, 3);
 
-        cout << "Start: " << posit[0][0] << ", " << posit[0][1] << ", " << posit[0][2] << "\n";
-        cout << "End: "   << posit[Nposit-1][0] << ", " << posit[Nposit - 1][1] << ", " << posit[Nposit -1][2] << "\n"; 
-
-             // IRBEM cast
-            geo2mag1_(&iyr, posit[0], x_out);
-            car_sph_(x_out, &orad, &olat, &olon);
-
-            // olat = R2D*olat; olon = R2D*olon;
-            cout << "Start: " << orad << ", " << olat << ", " << olon <<"\n";
-
-             // IRBEM cast
-            geo2mag1_(&iyr, posit[Nposit - 1], x_out);
-            car_sph_(x_out, &orad, &olat, &olon);
-            cout << "End: " << orad << ", " << olat << ", " << olon <<"\n";
-
-            // // olat = R2D*olat; olon = R2D*olon;
-            // cout << "End: " << orad << ", " << olat << ", " << olon <<"\n";
+    // transform_data_sphcar(b_out, lat, lon);
 
 
 
-    // FILE *file = fopen("/shared/users/asousa/WIPP/3dWIPP/outputs/fieldlinelog.txt", "w");    
+    double x_fl[TRACER_MAX][3];
+    double ds = 0.0005;
+    Nsteps = trace_fieldline(x_in, x_fl, ds);
 
-    // if (file != NULL) {
-    //     cout << "logging\n";
+    for (int i=0; i < Nsteps; i++) {
+        cout << "x(" << i << ") : ";
+        print_array(x_fl[i],3);
+    }
 
-        for (long i=0; i < Nposit; i++) {
-
-        cout << posit[i][0] << ", " << posit[i][1] << ", " << posit[i][2] << "\n";
-
-            // Xformd cast
-            // geo_to_mag_d_(itime_in, posit[i], x_out);
-            // cart_to_pol_d_(x_out, &olat, &olon, &orad);
-
-            // // IRBEM cast
-            // geo2mag1_(&iyr, posit[i], x_out);
-            // car_sph_(x_out, &orad, &olat, &olon);
-
-            // // olat = R2D*olat; olon = R2D*olon;
-            // cout << "i: " << i << " -- " << orad << ", " << olat << ", " << olon <<"\n";
-            // // cout << "i: " << i << " -- " << posit[i][0] << ", " << posit[i][1] << ", " << posit[i][2] <<"\n";
-
-        }
-
-    // } else {
-    //     cout << "something's fucky\n";
-    // }
-
+    // cout << "B: ";
+    // print_array(b_out, 3);
 
     // // Loop through possible EA segments:
     // for (int ii=0; ii < NUM_EA; ii++) {

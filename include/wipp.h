@@ -131,6 +131,8 @@ vector<double> add(vector<double>u, vector<double> v);
 
 // Helpers
 void print_vector(vector<double> u);
+void print_array(double* arr, double len);
+
 map<int, rayF> read_rayfile(string fileName);
 
 // Science!
@@ -141,6 +143,9 @@ float interpPt(float *xI, float *yI, int n, float xO);
 void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* out);
 void calc_stix_parameters(rayF* ray);
 void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int idoy, double isec);
+
+void bmodel_dipole(double* x_in, double* B_out);
+int trace_fieldline(double x_in[3], double x_out[TRACER_MAX][3], double ds);
 
 
 
@@ -173,6 +178,17 @@ extern "C" void mag_to_geo_d_(int* itime, double* x_in, double* x_out);
 // (in radians)
 extern "C" void cart_to_pol_d_(double* x_in, double* lat, double* lon, double* radius);
 extern "C" void pol_to_cart_d_(double* lat, double* lon, double* radius, double* x_out);
+
+// In-place cartesian / polar transforms. 
+void carsph(double x[3]); 
+void sphcar(double x[3]); 
+void cardeg(double x[3]);
+void degcar(double x[3]);
+
+// In-place mapping of a data field between cartesian / polar frames.
+void transform_data_sphcar(double data[3], double lat, double lon);
+void transform_data_carsph(double data[3], double lat, double lon);
+
 
 // ----- liboneradesp (Cospar IRBEM library -- IGRF wrapper, field line tracer, etc)
 

@@ -8,6 +8,7 @@ import os
 # import random
 import time
 import datetime as dt
+import sys
 from index_helpers import load_TS_params
 from index_helpers import load_Dst
 from index_helpers import load_Kp
@@ -83,7 +84,10 @@ for r in inp_coords: print r
 os.chdir(project_root)
 
 print '-------- Building WIPP ------'
-os.system('make')
+buildstatus = os.system('make')
+
+if buildstatus != 0:
+    sys.exit("Build failed!")
 
 # run it
 wipp_cmd = 'bin/wipp -i %s -t %s -u %d -v %d -a %g -b %g -c %g'%(inp_rayfile, iyr, idoy, isec,

@@ -24,7 +24,7 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 
 # Objects to build
-_OBJ = wipp_main.o wipp_fileutils.o math_utils.o wipp_methods.o wipp_legacy_methods.o
+_OBJ = wipp_main.o wipp_fileutils.o math_utils.o wipp_methods.o wipp_legacy_methods.o bmodel_dipole.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 

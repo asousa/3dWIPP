@@ -6,6 +6,7 @@
 #define consts_H
 
 // Fundamental constants:
+// #define     PI          M_PI
 #define		PI		    3.14159265358979311599796346854418516159
 #define		D2R		    (PI/180.0)
 #define		R2D		    (180.0/PI)
@@ -60,7 +61,7 @@
 #define     NUM_EA      80
 #define		EAIncr	    ((EAlimN - EAlimS)/NUM_EA)	
 
-
+#define     TRACER_MAX  10000    // Maximum steps in field line tracer
 // // Width around field line, in L-shells, in which to consider a crossing
 // #define		L_MARGIN    6E-4
 // // // Delete these pls

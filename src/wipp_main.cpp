@@ -80,8 +80,8 @@ int main(int argc, char *argv[])
 
     // Location to determine output at (geomagnetic)
     // To do: set this up as a grid
-    double outLat = 45;
-    double outLon = 0;
+    double outLat = -30;
+    double outLon = 7;
 
      // Parse input arguments:
     int opt = 0;
@@ -164,116 +164,130 @@ int main(int argc, char *argv[])
     // print_vector(vector<double>(flash_pos_sm, flash_pos_sm + 3));
 
 
-    // Load the rayfile:
-    raylist = read_rayfile(inpFileName);
 
 
 
-    // Preprocess ray files: 
-    for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
+
+
+
+    // // Load the rayfile:
+    // raylist = read_rayfile(inpFileName);
+
+
+    // // Preprocess ray files: 
+    // for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
     
-        // cout << "Ray origin (SM):\n";
+    //     // cout << "Ray origin (SM):\n";
 
-        ray = &(iter->second);
+    //     ray = &(iter->second);
 
-        start_pos = &(ray->pos[0].data()[0]);
-        // print_vector(ray->pos[0]);
+    //     start_pos = &(ray->pos[0].data()[0]);
+    //     // print_vector(ray->pos[0]);
 
 
-        // Get magnetic lat:
-        sm_to_mag_d_(itime_in, start_pos, tmp_coords2);
-        cart_to_pol_d_(tmp_coords2, &maglat0, &maglon0, &magrad0);
-        maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
-        printf("MAG lat: %g lon: %g alt: %g\n",maglat0,maglon0,magrad0);
+    //     // Get magnetic lat:
+    //     sm_to_mag_d_(itime_in, start_pos, tmp_coords2);
+    //     cart_to_pol_d_(tmp_coords2, &maglat0, &maglon0, &magrad0);
+    //     maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
+    //     printf("MAG lat: %g lon: %g alt: %g\n",maglat0,maglon0,magrad0);
         
-        // Get power scaling:
-        // (still need to multiply by space + freq bin sizes)
-        ray->inp_pwr = input_power_scaling(flash_pos_sm, start_pos, maglat0, iter->second.w, flash_I0);
-        ray->in_radius = magrad0;
-        ray->in_lat = maglat0;
-        ray->in_lon = maglon0;
+    //     // Get power scaling:
+    //     // (still need to multiply by space + freq bin sizes)
+    //     ray->inp_pwr = input_power_scaling(flash_pos_sm, start_pos, maglat0, iter->second.w, flash_I0);
+    //     ray->in_radius = magrad0;
+    //     ray->in_lat = maglat0;
+    //     ray->in_lon = maglon0;
 
-        // cout << "dd: " << ray->inp_pwr << "\n";
+    //     // cout << "dd: " << ray->inp_pwr << "\n";
 
-        // Calculate Stix parameters:
-        calc_stix_parameters(ray);
-    }
-
-
-
-    // Choose the 8 corner rays we'll work with (this is where you'll iterate
-    // over the larger set)
-    cur_rays[0] = &(raylist.at(1));
-    cur_rays[1] = &(raylist.at(2));
-    cur_rays[2] = &(raylist.at(3));
-    cur_rays[3] = &(raylist.at(4));
-    cur_rays[4] = &(raylist.at(5));
-    cur_rays[5] = &(raylist.at(6));
-    cur_rays[6] = &(raylist.at(7));
-    cur_rays[7] = &(raylist.at(8));
-
-
-    cout << "sanity check: " << cur_rays[1]->stixB[0] << "\n";
-
-
-    // for (int dd = 0; dd < 8; dd++) {
-    //     cout << "Stix Params [0]: ";
-    //     cout << cur_rays[dd]->stixR[1] << " ";
-    //     cout << cur_rays[dd]->stixL[1] << " ";
-    //     cout << cur_rays[dd]->stixP[1] << " ";
-    //     cout << cur_rays[dd]->stixS[1] << " ";
-    //     cout << cur_rays[dd]->stixD[1] << " ";
-    //     cout << cur_rays[dd]->stixA[1] << " ";
-    //     cout << cur_rays[dd]->stixB[1] << "\n";
-    //     // cout << cur_rays[dd]->time.size() << " ";
+    //     // Calculate Stix parameters:
+    //     calc_stix_parameters(ray);
     // }
 
-    cout << "\n";
-
-    // Get the length of the shortest ray in the batch:
-    int tmaxes[] = {cur_rays[0]->time.size(),
-                    cur_rays[1]->time.size(),
-                    cur_rays[2]->time.size(),
-                    cur_rays[3]->time.size(),
-                    cur_rays[4]->time.size(),
-                    cur_rays[5]->time.size(),
-                    cur_rays[6]->time.size(),
-                    cur_rays[7]->time.size()};
-    int tmax = *min_element(tmaxes, tmaxes + 8);
-
-    cout << "tmax is: " << tmax << "\n";
-
-    // Determine fine-scale grid steps:
-        // (do this later)
 
 
-    for (int tt = 0; tt < 1; tt++) {
-        cout << "t = " << tt << "\n";
-        // Interpolate on fine-scale grid:
-        for (double ii=0; ii <= 1; ii+=1./num_freqs_fine) {         // freqs
-            for (double jj=0; jj <= 1; jj+= 1./num_lats_fine) {     // lats
-                for (double kk=0; kk <= 1; kk+= 1./num_lons_fine) { // lons
+    // // Choose the 8 corner rays we'll work with (this is where you'll iterate
+    // // over the larger set)
+    // cur_rays[0] = &(raylist.at(1));
+    // cur_rays[1] = &(raylist.at(2));
+    // cur_rays[2] = &(raylist.at(3));
+    // cur_rays[3] = &(raylist.at(4));
+    // cur_rays[4] = &(raylist.at(5));
+    // cur_rays[5] = &(raylist.at(6));
+    // cur_rays[6] = &(raylist.at(7));
+    // cur_rays[7] = &(raylist.at(8));
 
-                    // pos_interp = {0.,0.,0.};
+
+    // cout << "sanity check: " << cur_rays[1]->stixB[0] << "\n";
+
+
+    // // for (int dd = 0; dd < 8; dd++) {
+    // //     cout << "Stix Params [0]: ";
+    // //     cout << cur_rays[dd]->stixR[1] << " ";
+    // //     cout << cur_rays[dd]->stixL[1] << " ";
+    // //     cout << cur_rays[dd]->stixP[1] << " ";
+    // //     cout << cur_rays[dd]->stixS[1] << " ";
+    // //     cout << cur_rays[dd]->stixD[1] << " ";
+    // //     cout << cur_rays[dd]->stixA[1] << " ";
+    // //     cout << cur_rays[dd]->stixB[1] << "\n";
+    // //     // cout << cur_rays[dd]->time.size() << " ";
+    // // }
+
+    // cout << "\n";
+
+    // // Get the length of the shortest ray in the batch:
+    // int tmaxes[] = {cur_rays[0]->time.size(),
+    //                 cur_rays[1]->time.size(),
+    //                 cur_rays[2]->time.size(),
+    //                 cur_rays[3]->time.size(),
+    //                 cur_rays[4]->time.size(),
+    //                 cur_rays[5]->time.size(),
+    //                 cur_rays[6]->time.size(),
+    //                 cur_rays[7]->time.size()};
+    // int tmax = *min_element(tmaxes, tmaxes + 8);
+
+    // cout << "tmax is: " << tmax << "\n";
+
+    // // Determine fine-scale grid steps:
+    //     // (do this later)
+
+
+    // for (int tt = 0; tt < 1; tt++) {
+    //     cout << "t = " << tt << "\n";
+    //     // Interpolate on fine-scale grid:
+    //     for (double ii=0; ii <= 1; ii+=1./num_freqs_fine) {         // freqs
+    //         for (double jj=0; jj <= 1; jj+= 1./num_lats_fine) {     // lats
+    //             for (double kk=0; kk <= 1; kk+= 1./num_lons_fine) { // lons
+
+    //                 // pos_interp = {0.,0.,0.};
                     
-                    r_cur = new rayT;
-                    // weight_ind = {ii, jj, kk};
-                    int t_ind = 0;
+    //                 r_cur = new rayT;
+    //                 // weight_ind = {ii, jj, kk};
+    //                 int t_ind = 0;
 
-                    interp_ray_fine(cur_rays, ii, jj, kk, t_ind, r_cur);
+    //                 interp_ray_fine(cur_rays, ii, jj, kk, t_ind, r_cur);
 
-                    // Get magnetic lat:
-                    sm_to_mag_d_(itime_in, r_cur->pos, tmp_coords2);
-                    cart_to_pol_d_(tmp_coords2, &maglat0, &maglon0, &magrad0);
-                    maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
+    //                 // Get magnetic lat:
+    //                 sm_to_mag_d_(itime_in, r_cur->pos, tmp_coords2);
+    //                 cart_to_pol_d_(tmp_coords2, &maglat0, &maglon0, &magrad0);
+    //                 maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
 
-                    // Print for debugging:
-                    // printf("(%g, %g, %g)\tmag lat, lon: (%g, %g): freq: %g hz\n",ii, jj, kk, maglat0,maglon0, (r_cur->w)/(2.*PI));
+    //                 // Print for debugging:
+    //                 // printf("(%g, %g, %g)\tmag lat, lon: (%g, %g): freq: %g hz\n",ii, jj, kk, maglat0,maglon0, (r_cur->w)/(2.*PI));
 
-                }   // kk
-            }   // jj
-        }   // ii
-    } // tt
+    //             }   // kk
+    //         }   // jj
+    //     }   // ii
+    // } // tt
+
+
+
+
+
+
+
+
+
 
 
 
