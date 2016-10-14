@@ -53,26 +53,10 @@ int trace_fieldline(double x_in[3], double x_out[TRACER_MAX][3], double ds_in) {
     
 
     // Determine which direction to step initially:
-
+    // Loosely, negative direction in northern hemisphere.
+    // (This might be too-simplistic near the equator with complex field models)
     ds = (x_in[1] > 0 ? -ds_in : ds);
 
-    // cout << "x (sph): ";
-    // print_array(x_cur, 3);
-
-    // cout << "B (sph): ";
-    // print_array(Bo,3);
-
-    // bmodel_dipole(x_cur, Bo);
-    // transform_data_sphcar(Bo, x_cur[1], x_cur[2]);
-
-    // degcar(x_cur);
-    // cout << "x (car): ";
-    // print_array(x_cur, 3);
-
-
-
-    // cout << "B (car): ";
-    // print_array(Bo, 3);
     int i=0;
     while (i < TRACER_MAX) {
     // for (int i=0; i < TRACER_MAX; i++ ) {
