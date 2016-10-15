@@ -201,6 +201,11 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
 
     double b_out[3];
 
+    double x_fl[TRACER_MAX][3]; // elements along the field line
+
+    double b_dipole[3];    
+    int Nsteps;
+
     int itime_in[2];
     itime_in[0] = 1000*iyr + idoy;
     itime_in[1] = isec*1e3;
@@ -211,54 +216,198 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
     cout << "orig: ";
     print_array(x_in, 3);
 
-    // double r = 1;
-    // double latin = lat*D2R;
-    // double lonin = lon*D2R;
-
-    // pol_to_cart_d_(&latin, &lonin, &r, x_out);
-
-    // cout << "xformd: ";
-    // print_array(x_out, 3);
-
-    // sph_car_(&r, &lat, &lon, x_out);
+    
+    // This works!
+    //Nsteps = trace_fieldline(x_in, x_fl, TRACER_STEP);
 
 
-    // cout << "IRBEM: ";
-    // print_array(x_out, 3);
+    for (int iyear = iyr; iyear < 2020; iyear++) {
 
-    // degcar(x_in);
-    // cout << "cart: ";
-    // print_array(x_in, 3);
+        // int ihr = 0; int imn = 0; int isc = 0;
+        // int idoy = 364/2;
 
-    // cardeg(x_in);
-    // cout << "back: ";
-    // print_array(x_in, 3);
+        // int ihr = (int)(isec/3600);
+        // int imn = int((isec - ihr*3600)/60);
+        // int isc = int(isec - ihr*3600 - imn*60);
+        // double vgsex = -400.0;
+        // double vgsey = 0; double vgsez = 0;
 
-    int Nsteps;
-    // bmodel_dipole(x_in, b_out);
-    // cout << "b (sph): ";
-    // print_array(b_out, 3);
 
-    // transform_data_sphcar(b_out, lat, lon);
+        cout << "iyear: " << iyear << "\n";
+        itime_in[0] = 1000*iyear + idoy;
+
+        init_igrf(itime_in);
+        igrf_geo(x_in, b_out);
+
+
+        dipole_geo(itime_in, x_in, b_dipole);
 
 
 
-    double x_fl[TRACER_MAX][3];
-    double ds = 0.0005;
-    Nsteps = trace_fieldline(x_in, x_fl, ds);
+        // recalc_08_(&iyear,&idoy,&ihr,&imn,&isc,
+        //          &vgsex, &vgsey, &vgsez);
 
-    for (int i=0; i < Nsteps; i++) {
-        cout << "x(" << i << ") : ";
-        print_array(x_fl[i],3);
+        // double r = 1;
+        // double theta = D2R*(90.0 - lat);
+        // double phi   = D2R*(lon);
+
+        // igrf_geo_08_(&r, &theta, &phi,
+        //              b_out, b_out + 1, b_out + 2);
+
+        // cout << "b_out: ";
+        // print_array(b_out, 3);
+
+
+        double Bomag = norm(b_out, 3);
+        cout << " B_igrf: mag: " << Bomag << " | ";
+        print_array(b_out, 3);
+
+        double Bomag_dip = norm(b_dipole, 3);
+        cout << " B_dip:  mag: " << Bomag_dip << " | ";
+        print_array(b_dipole, 3);
+
+
     }
 
-    // cout << "B: ";
-    // print_array(b_out, 3);
 
-    // // Loop through possible EA segments:
-    // for (int ii=0; ii < NUM_EA; ii++) {
+    // Test forward / reverse of data transforms:
 
+    cout << "---------\n";
+    
+    cout << "orig: "; print_array(b_out,3);
+
+    double x_geo[3];
+    
+    double btmp[3];
+    transform_data_sph2car(x_in[1], x_in[2], b_out, btmp);
+    cout << "xyz: "; print_array(btmp,3);
+
+    // transform_data_geo2mag(x_in[1], x_in[2], btmp, b_out);
+    // cout << "mag: "; print_array(b_out,3);        
+
+    // transform_data_mag2geo(x_in[1], x_in[2], )
+
+    transform_data_car2sph(x_in[1], x_in[2], btmp, b_out);
+    cout << "back: "; print_array(b_out,3);        
+
+
+
+
+
+
+//     // Test IGRF model:
+//     int ntime = 1;          // Number of points in array
+//     int kext = 0;           // External field model
+//     int options[5];
+//         options[0] = 1;     // Compute L* and Phi
+//         options[1] = 30;    // Interval to refresh IGRF, in days
+//         options[2] = 0;     // Some precision setting
+//         options[3] = 0;     // Another precision setting
+//         options[4] = 0;     // Internal field model
+//     int sysaxes = 0;        // MAG
+
+//     double maginput[25] = {0};
+
+//     // degcar(x_in);
+//     double Bgeo[3];
+//     double Bl;
+
+//     get_field_multi_(&ntime, &kext, options, &sysaxes,
+//                     &iyr, &idoy, &isec,
+//                     x_in, x_in + 1, x_in + 2,
+//                     maginput, Bgeo, &Bl);
+
+
+//     cout << "Bl: " << Bl <<  "\nBgeo: ";
+//     print_array(Bgeo, 3);
+//     cout << "\n";
+
+// // -----------------
+//     // Let's try some rotations between coordinate frames:
+//     double M[3][3];
+
+//     double A1[3] = {1, 0, 0};
+//     double A2[3] = {0, 1, 0};
+//     double A3[3] = {0, 0, 1};
+
+//     double B1[3];
+//     double B2[3];
+//     double B3[3];
+
+//     geo_to_mag_d_(itime_in, A1, B1);
+//     geo_to_mag_d_(itime_in, A2, B2);
+//     geo_to_mag_d_(itime_in, A3, B3);
+
+//     // print_array(B1,3);
+//     // print_array(B2,3);
+//     // print_array(B3,3);
+
+//     M[0][0] = B1[0]; M[0][1] = B2[0]; M[0][2] = B3[0];
+//     M[1][0] = B1[1]; M[1][1] = B2[1]; M[1][2] = B3[1];
+//     M[2][0] = B1[2]; M[2][1] = B2[2]; M[2][2] = B3[2];
+
+//     double out[3] = {0};
+//     for (int row=0; row < 3; row++) {
+//         for (int col=0; col < 3; col++) {
+//             out[col] += M[col][row]*Bgeo[row];
+//         }
+//     }
+
+//     cout << "B (mdip): ";
+//     print_array(out, 3);
+
+
+// // -------------------
+
+
+
+
+
+// // -----------------
+//     // Let's try some rotations between coordinate frames:
+//     double M[3][3];
+
+//     double A1[3] = {1, 0, 0};
+//     double A2[3] = {0, 1, 0};
+//     double A3[3] = {0, 0, 1};
+
+//     double B1[3];
+//     double B2[3];
+//     double B3[3];
+
+//     geo_to_mag_d_(itime_in, A1, B1);
+//     geo_to_mag_d_(itime_in, A2, B2);
+//     geo_to_mag_d_(itime_in, A3, B3);
+
+//     // print_array(B1,3);
+//     // print_array(B2,3);
+//     // print_array(B3,3);
+
+//     M[0][0] = B1[0]; M[0][1] = B2[0]; M[0][2] = B3[0];
+//     M[1][0] = B1[1]; M[1][1] = B2[1]; M[1][2] = B3[1];
+//     M[2][0] = B1[2]; M[2][1] = B2[2]; M[2][2] = B3[2];
+
+//     double out[3] = {0};
+//     for (int row=0; row < 3; row++) {
+//         for (int col=0; col < 3; col++) {
+//             out[col] += M[col][row]*A2[row];
+//         }
+//     }
+
+//     cout << "B2: ";
+//     print_array(B2, 3);
+//     cout << "out: ";
+//     print_array(out, 3);
+
+// // -------------------
+
+
+
+    // for (int i=0; i < Nsteps; i++) {
+    //     cout << "x(" << i << ") : ";
+    //     print_array(x_fl[i],3);
     // }
+
 
 
 }

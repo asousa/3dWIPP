@@ -24,31 +24,36 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 
 # Objects to build
-_OBJ = wipp_main.o wipp_fileutils.o math_utils.o wipp_methods.o wipp_legacy_methods.o bmodel_dipole.o
+_OBJ = wipp_main.o wipp_fileutils.o math_utils.o wipp_methods.o wipp_legacy_methods.o bmodel.o coord_transforms.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
-XFORM = lib/xform_double
-IRBEM = lib/irbem-code
+XFORM = $(LDIR)/xform_double
+IRBEM = $(LDIR)/irbem-code
 # GEOPACK = lib/geopack
-# Rules for making individual objects
+# Rules for making individual objects (from .cpp files in src/)
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
-
 	$(CC) -c -o $@ $< $(CFLAGS) -L$(LDIR) 
 
 # Rule to link everything together + generate executable
-wipp: $(OBJ) $(LDIR)/liboneradesp.a $(LDIR)/libxformd.a
-# wipp: $(OBJ) $(LDIR)/libxformd.a $(LDIR)/liboneradesp.a
-	# $(MAKE) -C $(XFORM)
-	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) -loneradesp -lgfortran -lxformd -o $(BDIR)/$@
+wipp: $(OBJ) $(LDIR)/libxformd.a $(LDIR)/libgeopackd.a
+
+	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) -lgfortran -lgeopackd -loneradesp -lxformd -o $(BDIR)/$@
 
 # $(ODIR)/sm2geo.o: $(SRC_DIR)/sm2geo.c
 
 # 	gcc -c -o $@ $< $(CFLAGS)
 
+# Tyganenko's geopack library (IGRF and coordinate transforms)
+$(LDIR)/libgeopackd.a:
+	gfortran -O3 -o lib/geopack/geopack-2008_dp.o -c $(LDIR)/geopack/Geopack-2008_dp.for
+	ar rc $(LDIR)/libgeopackd.a $(LDIR)/geopack/Geopack-2008_dp.o 
+
+# Legacy coordinate transforms, used in raytracer
 $(LDIR)/libxformd.a:
 	$(MAKE) -C $(XFORM)
 
+# IRBEM utility library:
 $(LDIR)/liboneradesp.a:
 	$(MAKE) -C $(IRBEM) OS=linux64 ENV=gnu64 all
 	mv $(IRBEM)/source/liboneradesp_linux_x86_64.a $(LDIR)/liboneradesp.a
@@ -62,5 +67,7 @@ clean:
 	rm -f $(BDIR)/*
 	rm -f $(LDIR)/libxformd.a
 	rm -f $(LDIR)/liboneradesp.a
+	rm -f $(LDIR)/libgeopackd.a
+
 	$(MAKE) -C $(XFORM) clean
 	$(MAKE) -C $(IRBEM) clean

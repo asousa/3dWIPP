@@ -80,8 +80,8 @@ int main(int argc, char *argv[])
 
     // Location to determine output at (geomagnetic)
     // To do: set this up as a grid
-    double outLat = -30;
-    double outLon = 7;
+    double outLat = 45;
+    double outLon = -10;
 
      // Parse input arguments:
     int opt = 0;
