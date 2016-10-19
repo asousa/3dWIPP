@@ -31,6 +31,8 @@ int main(int argc, char *argv[])
     string inpFileName;
     string outFileName;
 
+    string dumpFileName;
+
     int itime_in[2];
     
     string itime_str;
@@ -58,10 +60,12 @@ int main(int argc, char *argv[])
     rayF* cur_rays[8];
 
     // FILE * outputFile;
+    
 
     // Default parameters:
     inpFileName = "input.ray";
     outFileName = "output.ray";
+    dumpFileName= "fieldline_dump.dat";
 
     int iyr;     // Year
     int idoy;      // Day of year
@@ -80,8 +84,8 @@ int main(int argc, char *argv[])
 
     // Location to determine output at (geomagnetic)
     // To do: set this up as a grid
-    double outLat = 45;
-    double outLon = -10;
+    double outLat = 60;
+    double outLon = 180;
 
      // Parse input arguments:
     int opt = 0;
@@ -140,25 +144,41 @@ int main(int argc, char *argv[])
         v_tot_arr[i] = C*sqrt(1 - pow( (E_EL/(E_EL+E_tot_arr[i])) ,2) );
     }
 
-    init_EA_array(EA_array, outLat, outLon, iyr, idoy, isec);
+    // init_EA_array(EA_array, outLat, outLon, iyr, idoy, isec);
 
 
-
-    cout << "flash geo: ";
-    print_vector(vector<double>(flash_pos, flash_pos + 3));
-    double flash_I0 = 100e3;
-    
     int yearday = iyr*1000 + idoy;
     itime_in[0] = yearday;
     itime_in[1] = isec*1e3;
 
-    lat0 = D2R*flash_pos[1];
-    lon0 = D2R*flash_pos[2];
-    rad0 = flash_pos[0];
+    int use_IGRF = 0;
+    int use_tsyg = 1;
+    int n_lats = 4;
+    int n_lons = 8;
 
-    // Get flash position in SM coords:
-    pol_to_cart_d_(&lat0, &lon0, &rad0, tmp_coords);
-    mag_to_sm_d_(itime_in, tmp_coords, flash_pos_sm);
+
+    dump_fieldlines(itime_in, n_lats, n_lons, use_IGRF, use_tsyg, dumpFileName);
+
+
+
+
+
+
+    // cout << "flash geo: ";
+    // print_vector(vector<double>(flash_pos, flash_pos + 3));
+    // double flash_I0 = 100e3;
+    
+    // int yearday = iyr*1000 + idoy;
+    // itime_in[0] = yearday;
+    // itime_in[1] = isec*1e3;
+
+    // lat0 = D2R*flash_pos[1];
+    // lon0 = D2R*flash_pos[2];
+    // rad0 = flash_pos[0];
+
+    // // Get flash position in SM coords:
+    // pol_to_cart_d_(&lat0, &lon0, &rad0, tmp_coords);
+    // mag_to_sm_d_(itime_in, tmp_coords, flash_pos_sm);
 
     // cout << "SM (libxformd): ";
     // print_vector(vector<double>(flash_pos_sm, flash_pos_sm + 3));

@@ -213,8 +213,15 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
 
     x_in = {1, lat, lon};
 
+    // Get start coordinate in SM cartesian:
+    x_in_geocar = {x_in[0], x_in[1], x_in[2]};
+    degcar(x_in_geocar);
+    mag_to_sm_d_(itime_in, x_in_geocar, x_sm);
+
     cout << "orig: ";
     print_array(x_in, 3);
+    cout << "SM: ";
+    print_array(x_sm, 3);
 
     
     // This works!
@@ -222,75 +229,69 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
 
     double tsyg_params[10] = {0};
     double VG[3];
-    int use_IGRF = 0;
+    int use_IGRF = 1;
     int use_tsyg = 1;
-    
 
-    for (int iyear = iyr; iyear < 2012; iyear++) {
+    // Load Tsyganenko parameters
+    load_TS05_params(itime_in, tsyg_params, VG);
+    // Set up IGRF
+    init_igrf(itime_in);
 
-        // int ihr = 0; int imn = 0; int isc = 0;
-        // int idoy = 364/2;
-
-        // int ihr = (int)(isec/3600);
-        // int imn = int((isec - ihr*3600)/60);
-        // int isc = int(isec - ihr*3600 - imn*60);
-        // double vgsex = -400.0;
-        // double vgsey = 0; double vgsez = 0;
+    trace_fieldline(itime_in, x_sm, x_fl, 0.001, use_IGRF, use_tsyg, tsyg_params);
 
 
-        cout << "iyear: " << iyear << "\n";
-        itime_in[0] = 1000*iyear + idoy;
 
-        init_igrf(itime_in);
-        // igrf_geo(x_in, b_out);
+    // for (int iyear = iyr; iyear < 2012; iyear++) {
 
+    //     // int ihr = 0; int imn = 0; int isc = 0;
+    //     // int idoy = 364/2;
 
-        load_TS05_params(itime_in, tsyg_params, VG);
-
-        cout << "tsyg params (c): ";
-        print_array(tsyg_params, 10);
-        // dipole_geo(itime_in, x_in, b_dipole);
-
-
-        // // Rotate to mag. dipole coords
-        x_in_geocar = {x_in[0], x_in[1], x_in[2]};
-        degcar(x_in_geocar);
-        geo_to_sm_d_(itime_in, x_in_geocar, x_sm);
-
-        cout << "x_in (SM): ";
-        print_array(x_sm, 3);
-        dipole_sm(itime_in, x_sm, b_dipole);
+    //     // int ihr = (int)(isec/3600);
+    //     // int imn = int((isec - ihr*3600)/60);
+    //     // int isc = int(isec - ihr*3600 - imn*60);
+    //     // double vgsex = -400.0;
+    //     // double vgsey = 0; double vgsez = 0;
 
 
-        // Fortran version
-        // bmodel_(itime_in, x_sm, tsyg_params, &use_IGRF, &use_tsyg, b_out);
-        bmodel(itime_in, x_sm, tsyg_params, 0, 1, 0, b_out);
-        cout << "PSI (c-struct): " << geopack1_.PSI << "\n";
+    //     cout << "iyear: " << iyear << "\n";
+    //     itime_in[0] = 1000*iyear + idoy;
 
-        // recalc_08_(&iyear,&idoy,&ihr,&imn,&isc,
-        //          &vgsex, &vgsey, &vgsez);
+    //     init_igrf(itime_in);
+    //     // igrf_geo(x_in, b_out);
+    //     load_TS05_params(itime_in, tsyg_params, VG);
 
-        // double r = 1;
-        // double theta = D2R*(90.0 - lat);
-        // double phi   = D2R*(lon);
-
-        // igrf_geo_08_(&r, &theta, &phi,
-        //              b_out, b_out + 1, b_out + 2);
-
-        // cout << "b_out: ";
-        // print_array(b_out, 3);
+    //     cout << "tsyg params (c): ";
+    //     print_array(tsyg_params, 10);
+    //     // dipole_geo(itime_in, x_in, b_dipole);
 
 
-        double Bomag = norm(b_out, 3);
-        cout << " B_igrf: mag: " << Bomag << " | ";
-        print_array(b_out, 3);
+    //     // // Rotate to mag. dipole coords
+    //     x_in_geocar = {x_in[0], x_in[1], x_in[2]};
+    //     degcar(x_in_geocar);
+    //     geo_to_sm_d_(itime_in, x_in_geocar, x_sm);
 
-        double Bomag_dip = norm(b_dipole, 3);
-        cout << " B_dip:  mag: " << Bomag_dip << " | ";
-        print_array(b_dipole, 3);
+    //     cout << "x_in (SM): ";
+    //     print_array(x_sm, 3);
+    //     dipole_sm(itime_in, x_sm, b_dipole);
 
 
-    }
+    //     // Fortran version
+    //     // bmodel_(itime_in, x_sm, tsyg_params, &use_IGRF, &use_tsyg, b_out);
+    //     bmodel(itime_in, x_sm, tsyg_params, 1, 1, 0, b_out);
+    //     cout << "PSI (c-struct): " << geopack1_.PSI << "\n";
+
+
+
+    //     double Bomag = norm(b_out, 3);
+    //     cout << " B_igrf: mag: " << Bomag << " | ";
+    //     print_array(b_out, 3);
+
+    //     double Bomag_dip = norm(b_dipole, 3);
+    //     cout << " B_dip:  mag: " << Bomag_dip << " | ";
+    //     print_array(b_dipole, 3);
+
+
+    // }
 
 
     // Test forward / reverse of data transforms:
@@ -432,6 +433,81 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
     // }
 
 
+
+}
+
+
+
+void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int use_tsyg, string filename) {
+    // Run the field-line tracer and output the results. Cute!
+
+    FILE * file;
+
+    double lmin = 10;
+    double lmax = 80;
+
+    double lat_spacing = (lmax - lmin)/(1.0*n_lats);
+    double lon_spacing = 360./(1.0*n_lons);
+
+    int n_rays = n_lats * n_lons;
+    double grid[n_rays][TRACER_MAX][3];
+    double lens[n_rays]; 
+
+    double lats[n_rays];
+    double lons[n_rays];
+
+    double x_geo[3], x_geocar[3], x_sm[3];
+
+    double tsyg_params[10] = {0};
+    double VG[3];
+    double stepsize = 0.01;
+
+    // Setup for IGRF:    
+    load_TS05_params(itime_in, tsyg_params, VG);
+    init_igrf(itime_in);
+
+    // Trace it
+    int i = 0;
+    for (double lat = lmin; lat < lmax; lat+= lat_spacing) {
+        for (double lon = 0; lon < 360; lon += lon_spacing) {
+            cout << "tracing " << lat << ", " << lon << "\n";
+
+            init_igrf(itime_in);
+            lats[i] = lat;
+            lons[i] = lon;
+
+            x_geo = {1.2, lat, lon};
+            x_geocar = {x_geo[0], x_geo[1], x_geo[2]};
+            degcar(x_geocar);
+            mag_to_sm_d_(itime_in, x_geocar, x_sm);
+
+            lens[i] = trace_fieldline(itime_in, x_sm, grid[i], stepsize, use_IGRF, use_tsyg, tsyg_params);
+            i++;
+        }
+    }
+
+
+    // Save it
+    cout << "saving...\n";
+    file = fopen(filename.c_str(), "w");
+
+    if (file != NULL) {
+        int k = 0;
+        for (int i=0; i < n_rays; i++) {
+            cout << "Saving " << lats[k] << ", " << lons[k] <<"\n";
+            for (int j=0; j < lens[i]; j++) {
+                // cout << "(" << lats[k] << ", " << lons[k] << "): " << j << " ";
+                // print_array(grid[i][j], 3);
+
+                fprintf(file, "%g %g %i %g %g %g\n",lats[k], lons[k], j, grid[i][j][0], grid[i][j][1], grid[i][j][2]);
+
+            }
+            k++;
+            // cout << "\n";
+        }
+    } else {
+        cout << "Could not open file " << filename.c_str() << "\n";
+    }
 
 }
 

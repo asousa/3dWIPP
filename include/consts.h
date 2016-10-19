@@ -47,7 +47,7 @@
 #define     NUM_EA      80
 #define		EAIncr	    ((EAlimN - EAlimS)/NUM_EA)	
 
-#define     TRACER_MAX  10000    // Maximum steps in field line tracer
+#define     TRACER_MAX  20000    // Maximum steps in field line tracer
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)
 
 // // Width around field line, in L-shells, in which to consider a crossing

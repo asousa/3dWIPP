@@ -213,8 +213,8 @@ void dipole_sm(int itime_in[2], double x_in[3], double b_out[3]);
 void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10],
             int use_IGRF, int use_tsyg, int recalc, double b_out[3]);
 
-int trace_fieldline(double x_in[3], double x_out[TRACER_MAX][3], double ds);
-
+int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3], 
+                    double ds_in, int use_IGRF, int use_tsyg, double tsyg_params[10]);
 void init_igrf(int itime_in[2]);
 void igrf_geo(double x_in[3], double b_out[3]);
 void igrf_mag_cart(int itime_in[2], double x_in[3], double b_out[3], bool recalc);
@@ -223,6 +223,8 @@ extern "C" void t04_s_(double* IOPT, double tsyg_params[10], float* PS,
                       float* BX, float* BY, float* BZ);
 
 void load_TS05_params(int itime[2], double TS05_params[10], double VG[3]);
+
+void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int use_tsyg, string filename);
 
 
 extern "C" {
