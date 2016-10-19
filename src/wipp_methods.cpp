@@ -196,14 +196,14 @@ void calc_stix_parameters(rayF* ray) {
 
 void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int idoy, double isec) {
 
-    double x_in[3];         
+    double x_in[3], x_in_geocar[3], x_sm[3];         
     double x_out[3];
 
     double b_out[3];
 
     double x_fl[TRACER_MAX][3]; // elements along the field line
 
-    double b_dipole[3];    
+    double b_dipole[3], b_sm[3];    
     int Nsteps;
 
     int itime_in[2];
@@ -220,8 +220,13 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
     // This works!
     //Nsteps = trace_fieldline(x_in, x_fl, TRACER_STEP);
 
+    double tsyg_params[10] = {0};
+    double VG[3];
+    int use_IGRF = 0;
+    int use_tsyg = 1;
+    
 
-    for (int iyear = iyr; iyear < 2020; iyear++) {
+    for (int iyear = iyr; iyear < 2012; iyear++) {
 
         // int ihr = 0; int imn = 0; int isc = 0;
         // int idoy = 364/2;
@@ -237,12 +242,30 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
         itime_in[0] = 1000*iyear + idoy;
 
         init_igrf(itime_in);
-        igrf_geo(x_in, b_out);
+        // igrf_geo(x_in, b_out);
 
 
-        dipole_geo(itime_in, x_in, b_dipole);
+        load_TS05_params(itime_in, tsyg_params, VG);
+
+        cout << "tsyg params (c): ";
+        print_array(tsyg_params, 10);
+        // dipole_geo(itime_in, x_in, b_dipole);
 
 
+        // // Rotate to mag. dipole coords
+        x_in_geocar = {x_in[0], x_in[1], x_in[2]};
+        degcar(x_in_geocar);
+        geo_to_sm_d_(itime_in, x_in_geocar, x_sm);
+
+        cout << "x_in (SM): ";
+        print_array(x_sm, 3);
+        dipole_sm(itime_in, x_sm, b_dipole);
+
+
+        // Fortran version
+        // bmodel_(itime_in, x_sm, tsyg_params, &use_IGRF, &use_tsyg, b_out);
+        bmodel(itime_in, x_sm, tsyg_params, 0, 1, 0, b_out);
+        cout << "PSI (c-struct): " << geopack1_.PSI << "\n";
 
         // recalc_08_(&iyear,&idoy,&ihr,&imn,&isc,
         //          &vgsex, &vgsey, &vgsez);
@@ -272,23 +295,23 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
 
     // Test forward / reverse of data transforms:
 
-    cout << "---------\n";
+    // cout << "---------\n";
     
-    cout << "orig: "; print_array(b_out,3);
+    // cout << "orig: "; print_array(b_out,3);
 
-    double x_geo[3];
+    // double x_geo[3];
     
-    double btmp[3];
-    transform_data_sph2car(x_in[1], x_in[2], b_out, btmp);
-    cout << "xyz: "; print_array(btmp,3);
+    // double btmp[3];
+    // transform_data_sph2car(x_in[1], x_in[2], b_out, btmp);
+    // cout << "xyz: "; print_array(btmp,3);
 
-    // transform_data_geo2mag(x_in[1], x_in[2], btmp, b_out);
-    // cout << "mag: "; print_array(b_out,3);        
+    // // transform_data_geo2mag(x_in[1], x_in[2], btmp, b_out);
+    // // cout << "mag: "; print_array(b_out,3);        
 
-    // transform_data_mag2geo(x_in[1], x_in[2], )
+    // // transform_data_mag2geo(x_in[1], x_in[2], )
 
-    transform_data_car2sph(x_in[1], x_in[2], btmp, b_out);
-    cout << "back: "; print_array(b_out,3);        
+    // transform_data_car2sph(x_in[1], x_in[2], btmp, b_out);
+    // cout << "back: "; print_array(b_out,3);        
 
 
 

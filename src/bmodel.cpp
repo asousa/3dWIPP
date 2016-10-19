@@ -36,6 +36,24 @@ void bmodel_dipole(double* x_in, double* B_out) {
 }
 
 
+void dipole_sm(int itime_in[2], double x_in[3], double b_out[3]) {
+    //  Dipole field model -- input and output in SM cartesian coords
+
+    double x_mag[3];
+    double b_mag[3], b_car[3];
+
+    // Convert to magnetic dipole coords:
+    sm_to_mag_d_(itime_in, x_in, x_mag);
+    cardeg(x_mag);
+
+    bmodel_dipole(x_mag, b_mag);
+
+    transform_data_sph2car(x_mag[1], x_mag[2], b_mag, b_car);
+    mag_to_sm_d_(itime_in, b_car, b_out);
+
+}
+
+
 void dipole_geo(int itime_in[2], double x_in[3], double b_out[3]) {
     //  Tilted-dipole magnetic field model.
     //  x_in:   geographic R, lat, lon (R in Earth radii)
@@ -126,4 +144,69 @@ void igrf_mag_cart(int itime_in[2], double x_in[3], double b_out[3], bool recalc
     // Map to magnetic cartesian:
     transform_data_geo2mag(itime_in, b_geocar, b_out);
 
+}
+
+
+
+void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10], int use_IGRF, int use_tsyg, int recalc, double b_out[3]) {
+    // Selectable B-field model in SM Cartesian coordinates.
+
+
+    double x_gsm[3];
+    double b_tmp[3];            // Temporary coords.
+    double b_int[3];            // Internal magnetic field (IGRF or dipole)
+    float  b_ext[3];            // external magnetic field (Tsyg solar wind model)
+
+    float tX, tY, tZ;
+    float psi;
+    // Tsyganenko model params:
+
+    double iopt = 0;               // Dummy input that does absolutely nothing
+
+    // cout << "psi (geopack): " << geopack1_.PSI << "\n";
+    sm_to_gsm_d_(itime_in, x_in, x_gsm);
+
+    // Get internal magnetic field:
+    if (use_IGRF==1) {
+
+        // update IGRF if needed:
+       if (recalc==1) {
+            init_igrf(itime_in);
+        }
+
+        // IGRF model uses Tsyganenko's GSW coordinates. These collapse to the standard
+        // GSM coordinates if we set the solar wind velocities vgsex = -400, vgsey = vgsez=0.
+        // (Default assigned in init_igrf()).
+        igrf_gsw_08_(x_gsm, x_gsm +1, x_gsm + 2, b_int, b_int + 1, b_int + 2);
+    } else {
+        dipole_sm(itime_in, x_in, b_tmp);
+        sm_to_gsm_d_(itime_in, b_tmp, b_int);
+    }
+
+    if (use_tsyg==1) {
+        // cout << "xgsm: ";
+        // print_array(x_gsm, 3);
+        // Make sure we're passing singles where singles need passed
+        psi = float(geopack1_.PSI);
+        tX = float(x_gsm[0]);
+        tY = float(x_gsm[1]);
+        tZ = float(x_gsm[2]);
+        
+        t04_s_(&iopt, tsyg_params, &psi,
+            &tX, &tY, &tZ, b_ext, b_ext+1, b_ext+2);
+
+        cout << "tsyg: ";
+        cout << b_ext[0] << ", " << b_ext[1] << ", " << b_ext[2] << "\n";
+
+    } else {
+        b_ext = {0, 0, 0};
+    }
+
+    // Combine internal and external fields
+    b_tmp[0] = b_int[0] + b_ext[0];
+    b_tmp[1] = b_int[1] + b_ext[1];
+    b_tmp[2] = b_int[2] + b_ext[2];
+
+    // Rotate back to SM
+    gsm_to_sm_d_(itime_in, b_tmp, b_out);
 }

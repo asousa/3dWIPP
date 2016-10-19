@@ -267,3 +267,108 @@ void write_rayfile(string fileName, map <int, rayF> raylist) {
     }   
 
 }
+
+
+
+void load_TS05_params(int itime_in[2], double TS_params[10], double VG[3]) {
+
+    ostringstream inp_filename;
+    ifstream file;
+    vector <double> v;
+    vector <double> v_prev;
+    istringstream iss;
+    string line;
+
+    double total_mins = 0;
+    double dtL, dtR, dt;
+
+    inp_filename << "data/TS04/";
+
+    int yr = (int)(itime_in[0]/1000);
+    int doy  = itime_in[0] - 1000*yr;
+    int isec = itime_in[1]*1e-3; 
+    int hr = (int)(isec/3600);
+    int mn = (int)((isec - hr*3600)/60);
+
+    int target_total_mins = mn + hr*60 + doy*24*60;
+
+    cout << "target total: " << target_total_mins << "\n";
+    cout << "yr: " << yr << " doy: " << doy << " hr: " << hr << " min: " << mn << "\n";
+    if (1995 <= yr <=2015) {
+        inp_filename << yr << "_OMNI_5m_with_TS05_variables.dat";
+        // cout << "inp filename: " << inp_filename.str() << "\n";
+
+        file.open(inp_filename.str().c_str());
+        if (file.is_open()) {
+            while (getline(file, line)) {
+
+                v_prev = v;
+                // v = {0};
+                v.clear();
+                iss.clear();
+                iss.str(line);
+
+                 // // Iterate over the istream, using >> to grab doubles
+                // // and push_back to store them in the vector
+                copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
+                // cout << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << "\n";
+                total_mins = v[3] + v[2]*60 + v[1]*24*60;
+                // cout << "targ mins: " << target_total_mins <<  " total mins: " << total_mins << "\n";
+               if (total_mins >= target_total_mins)  {
+                    // Interpolate between this row and previous row
+                    if (v_prev.size() > 0) {
+
+                        // print_vector(v);
+                        // seconds from each segment
+                        dtL = target_total_mins - v_prev[3] - v_prev[2]*60 - v_prev[1]*24*60;
+                        dtR = total_mins - target_total_mins;
+                        dt  = dtR + dtL;
+                        // cout << "L: " << dtL << " R: " << dtR << " Tot: " << dt << "\n";
+                        cout << "Tilt: " << v[15] << " " << v_prev[15] << "\n";
+
+                        TS_params[0] = (dtL/dt)*v[16]  +   (dtR/dt)*v_prev[16];   // Pdyn
+                        TS_params[1] = 0               +   0;                     // Dst
+                        TS_params[2] = (dtL/dt)*v[5]   +   (dtR/dt)*v_prev[5];    // ByIMF
+                        TS_params[3] = (dtL/dt)*v[6]   +   (dtR/dt)*v_prev[6];    // BzIMF
+                        TS_params[4] = (dtL/dt)*v[17]  +   (dtR/dt)*v_prev[17];   // W1
+                        TS_params[5] = (dtL/dt)*v[18]  +   (dtR/dt)*v_prev[18];   // W2
+                        TS_params[6] = (dtL/dt)*v[19]  +   (dtR/dt)*v_prev[19];   // W3
+                        TS_params[7] = (dtL/dt)*v[20]  +   (dtR/dt)*v_prev[20];   // W4
+                        TS_params[8] = (dtL/dt)*v[21]  +   (dtR/dt)*v_prev[21];   // W5
+                        TS_params[9] = (dtL/dt)*v[22]  +   (dtR/dt)*v_prev[22];   // W6
+
+                        VG[0]        = (dtL/dt)*v[7]   +   (dtR/dt)*v_prev[7];
+                        VG[1]        = (dtL/dt)*v[8]   +   (dtR/dt)*v_prev[8];
+                        VG[2]        = (dtL/dt)*v[9]   +   (dtR/dt)*v_prev[9];
+                        // TS_params order:
+                        // [Pdyn Dst ByIMF BzIMF W1 W2 W3 W4 W5 W6]
+
+                    } else {
+                        // first row.
+                        TS_params[0] = v[16];   // Pdyn
+                        TS_params[1] = 0;       // Dst
+                        TS_params[2] = v[5];    // ByIMF
+                        TS_params[3] = v[6];    // BzIMF
+                        TS_params[4] = v[17];   // W1
+                        TS_params[5] = v[18];   // W2
+                        TS_params[6] = v[19];   // W3
+                        TS_params[7] = v[20];   // W4
+                        TS_params[8] = v[21];   // W5
+                        TS_params[9] = v[22];   // W6
+
+                    }
+                    break;
+
+                } 
+            }
+            file.close();
+        }
+
+
+
+
+    } else {
+        cout << "Out of bounds of TS files!\n";
+    }
+
+}

@@ -53,4 +53,7 @@
 // // Width around field line, in L-shells, in which to consider a crossing
 // #define		L_MARGIN    6E-4
 
+
+// #define     ROOT_DIR    /shared/users/asousa/WIPP/3dWIPP/
+
 #endif

@@ -26,7 +26,7 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 R_E = 6371.0    # km
 
 # Simulation time
-ray_datenum = dt.datetime(2010, 06, 04, 03, 17, 00);
+ray_datenum = dt.datetime(2010, 06, 04, 03, 20, 00);
 
 iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
@@ -46,6 +46,19 @@ tvec, avec = load_ae()
 tt = bisect.bisect_left(tvec, ray_datenum)
 AE = np.log10(avec[tt])
 
+# Load solar wind parameters (for Tsykadenko corrections)
+Pdyn, ByIMF, BzIMF, W = load_TS_params(ray_datenum)
+
+# Load Dst
+Dst = load_Dst(ray_datenum)
+
+TS_params = [Pdyn, Dst, ByIMF, BzIMF, W[0], W[1], W[2], W[3], W[4], W[5]]
+print TS_params
+
+print "Pdyn: ", Pdyn
+print "ByIMF: ", ByIMF
+print "BzIMF: ", BzIMF
+print "W: ", W
 
 print "year: ", iyr
 print "day: ", idoy

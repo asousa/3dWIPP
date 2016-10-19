@@ -177,6 +177,9 @@ extern "C" void mag_to_geo_d_(int* itime, double* x_in, double* x_out);
 extern "C" void cart_to_pol_d_(double* x_in, double* lat, double* lon, double* radius);
 extern "C" void pol_to_cart_d_(double* lat, double* lon, double* radius, double* x_out);
 
+extern "C" void sm_to_gsm_d_(int* itime, double* x_in, double* x_out);
+extern "C" void gsm_to_sm_d_(int* itime, double* x_in, double* x_out);
+
 // ---- My own transforms ----
 // In-place cartesian / polar transforms. 
 void carsph(double x[3]); 
@@ -200,35 +203,34 @@ extern "C" void get_field_multi_(int* ntime, int* kext, int options[5],
 
 // // ----- libgeopackd (Tyganenko's transform library + IGRF12)
 extern "C" void igrf_geo_08_(double* r, double* theta, double* phi, double* Br, double* Btheta, double* Bphi);
+extern "C" void igrf_gsw_08_(double* x, double* y, double* z, double* bx, double* by, double* bz);
 extern "C" void recalc_08_(int* iyr, int* idy, int* ihr, int* imn, int* isc, double* vgsex, double* vgsey, double* vgsez);
 
 // Bmodel:
 void bmodel_dipole(double* x_in, double* B_out);
 void dipole_geo(int itime_in[2], double x_in[3], double b_out[3]);
-
+void dipole_sm(int itime_in[2], double x_in[3], double b_out[3]);
+void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10],
+            int use_IGRF, int use_tsyg, int recalc, double b_out[3]);
 
 int trace_fieldline(double x_in[3], double x_out[TRACER_MAX][3], double ds);
 
 void init_igrf(int itime_in[2]);
 void igrf_geo(double x_in[3], double b_out[3]);
 void igrf_mag_cart(int itime_in[2], double x_in[3], double b_out[3], bool recalc);
+extern "C" void t04_s_(double* IOPT, double tsyg_params[10], float* PS, 
+                      float* X, float* Y, float* Z,
+                      float* BX, float* BY, float* BZ);
+
+void load_TS05_params(int itime[2], double TS05_params[10], double VG[3]);
 
 
-
-// // Field line raytracer
-
-// extern "C" void trace_field_line_towards_earth1_(double* kext,long options[5], long* sysaxes, 
-//                 long* iyear, long* idoy, double *isec,
-//                 double* x1, double* x2, double* x3,
-//                 double* maginput, double* ds, double posit[3000][3], int* Nposit);
-
-
-// extern "C" void trace_field_line2_1_(double* kext, int options[5], int* sysaxes,
-//                 int* iyear, int* idoy, double* isec,
-//                 double* x1, double* x2, double* x3,
-//                 double* maginput, double* R0, double* lm, 
-//                 double* blocal, double* bmin, double* xj,
-//                 double posit[3000][3], int* Nposit);
-
+extern "C" {
+    extern struct {
+         double ST0,CT0,SL0,CL0,CTCL,STCL,CTSL,STSL,SFI,CFI,
+                SPS,CPS,DS3,CGST,SGST,PSI,A11,A21,A31,A12,A22,A32,A13,A23,A33,
+                E11,E21,E31,E12,E22,E32,E13,E23,E33;
+    } geopack1_;
+}
 
 #endif
