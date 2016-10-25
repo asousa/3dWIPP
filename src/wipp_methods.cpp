@@ -197,14 +197,24 @@ void calc_stix_parameters(rayF* ray) {
 void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int idoy, double isec) {
 
     double x_in[3], x_in_geocar[3], x_sm[3];         
-    double x_out[3];
+    double x_cur[3], x_out[3];
 
-    double b_out[3];
+    double w1, w2;  // Interpolation weights
+    double prev_lat;
+
+    double Bo[3];
+    double Bomag;
 
     double x_fl[TRACER_MAX][3]; // elements along the field line
 
     double b_dipole[3], b_sm[3];    
     int Nsteps;
+
+    double lam, slam, clam, dL_lam, ptR, ptX, ptY, x1, x2, y1, y2;
+    double slam2, clam2, rootTerm, x_unit_vect, y_unit_vect, ptL;
+    double EA_a, EA_b, EA_c;
+
+
 
     int itime_in[2];
     itime_in[0] = 1000*iyr + idoy;
@@ -229,15 +239,98 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
 
     double tsyg_params[10] = {0};
     double VG[3];
-    int use_IGRF = 1;
+    int use_IGRF = 0;
     int use_tsyg = 1;
 
-    // Load Tsyganenko parameters
+     // Setup for IGRF:    
     load_TS05_params(itime_in, tsyg_params, VG);
-    // Set up IGRF
     init_igrf(itime_in);
 
-    trace_fieldline(itime_in, x_sm, x_fl, 0.001, use_IGRF, use_tsyg, tsyg_params);
+    // set DST:
+    tsyg_params[1] = -20;
+
+    Nsteps = trace_fieldline(itime_in, x_sm, x_fl, 0.001, use_IGRF, use_tsyg, tsyg_params);
+    
+    double target_lat = EALimN;
+    int EA_index = 0;
+
+
+    // Step through traced array:
+    for (int i=0; i < Nsteps; i++) {
+
+        // look for first entry at a latitude lower than lat_cur:
+        // Get current latitude:
+        sm_to_mag_d_(itime_in, x_fl[i], x_cur);
+        cardeg(x_cur);
+
+        if (x_cur[1] < target_lat) {
+
+            // Intersection point:
+            EA_array[EA_index].field_line_pos = Map<VectorXd>(x_fl[i],3,1);
+
+            // Get B:
+            bmodel(itime_in, x_cur, tsyg_params, use_IGRF, use_tsyg, 1, Bo);
+
+            // Get unit vector pointing along field line:
+            Bomag = norm(Bo, 3);
+            EA_array[EA_index].ea_norm = Map<VectorXd>(Bo, 3, 1)/Bomag;
+
+            // Calculate the width in the same way Jacob did:
+            // (Width in L_MARGIN, assuming a dipole field)
+            lam = target_lat;
+            
+            clam = cos(lam*D2R);
+            slam = sin(lam*D2R);
+            clam2 = pow(clam,2);
+            slam2 = pow(slam,2);
+            rootTerm = sqrt(1+3*slam2);
+              
+            dL_lam = clam2*clam / rootTerm * L_MARGIN ;
+            
+            x_unit_vect = (3*clam2 - 2) / rootTerm ;
+            y_unit_vect = (3*slam*clam) / rootTerm ;
+            
+            ptR = ptL*clam2;
+            ptX = ptR*clam;
+            ptY = ptR*slam;
+              
+            
+            x1 = ptX - x_unit_vect*dL_lam ;
+            x2 = ptX + x_unit_vect*dL_lam ;
+            
+            y1 = ptY - y_unit_vect*dL_lam ;
+            y2 = ptY + y_unit_vect*dL_lam ;
+            
+            EA_a = y1 - y2;
+            EA_b = x2 - x1;
+            EA_c = x1*y2 - y1*x2;
+            
+            EA_array[EA_index].radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2; 
+
+            // Bump indices:
+            target_lat -= EAIncr;
+            EA_index++;
+
+        }
+
+        if (x_cur[1] < EALimS) {
+            break;
+        } 
+
+        prev_lat = x_cur[1];
+    }
+
+
+    double x_tmp[3];
+    // Read out found data:
+    for (int j=0; j < NUM_EA; j++) {
+        sm_to_mag_d_(itime_in, EA_array[j].field_line_pos.data(), x_tmp);
+        cardeg(x_tmp);
+        print_array(x_tmp, 3);
+
+        cout << EA_array[j].radius << "\n";
+
+    }
 
 
 
@@ -444,7 +537,7 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int 
     FILE * file;
 
     double lmin = 10;
-    double lmax = 80;
+    double lmax = 90;
 
     double lat_spacing = (lmax - lmin)/(1.0*n_lats);
     double lon_spacing = 360./(1.0*n_lons);
@@ -465,6 +558,10 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int 
     // Setup for IGRF:    
     load_TS05_params(itime_in, tsyg_params, VG);
     init_igrf(itime_in);
+
+    // set DST:
+    tsyg_params[1] = -20;
+
 
     // Trace it
     int i = 0;
@@ -488,7 +585,7 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int 
 
 
     // Save it
-    cout << "saving...\n";
+    cout << "saving to file " << filename << "\n";
     file = fopen(filename.c_str(), "w");
 
     if (file != NULL) {

@@ -103,7 +103,7 @@ if buildstatus != 0:
     sys.exit("Build failed!")
 
 # run it
-wipp_cmd = 'bin/wipp -i %s -t %s -u %d -v %d -a %g -b %g -c %g'%(inp_rayfile, iyr, idoy, isec,
+wipp_cmd = 'bin/wipp -i %s -t %s -u %d -v %d -a %g -b %g -c %g -d 0'%(inp_rayfile, iyr, idoy, isec,
                 inp_coords[0][0], inp_coords[0][1], inp_coords[0][2])
 print wipp_cmd
 

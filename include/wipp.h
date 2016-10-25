@@ -104,7 +104,7 @@ typedef struct rayT {
 // will calculate scattering at)
 typedef struct EA_segment {
 
-    Eigen::Vector3d ea_norm;          // Vector normal to crossing plane
+    Eigen::Vector3d ea_norm;           // Vector normal to crossing plane
     Eigen::Vector3d field_line_pos;    // Location in plane where field line intersects
 
     double L_sh;                       // L shell

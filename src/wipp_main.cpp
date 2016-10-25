@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     // Default parameters:
     inpFileName = "input.ray";
     outFileName = "output.ray";
-    dumpFileName= "fieldline_dump.dat";
+    dumpFileName= "fieldline_dump_igrf_tsyg.dat";
 
     int iyr;     // Year
     int idoy;      // Day of year
@@ -87,9 +87,11 @@ int main(int argc, char *argv[])
     double outLat = 60;
     double outLon = 180;
 
+    int dump_field = 0;
+
      // Parse input arguments:
     int opt = 0;
-    while ((opt = getopt(argc, argv, "i:o:t:u:v:a:b:c:")) != -1) {
+    while ((opt = getopt(argc, argv, "i:o:t:u:v:a:b:c:d:")) != -1) {
         switch(opt) {
             case 'i':
             // input filename:
@@ -108,7 +110,9 @@ int main(int argc, char *argv[])
             case 'v':
                 // isec= strtod(optarg, NULL);
                 isec= atoi(optarg);
-
+                break;
+            case 'd':
+                dump_field = atoi(optarg);
                 break;
             case 'a':
                 flash_pos[0] = strtod(optarg, NULL);
@@ -135,7 +139,6 @@ int main(int argc, char *argv[])
     cout << "sec of day: " << isec << "\n";
     cout << "---- 3D WIPP ----\n";
 
-
     // Set up output grids (energy, velocity, space)
 
     //initialize the velocity and energy arrays
@@ -144,21 +147,24 @@ int main(int argc, char *argv[])
         v_tot_arr[i] = C*sqrt(1 - pow( (E_EL/(E_EL+E_tot_arr[i])) ,2) );
     }
 
-    // init_EA_array(EA_array, outLat, outLon, iyr, idoy, isec);
+    init_EA_array(EA_array, outLat, outLon, iyr, idoy, isec);
 
 
     int yearday = iyr*1000 + idoy;
     itime_in[0] = yearday;
     itime_in[1] = isec*1e3;
 
-    int use_IGRF = 0;
-    int use_tsyg = 1;
-    int n_lats = 4;
-    int n_lons = 8;
+
+    // Dump the field line model:
+    if (dump_field == 1) {
+        int use_IGRF = 1;
+        int use_tsyg = 0;
+        int n_lats = 10;
+        int n_lons = 4;
 
 
-    dump_fieldlines(itime_in, n_lats, n_lons, use_IGRF, use_tsyg, dumpFileName);
-
+        dump_fieldlines(itime_in, n_lats, n_lons, use_IGRF, use_tsyg, dumpFileName);
+    }
 
 
 

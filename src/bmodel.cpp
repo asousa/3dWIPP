@@ -181,7 +181,9 @@ void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10], int use_IGR
     } else {
         dipole_sm(itime_in, x_in, b_tmp);
         sm_to_gsm_d_(itime_in, b_tmp, b_int);
+        // b_int = {0, 0, 0};
     }
+    // cout << "in mag: " << norm(b_int, 3);
 
     if (use_tsyg==1) {
 
@@ -201,6 +203,7 @@ void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10], int use_IGR
         t04_s_(&iopt, tsyg_params, &psi,
             &tX, &tY, &tZ, &beX, &beY, &beZ);
 
+        // cout << " ts mag: " << sqrt(beX*beX + beY*beY + beZ*beZ);
         // cout << "tsyg: ";
         // cout << beX << ", " << beY << ", " << beZ << "\n";
 
@@ -214,9 +217,11 @@ void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10], int use_IGR
     // b_tmp[1] =  -(beY);
     // b_tmp[2] =  -(beZ);
 
-    b_tmp[0] = b_int[0] + (beX);
-    b_tmp[1] = b_int[1] + (beY);
-    b_tmp[2] = b_int[2] + (beZ);
+    b_tmp[0] = b_int[0] + double(beX);
+    b_tmp[1] = b_int[1] + double(beY);
+    b_tmp[2] = b_int[2] + double(beZ);
+
+    // cout << " bo mag: " << norm(b_tmp, 3) << "\n";
 
     // Rotate back to SM
     gsm_to_sm_d_(itime_in, b_tmp, b_out);
@@ -230,7 +235,10 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
 // x_out: [nx3] array of field line coordinates
 
     double Bo[3] = {0};
-    double Bomag, xcurmag;
+    double Bomag;
+
+    double x_tmp[3];
+    double x_tmp_mag, x_cur_mag;
 
     double dx, dy, dz;
 
@@ -252,19 +260,19 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
     double Rdip = 0;
 
     // Determine which direction to step initially:
-    // Loosely, negative direction in northern hemisphere.
-    // (This might be too-simplistic near the equator with complex field models)
-    // (But that's okay, since we're tracing from the ground up)
+    //  -- Make one step, and see if we got closer or further away
+    bmodel(itime_in, x_cur, tsyg_params, use_IGRF, use_tsyg, 1, Bo);
 
-    // cout << "x_mag: ";
-    // print_array(x_mag, 3);
+    // Get unit vectors:
+    Bomag = norm(Bo, 3);
+    dx = Bo[0]/Bomag; dy = Bo[1]/Bomag; dz = Bo[2]/Bomag;
 
-    ds = (x_mag[1] > 0 ? -ds_in : ds);
+    // Update x_cur:
+    x_tmp[0] += dx*ds;
+    x_tmp[1] += dy*ds;
+    x_tmp[2] += dz*ds;
 
-    // bmodel(itime_in, x_cur, tsyg_params, use_IGRF, use_tsyg, 0, Bo);
-
-    // print_array(Bo, 3);
-
+    ds = (norm(x_tmp, 3) < norm(x_cur, 3) ? -ds_in : ds_in);
 
     int i=0;
     while (i < TRACER_MAX) {
@@ -281,29 +289,7 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
         x_cur[1] += dy*ds;
         x_cur[2] += dz*ds;
 
-        // Get mag spherical coords (for display):
-        sm_to_mag_d_(itime_in, x_cur, x_mag);
-        cardeg(x_mag);
-
-        // cout << "x(" << i << ") : ";
-        // print_array(x_mag, 3);
-        // cout << "   SM: ";
-        // print_array(x_cur, 3);
         x_alt = norm(x_cur, 3);
-
-    //     bmodel_dipole(x_cur, Bo);
-    //     transform_data_sph2car(Bo, x_cur[1], x_cur[2]);
-
-    //     Bomag = sqrt(Bo[0]*Bo[0] + Bo[1]*Bo[1] + Bo[2]*Bo[2]);
-        // dx = Bo[0]/Bomag; dy = Bo[1]/Bomag; dz = Bo[2]/Bomag;
-        
-    //     degcar(x_cur);
-
-    //     x_cur[0] += dx*ds;
-    //     x_cur[1] += dy*ds;
-    //     x_cur[2] += dz*ds;
-
-    //     cardeg(x_cur);
 
         x_out[i][0] = x_cur[0];
         x_out[i][1] = x_cur[1];
