@@ -53,7 +53,7 @@ Pdyn, ByIMF, BzIMF, W = load_TS_params(ray_datenum)
 Dst = load_Dst(ray_datenum)
 
 TS_params = [Pdyn, Dst, ByIMF, BzIMF, W[0], W[1], W[2], W[3], W[4], W[5]]
-print TS_params
+# print TS_params
 
 print "Pdyn: ", Pdyn
 print "ByIMF: ", ByIMF
@@ -111,14 +111,14 @@ print wipp_cmd
 print "geo spherical (py):"
 print inp_coords
 
-inp_coords = [xf.s2c(r) for r in inp_coords]
-print "geo cartesian (py):"
-for r in inp_coords: print r
+# inp_coords = [xf.s2c(r) for r in inp_coords]
+# print "geo cartesian (py):"
+# for r in inp_coords: print r
 
 
-inp_coords = [xf.geo2sm(r, ray_datenum) for r in inp_coords]
-print "SM (py):"
-for r in inp_coords: print r
+# inp_coords = [xf.geo2sm(r, ray_datenum) for r in inp_coords]
+# print "SM (py):"
+# for r in inp_coords: print r
 # Build wipp code
 
 os.system(wipp_cmd)

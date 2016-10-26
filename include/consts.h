@@ -44,8 +44,8 @@
 // // EA array grid settings:
 #define		EALimS		-40.0
 #define		EALimN	    40.0
-#define     NUM_EA      10
-#define		EAIncr	    ((EALimN - EALimS)/NUM_EA)	
+#define     NUM_EA      21
+#define		EAIncr	    ((EALimN - EALimS)/(NUM_EA - 1))	
 
 #define     TRACER_MAX  20000    // Maximum steps in field line tracer
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)

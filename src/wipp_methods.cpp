@@ -194,10 +194,10 @@ void calc_stix_parameters(rayF* ray) {
 }
 
 
-void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int idoy, double isec) {
+void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2], int model_number) {
 
     double x_in[3], x_in_geocar[3], x_sm[3];         
-    double x_cur[3], x_out[3];
+    double x_cur[3], x_prev[3], x_out[3];
 
     double w1, w2;  // Interpolation weights
     double prev_lat;
@@ -207,18 +207,13 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
 
     double x_fl[TRACER_MAX][3]; // elements along the field line
 
+
     double b_dipole[3], b_sm[3];    
     int Nsteps;
 
     double lam, slam, clam, dL_lam, ptR, ptX, ptY, x1, x2, y1, y2;
     double slam2, clam2, rootTerm, x_unit_vect, y_unit_vect, ptL;
     double EA_a, EA_b, EA_c;
-
-
-
-    int itime_in[2];
-    itime_in[0] = 1000*iyr + idoy;
-    itime_in[1] = isec*1e3;
 
 
     x_in = {1, lat, lon};
@@ -239,8 +234,8 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
 
     double tsyg_params[10] = {0};
     double VG[3];
-    int use_IGRF = 0;
-    int use_tsyg = 1;
+   
+    // int model_number = 0;
 
      // Setup for IGRF:    
     load_TS05_params(itime_in, tsyg_params, VG);
@@ -249,289 +244,118 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int id
     // set DST:
     tsyg_params[1] = -20;
 
-    Nsteps = trace_fieldline(itime_in, x_sm, x_fl, 0.001, use_IGRF, use_tsyg, tsyg_params);
+    // Trace field line:
+    Nsteps = trace_fieldline(itime_in, x_sm, x_fl, 0.001, model_number, tsyg_params);
     
+    double lats[Nsteps];
+    double dist_n[Nsteps];
+
     double target_lat = EALimN;
     int EA_index = 0;
-
-
-    // Step through traced array:
+    
+    // Get magnetic latitudes of entries
     for (int i=0; i < Nsteps; i++) {
-
-        // look for first entry at a latitude lower than lat_cur:
-        // Get current latitude:
         sm_to_mag_d_(itime_in, x_fl[i], x_cur);
         cardeg(x_cur);
+        lats[i] = x_cur[1];
 
-        if (x_cur[1] < target_lat) {
-
-            // Intersection point:
-            EA_array[EA_index].field_line_pos = Map<VectorXd>(x_fl[i],3,1);
-
-            // Get B:
-            bmodel(itime_in, x_cur, tsyg_params, use_IGRF, use_tsyg, 1, Bo);
-
-            // Get unit vector pointing along field line:
-            Bomag = norm(Bo, 3);
-            EA_array[EA_index].ea_norm = Map<VectorXd>(Bo, 3, 1)/Bomag;
-
-            // Calculate the width in the same way Jacob did:
-            // (Width in L_MARGIN, assuming a dipole field)
-            lam = target_lat;
-            
-            clam = cos(lam*D2R);
-            slam = sin(lam*D2R);
-            clam2 = pow(clam,2);
-            slam2 = pow(slam,2);
-            rootTerm = sqrt(1+3*slam2);
-              
-            dL_lam = clam2*clam / rootTerm * L_MARGIN ;
-            
-            x_unit_vect = (3*clam2 - 2) / rootTerm ;
-            y_unit_vect = (3*slam*clam) / rootTerm ;
-            
-            ptR = ptL*clam2;
-            ptX = ptR*clam;
-            ptY = ptR*slam;
-              
-            
-            x1 = ptX - x_unit_vect*dL_lam ;
-            x2 = ptX + x_unit_vect*dL_lam ;
-            
-            y1 = ptY - y_unit_vect*dL_lam ;
-            y2 = ptY + y_unit_vect*dL_lam ;
-            
-            EA_a = y1 - y2;
-            EA_b = x2 - x1;
-            EA_c = x1*y2 - y1*x2;
-            
-            EA_array[EA_index].radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2; 
-
-            // Bump indices:
-            target_lat -= EAIncr;
-            EA_index++;
-
+        // Store the cumulative distance to northern hemisphere:
+        if (i==0) {
+            dist_n[i] = 0;
+        } else {
+            dist_n[i] = sqrt(pow(x_fl[i][0] - x_fl[i-1][0], 2)
+                            +pow(x_fl[i][1] - x_fl[i-1][1], 2)
+                            +pow(x_fl[i][2] - x_fl[i-1][2], 2))
+                        + dist_n[i - 1];
         }
+    }
 
-        if (x_cur[1] < EALimS) {
-            break;
-        } 
+    cout << "total distance: " << dist_n[Nsteps] << "\n";
+    // Get effective L-shell
+    //  (Do we take this to be the radius at geomag equator, or the maximum?)
+    int Lsh_index = nearest(lats, Nsteps, 0, true);
 
-        prev_lat = x_cur[1];
+    double Lsh = norm(x_fl[Lsh_index], 3);
+    cout << "L shell: " << Lsh << "\n";
+
+    int ind;
+    double targ_lat = EALimN;
+
+    
+    // generate entries for each EA segment
+    for (int i=0; i < NUM_EA; i++) {
+        ind = nearest(lats, Nsteps, targ_lat, true);
+        cout << "lat: " << lats[ind] << "\n";
+
+        // L shell:
+        EA_array[i].Lsh = Lsh;
+
+        // Distance to northern and southern ionosphere intersections:
+        EA_array[i].dist_to_n = dist_n[i]                  - (R_E + H_IONO)/R_E;
+        EA_array[i].dist_to_n = dist_n[Nsteps] - dist_n[i] - (R_E + H_IONO)/R_E;
+
+        // Intersection point:
+        EA_array[i].ea_pos = Map<VectorXd>(x_fl[ind],3,1);
+
+        // Get B:
+        bmodel(itime_in, x_fl[ind], tsyg_params, model_number, Bo);
+
+        // Get unit vector pointing along field line:
+        // (i.e., normal vector to this EA segment)
+        Bomag = norm(Bo, 3);
+        EA_array[i].ea_norm = Map<VectorXd>(Bo, 3, 1)/Bomag;
+
+        // Calculate the width in the same way Jacob did:
+        // (Width in L_MARGIN, assuming a dipole field)
+        lam = lats[ind];
+        
+        clam = cos(lam*D2R);
+        slam = sin(lam*D2R);
+        clam2 = pow(clam,2);
+        slam2 = pow(slam,2);
+        rootTerm = sqrt(1+3*slam2);
+          
+        dL_lam = clam2*clam / rootTerm * L_MARGIN ;
+        
+        x_unit_vect = (3*clam2 - 2) / rootTerm ;
+        y_unit_vect = (3*slam*clam) / rootTerm ;
+        
+        ptR = ptL*clam2;
+        ptX = ptR*clam;
+        ptY = ptR*slam;
+          
+        x1 = ptX - x_unit_vect*dL_lam ;
+        x2 = ptX + x_unit_vect*dL_lam ;
+        
+        y1 = ptY - y_unit_vect*dL_lam ;
+        y2 = ptY + y_unit_vect*dL_lam ;
+        
+        EA_a = y1 - y2;
+        EA_b = x2 - x1;
+        EA_c = x1*y2 - y1*x2;
+        
+        EA_array[i].radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2; 
+
+        // Bump index
+        targ_lat-= EAIncr;
     }
 
 
-    double x_tmp[3];
-    // Read out found data:
-    for (int j=0; j < NUM_EA; j++) {
-        sm_to_mag_d_(itime_in, EA_array[j].field_line_pos.data(), x_tmp);
-        cardeg(x_tmp);
-        print_array(x_tmp, 3);
+    // double x_tmp[3];
+    // // Read out found data:
+    // for (int j=0; j < NUM_EA; j++) {
+    //     sm_to_mag_d_(itime_in, EA_array[j].ea_pos.data(), x_tmp);
+    //     cardeg(x_tmp);
+    //     print_array(x_tmp, 3);
 
-        cout << EA_array[j].radius << "\n";
-
-    }
-
-
-
-    // for (int iyear = iyr; iyear < 2012; iyear++) {
-
-    //     // int ihr = 0; int imn = 0; int isc = 0;
-    //     // int idoy = 364/2;
-
-    //     // int ihr = (int)(isec/3600);
-    //     // int imn = int((isec - ihr*3600)/60);
-    //     // int isc = int(isec - ihr*3600 - imn*60);
-    //     // double vgsex = -400.0;
-    //     // double vgsey = 0; double vgsez = 0;
-
-
-    //     cout << "iyear: " << iyear << "\n";
-    //     itime_in[0] = 1000*iyear + idoy;
-
-    //     init_igrf(itime_in);
-    //     // igrf_geo(x_in, b_out);
-    //     load_TS05_params(itime_in, tsyg_params, VG);
-
-    //     cout << "tsyg params (c): ";
-    //     print_array(tsyg_params, 10);
-    //     // dipole_geo(itime_in, x_in, b_dipole);
-
-
-    //     // // Rotate to mag. dipole coords
-    //     x_in_geocar = {x_in[0], x_in[1], x_in[2]};
-    //     degcar(x_in_geocar);
-    //     geo_to_sm_d_(itime_in, x_in_geocar, x_sm);
-
-    //     cout << "x_in (SM): ";
-    //     print_array(x_sm, 3);
-    //     dipole_sm(itime_in, x_sm, b_dipole);
-
-
-    //     // Fortran version
-    //     // bmodel_(itime_in, x_sm, tsyg_params, &use_IGRF, &use_tsyg, b_out);
-    //     bmodel(itime_in, x_sm, tsyg_params, 1, 1, 0, b_out);
-    //     cout << "PSI (c-struct): " << geopack1_.PSI << "\n";
-
-
-
-    //     double Bomag = norm(b_out, 3);
-    //     cout << " B_igrf: mag: " << Bomag << " | ";
-    //     print_array(b_out, 3);
-
-    //     double Bomag_dip = norm(b_dipole, 3);
-    //     cout << " B_dip:  mag: " << Bomag_dip << " | ";
-    //     print_array(b_dipole, 3);
-
+    //     cout << EA_array[j].radius << "\n";
 
     // }
-
-
-    // Test forward / reverse of data transforms:
-
-    // cout << "---------\n";
-    
-    // cout << "orig: "; print_array(b_out,3);
-
-    // double x_geo[3];
-    
-    // double btmp[3];
-    // transform_data_sph2car(x_in[1], x_in[2], b_out, btmp);
-    // cout << "xyz: "; print_array(btmp,3);
-
-    // // transform_data_geo2mag(x_in[1], x_in[2], btmp, b_out);
-    // // cout << "mag: "; print_array(b_out,3);        
-
-    // // transform_data_mag2geo(x_in[1], x_in[2], )
-
-    // transform_data_car2sph(x_in[1], x_in[2], btmp, b_out);
-    // cout << "back: "; print_array(b_out,3);        
-
-
-
-
-
-
-//     // Test IGRF model:
-//     int ntime = 1;          // Number of points in array
-//     int kext = 0;           // External field model
-//     int options[5];
-//         options[0] = 1;     // Compute L* and Phi
-//         options[1] = 30;    // Interval to refresh IGRF, in days
-//         options[2] = 0;     // Some precision setting
-//         options[3] = 0;     // Another precision setting
-//         options[4] = 0;     // Internal field model
-//     int sysaxes = 0;        // MAG
-
-//     double maginput[25] = {0};
-
-//     // degcar(x_in);
-//     double Bgeo[3];
-//     double Bl;
-
-//     get_field_multi_(&ntime, &kext, options, &sysaxes,
-//                     &iyr, &idoy, &isec,
-//                     x_in, x_in + 1, x_in + 2,
-//                     maginput, Bgeo, &Bl);
-
-
-//     cout << "Bl: " << Bl <<  "\nBgeo: ";
-//     print_array(Bgeo, 3);
-//     cout << "\n";
-
-// // -----------------
-//     // Let's try some rotations between coordinate frames:
-//     double M[3][3];
-
-//     double A1[3] = {1, 0, 0};
-//     double A2[3] = {0, 1, 0};
-//     double A3[3] = {0, 0, 1};
-
-//     double B1[3];
-//     double B2[3];
-//     double B3[3];
-
-//     geo_to_mag_d_(itime_in, A1, B1);
-//     geo_to_mag_d_(itime_in, A2, B2);
-//     geo_to_mag_d_(itime_in, A3, B3);
-
-//     // print_array(B1,3);
-//     // print_array(B2,3);
-//     // print_array(B3,3);
-
-//     M[0][0] = B1[0]; M[0][1] = B2[0]; M[0][2] = B3[0];
-//     M[1][0] = B1[1]; M[1][1] = B2[1]; M[1][2] = B3[1];
-//     M[2][0] = B1[2]; M[2][1] = B2[2]; M[2][2] = B3[2];
-
-//     double out[3] = {0};
-//     for (int row=0; row < 3; row++) {
-//         for (int col=0; col < 3; col++) {
-//             out[col] += M[col][row]*Bgeo[row];
-//         }
-//     }
-
-//     cout << "B (mdip): ";
-//     print_array(out, 3);
-
-
-// // -------------------
-
-
-
-
-
-// // -----------------
-//     // Let's try some rotations between coordinate frames:
-//     double M[3][3];
-
-//     double A1[3] = {1, 0, 0};
-//     double A2[3] = {0, 1, 0};
-//     double A3[3] = {0, 0, 1};
-
-//     double B1[3];
-//     double B2[3];
-//     double B3[3];
-
-//     geo_to_mag_d_(itime_in, A1, B1);
-//     geo_to_mag_d_(itime_in, A2, B2);
-//     geo_to_mag_d_(itime_in, A3, B3);
-
-//     // print_array(B1,3);
-//     // print_array(B2,3);
-//     // print_array(B3,3);
-
-//     M[0][0] = B1[0]; M[0][1] = B2[0]; M[0][2] = B3[0];
-//     M[1][0] = B1[1]; M[1][1] = B2[1]; M[1][2] = B3[1];
-//     M[2][0] = B1[2]; M[2][1] = B2[2]; M[2][2] = B3[2];
-
-//     double out[3] = {0};
-//     for (int row=0; row < 3; row++) {
-//         for (int col=0; col < 3; col++) {
-//             out[col] += M[col][row]*A2[row];
-//         }
-//     }
-
-//     cout << "B2: ";
-//     print_array(B2, 3);
-//     cout << "out: ";
-//     print_array(out, 3);
-
-// // -------------------
-
-
-
-    // for (int i=0; i < Nsteps; i++) {
-    //     cout << "x(" << i << ") : ";
-    //     print_array(x_fl[i],3);
-    // }
-
-
 
 }
 
 
-
-void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int use_tsyg, string filename) {
+void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int model_number, string filename) {
     // Run the field-line tracer and output the results. Cute!
 
     FILE * file;
@@ -578,7 +402,7 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int 
             degcar(x_geocar);
             mag_to_sm_d_(itime_in, x_geocar, x_sm);
 
-            lens[i] = trace_fieldline(itime_in, x_sm, grid[i], stepsize, use_IGRF, use_tsyg, tsyg_params);
+            lens[i] = trace_fieldline(itime_in, x_sm, grid[i], stepsize, model_number, tsyg_params);
             i++;
         }
     }
@@ -607,4 +431,5 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int 
     }
 
 }
+
 

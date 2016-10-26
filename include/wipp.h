@@ -105,9 +105,9 @@ typedef struct rayT {
 typedef struct EA_segment {
 
     Eigen::Vector3d ea_norm;           // Vector normal to crossing plane
-    Eigen::Vector3d field_line_pos;    // Location in plane where field line intersects
+    Eigen::Vector3d ea_pos;            // Location in plane where field line intersects
 
-    double L_sh;                       // L shell
+    double Lsh;                       // L shell
     double radius;                     // Radius around field line to consider a crossing
 
     double dist_to_n;
@@ -131,6 +131,7 @@ vector<double> scalar_multiply(vector<double> u, double v);
 double dot_product(vector<double>u, vector<double>v);
 vector<double> add(vector<double>u, vector<double> v);
 
+
 // Helpers
 void print_vector(vector<double> u);
 void print_array(double* arr, double len);
@@ -144,7 +145,7 @@ float interpPt(float *xI, float *yI, int n, float xO);
 
 void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* out);
 void calc_stix_parameters(rayF* ray);
-void init_EA_array(EA_segment* EA_array, double lat, double lon, int iyr, int idoy, double isec);
+void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2], int model_number);
 
 
 // ---- Coordinate transforms ----
@@ -211,10 +212,10 @@ void bmodel_dipole(double* x_in, double* B_out);
 void dipole_geo(int itime_in[2], double x_in[3], double b_out[3]);
 void dipole_sm(int itime_in[2], double x_in[3], double b_out[3]);
 void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10],
-            int use_IGRF, int use_tsyg, int recalc, double b_out[3]);
+            int model_number, double b_out[3]);
 
 int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3], 
-                    double ds_in, int use_IGRF, int use_tsyg, double tsyg_params[10]);
+                    double ds_in, int model_number, double tsyg_params[10]);
 void init_igrf(int itime_in[2]);
 void igrf_geo(double x_in[3], double b_out[3]);
 void igrf_mag_cart(int itime_in[2], double x_in[3], double b_out[3], bool recalc);
@@ -224,7 +225,7 @@ extern "C" void t04_s_(double* IOPT, double tsyg_params[10], float* PS,
 
 void load_TS05_params(int itime[2], double TS05_params[10], double VG[3]);
 
-void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int use_IGRF, int use_tsyg, string filename);
+void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int model_number, string filename);
 
 
 extern "C" {
@@ -234,5 +235,11 @@ extern "C" {
                 E11,E21,E31,E12,E22,E32,E13,E23,E33;
     } geopack1_;
 }
+
+
+
+bool descending_order(double a, double b);
+int nearest(double arr[], int arr_len, double target, bool reverse_order);
+
 
 #endif
