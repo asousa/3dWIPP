@@ -84,6 +84,12 @@ int nearest(double arr[], int arr_len, double target, bool reverse_order) {
     return ind;
 }
 
+
+double signof(double val) {
+    return (0 < val) - (val < 0);
+}
+
+
 bool descending_order(double a, double b) {
 // Crushingly simple method to search with lower_bound in descending order
     return a >= b; 

@@ -281,7 +281,7 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     int ind;
     double targ_lat = EALimN;
 
-    
+
     // generate entries for each EA segment
     for (int i=0; i < NUM_EA; i++) {
         ind = nearest(lats, Nsteps, targ_lat, true);
@@ -430,6 +430,88 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int model_number, 
         cout << "Could not open file " << filename.c_str() << "\n";
     }
 
+}
+
+
+
+bool coarse_mask(rayF* cur_rays[8], int t, EA_segment EA) {
+    // Coarse masking detection. Returns false if all ray points are
+    // on the same side of the EA_arr plane. True otherwise.
+    Vector3d p0;
+    Vector3d n;
+    Vector3d l0, l1;
+
+    double r0, r1, r2;
+
+    p0 = EA.ea_pos;
+    n  = EA.ea_norm;
+    r0 = EA.radius;
+
+    // // Check each of the 8 rays:
+    for (int rr = 0; rr < 8; rr++) {
+
+        l0 = Map<VectorXd>(cur_rays[rr]->pos[t - 1].data(), 3, 1);
+        l1 = Map<VectorXd>(cur_rays[rr]->pos[t].data(), 3, 1);
+
+        r1 = (l0 - p0).norm();
+        r2 = (l1 - p0).norm();
+
+        // cout << "r1: " << r1 << " r2: " << r2 << " EA: " << EA.radius << "\n";
+        if ( (r1 < r0) ) {
+            cout << "r1: " << r1 << " r2: " << r2 << " EA: " << EA.radius << "\n";
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+bool crosses_EA(Vector3d p1, Vector3d p2, EA_segment EA) {
+    // Returns true if the vector between points p1 and p2 passes
+    // through the EA segment EA (specified by point p0 and normal n)
+    // see: http://paulbourke.net/geometry/pointlineplane/
+
+    double u, rr;
+
+    Vector3d p0 = EA.ea_pos;
+    Vector3d n  = EA.ea_norm;
+    Vector3d p;                 // intersection point
+
+    u = ( (p0 - p1).dot(n) ) / ( (p2 - p1).dot(n) );
+    p = p1 + u*(p2 - p1);
+    rr = (p - p0).norm();
+
+    if (abs(u) <= 1) {
+        return (rr <= EA.radius);
+    } else {
+        return false;
+    }
+
+}
+
+
+
+void dump_EA_array(EA_segment EA_array[NUM_EA], string filename) {
+    // Write the EA array to a file, so I can plot it.
+
+    FILE * file;
+
+        // Save it
+    cout << "saving to file " << filename << "\n";
+    file = fopen(filename.c_str(), "w");
+
+    if (file != NULL) {
+        
+        for (int i=0; i < NUM_EA; i++) {
+            fprintf(file, "%g %g %g %g %g %g %g\n",
+                EA_array[i].ea_pos[0], EA_array[i].ea_pos[1],  EA_array[i].ea_pos[2],
+                EA_array[i].ea_norm[0],EA_array[i].ea_norm[1], EA_array[i].ea_norm[2],
+                EA_array[i].radius);
+        }
+    } else {
+        cout << "Could not open file " << filename.c_str() << "\n";
+    }
 }
 
 

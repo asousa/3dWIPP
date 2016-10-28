@@ -44,14 +44,14 @@
 // // EA array grid settings:
 #define		EALimS		-40.0
 #define		EALimN	    40.0
-#define     NUM_EA      21
+#define     NUM_EA      11
 #define		EAIncr	    ((EALimN - EALimS)/(NUM_EA - 1))	
 
 #define     TRACER_MAX  20000    // Maximum steps in field line tracer
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)
 
 // // Radius around field line, in L-shells, in which to consider a crossing
-#define		L_MARGIN    0.1
+#define		L_MARGIN    0.2
 
 
 // #define     ROOT_DIR    /shared/users/asousa/WIPP/3dWIPP/

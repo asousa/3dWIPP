@@ -31,7 +31,10 @@ int main(int argc, char *argv[])
     string inpFileName;
     string outFileName;
 
+    // debugging and dump filenames
     string dumpFileName;
+    string eaFileName;
+    string crossingFileName;
 
     int itime_in[2];
     
@@ -51,6 +54,9 @@ int main(int argc, char *argv[])
 
 
     rayT* r_cur;    // Current interpolated ray (single timestep)
+    rayT* r_prev;   // Previous interpolated ray
+
+    Vector3d l0, l1;
     double* start_pos;
 
     rayF* ray;
@@ -66,15 +72,19 @@ int main(int argc, char *argv[])
     inpFileName = "input.ray";
     outFileName = "output.ray";
     dumpFileName= "fieldline_dump.dat";
+    eaFileName  = "ea_dump.dat";
+    crossingFileName = "crossing_log.txt";
+
+    FILE* crossing_log;
 
     int iyr;     // Year
     int idoy;      // Day of year
     double isec; // Seconds into day (UTC)
 
     // Fine-scale interpolation steps:
-    int num_lats_fine  = 4;
-    int num_lons_fine  = 4; 
-    int num_freqs_fine = 4;
+    int num_lats_fine  = 2;
+    int num_lons_fine  = 2; 
+    int num_freqs_fine = 2;
 
     double freq_step_size;
     double lat_step_size;
@@ -84,8 +94,8 @@ int main(int argc, char *argv[])
 
     // Location to determine output at (geomagnetic)
     // To do: set this up as a grid
-    double outLat = 45;
-    double outLon = 180;
+    double outLat = 50;
+    double outLon = 2;
     int model_number = 2; // Magnetic field model
 
     int dump_field = 0;
@@ -155,7 +165,7 @@ int main(int argc, char *argv[])
     }
 
     init_EA_array(EA_array, outLat, outLon, itime_in, model_number);
-
+    dump_EA_array(EA_array, eaFileName);
 
     // Dump the field line model:
     if (dump_field == 1) {
@@ -270,47 +280,56 @@ int main(int argc, char *argv[])
         // (do this later)
 
 
-    for (int tt = 0; tt < tmax; tt++) {
-        cout << "t = " << tt << "\n";
+
+    crossing_log = fopen(crossingFileName.c_str(), "w");
 
 
-        // Conditions for coarse-scale masking
+    double hit_counter = 0;
+    for (int tt = 1; tt < tmax; tt++) {
+        // cout << "t = " << tt << "\n";
 
+        // Check each EA segment:
+        for (int rr = 0; rr < NUM_EA; rr++) {
 
+            // Ignore anything that looks way out of range
+            // if (coarse_mask(cur_rays, tt, EA_array[rr])) {
+            if (true) {
+                hit_counter ++;
 
+                // cout << tt << ", ";
+  
+                // Interpolate on fine-scale grid:
+                for (double ii=0; ii <= 1; ii+=1./num_freqs_fine) {         // freqs
+                    for (double jj=0; jj <= 1; jj+= 1./num_lats_fine) {     // lats
+                        for (double kk=0; kk <= 1; kk+= 1./num_lons_fine) { // lons
 
-        // Interpolate on fine-scale grid:
-        for (double ii=0; ii <= 1; ii+=1./num_freqs_fine) {         // freqs
-            for (double jj=0; jj <= 1; jj+= 1./num_lats_fine) {     // lats
-                for (double kk=0; kk <= 1; kk+= 1./num_lons_fine) { // lons
+                            r_cur = new rayT;
+                            r_prev= new rayT;
+                            
+                            interp_ray_fine(cur_rays, ii, jj, kk, tt,   r_cur);
+                            interp_ray_fine(cur_rays, ii, jj, kk, tt-1, r_prev);
 
-                    // pos_interp = {0.,0.,0.};
-                    
-                    r_cur = new rayT;
-                    // weight_ind = {ii, jj, kk};
-                    int t_ind = 0;
+                            // l0 = Map<VectorXd>(r_cur->pos, 3,  1);
+                            // l1 = Map<VectorXd>(r_prev->pos, 3, 1);
 
-                    interp_ray_fine(cur_rays, ii, jj, kk, t_ind, r_cur);
+                            l0 = r_cur->pos;
+                            l1 = r_prev->pos;
+                            // Bam -- we finally have some little rays to check for crossings.
+                            if (crosses_EA(l0, l1, EA_array[rr])) {
+                                // cout << l0.transpose() << " " << l1.transpose() << "\n";
+                                fprintf(crossing_log, "%g %g %g %g %g %g\n",
+                                    l0[0], l0[1], l0[2], l1[0], l1[1], l1[2]);
 
-                    
-
-
-
-                    // // Get magnetic lat:
-                    // sm_to_mag_d_(itime_in, r_cur->pos, tmp_coords2);
-                    // cart_to_pol_d_(tmp_coords2, &maglat0, &maglon0, &magrad0);
-                    // maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
-
-                    // Print for debugging:
-                    // printf("(%g, %g, %g)\tmag lat, lon: (%g, %g): freq: %g hz\n",ii, jj, kk, maglat0,maglon0, (r_cur->w)/(2.*PI));
-
-                }   // kk
-            }   // jj
-        }   // ii
+                            }
+                        }   // kk
+                    }   // jj
+                }   // ii
+            }   // Coarse mask
+        }   // EA array
     } // tt
 
 
-
+    cout << "hit counter: " << hit_counter << "\n";
 
 
 

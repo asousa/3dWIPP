@@ -146,10 +146,10 @@ map <int, rayF> read_rayfile(string fileName)
                 // }
 
                 raylist[ray_num].time.push_back(v[2]);
-
-                pos.push_back(v[3]);
-                pos.push_back(v[4]);
-                pos.push_back(v[5]);
+                // Position (convert to earth radii)
+                pos.push_back(v[3]/R_E);
+                pos.push_back(v[4]/R_E);
+                pos.push_back(v[5]/R_E);
                 raylist[ray_num].pos.push_back(pos);
                 
                 vprel.push_back(v[6]);

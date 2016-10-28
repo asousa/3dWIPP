@@ -22,6 +22,7 @@
 // #include <mat.h>
 
 using namespace std;
+using namespace Eigen;
 
 // Structure for holding an entire rayfile (yuge)
 typedef struct rayF {
@@ -73,7 +74,8 @@ typedef struct rayT {
     // double ray_num;                 // Ray index number
     double time;            // Group time
 
-    double pos[3];
+    // double pos[3];
+    Vector3d pos;
     double vprel[3];
     double vgrel[3];
     double n[3];
@@ -130,6 +132,8 @@ double norm(double u[], int size);
 vector<double> scalar_multiply(vector<double> u, double v);
 double dot_product(vector<double>u, vector<double>v);
 vector<double> add(vector<double>u, vector<double> v);
+double signof(double val);
+
 
 
 // Helpers
@@ -146,6 +150,7 @@ float interpPt(float *xI, float *yI, int n, float xO);
 void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* out);
 void calc_stix_parameters(rayF* ray);
 void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2], int model_number);
+void dump_EA_array(EA_segment EA_array[NUM_EA], string filename);
 
 
 // ---- Coordinate transforms ----
@@ -240,6 +245,7 @@ extern "C" {
 
 bool descending_order(double a, double b);
 int nearest(double arr[], int arr_len, double target, bool reverse_order);
-
+bool coarse_mask(rayF* cur_rays[8], int t, EA_segment EA_arr);
+bool crosses_EA(Vector3d l0, Vector3d l1, EA_segment EA_seg);
 
 #endif

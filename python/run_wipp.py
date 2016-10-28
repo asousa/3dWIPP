@@ -26,7 +26,7 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 R_E = 6371.0    # km
 
 # Simulation time
-ray_datenum = dt.datetime(2010, 06, 04, 03, 20, 00);
+ray_datenum = dt.datetime(2010, 06, 04, 03, 17, 00);
 
 iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
