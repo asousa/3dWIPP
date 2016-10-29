@@ -54,10 +54,12 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 } 
 
 
-void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* out) {
+void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
     // raylist: an array of pointers to the 8 corner rays
     // nx, ny, nz: location within the grid (0..1) to interpolate at
     // t_ind: time index
+
+
 
     double W[8];
     W[0] = (1. - n_x)*(1. - n_y)*(1. - n_z);
@@ -70,27 +72,28 @@ void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_i
     W[7] = n_x*n_y*n_z*1.;
 
     // print_vector(vector<double>(W, W+8));
-
+    // print_array(W, 8);
     for (int jj=0; jj<8; jj++){  // Corner rays
-
+    // print_array(raylist[jj]->pos[t_ind].data(), 3);
         // Vector-valued
         for (int ii=0; ii<3; ii++){  // X, Y, Z
-            out->pos[ii] += W[jj] * (raylist[jj]->pos[t_ind][ii]);
-            out->vgrel[ii] += W[jj] * (raylist[jj]->pos[t_ind][ii]);
+            (rayout->pos)[ii]   += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
+            (rayout->vgrel)[ii] += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
         }
+
         // scalar-valued here
         // cout << "corner w: " << raylist[jj]->w << "\n";
-        out->w += W[jj]*(raylist[jj]->w);
-
-        out->stixR += W[jj]*(raylist[jj]->stixR[t_ind]);
-        out->stixL += W[jj]*(raylist[jj]->stixL[t_ind]);
-        out->stixP += W[jj]*(raylist[jj]->stixP[t_ind]);
-        out->stixS += W[jj]*(raylist[jj]->stixS[t_ind]);
-        out->stixD += W[jj]*(raylist[jj]->stixD[t_ind]);
-        out->stixA += W[jj]*(raylist[jj]->stixA[t_ind]);
-        out->stixB += W[jj]*(raylist[jj]->stixB[t_ind]);
+        rayout->w += W[jj]*(raylist[jj]->w);
+        rayout->stixR += W[jj]*(raylist[jj]->stixR[t_ind]);
+        rayout->stixL += W[jj]*(raylist[jj]->stixL[t_ind]);
+        rayout->stixP += W[jj]*(raylist[jj]->stixP[t_ind]);
+        rayout->stixS += W[jj]*(raylist[jj]->stixS[t_ind]);
+        rayout->stixD += W[jj]*(raylist[jj]->stixD[t_ind]);
+        rayout->stixA += W[jj]*(raylist[jj]->stixA[t_ind]);
+        rayout->stixB += W[jj]*(raylist[jj]->stixB[t_ind]);
     }
-
+    // cout << "in: ";
+    // print_array(rayout->pos, 3);
 }
 
 
@@ -437,33 +440,107 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int model_number, 
 bool coarse_mask(rayF* cur_rays[8], int t, EA_segment EA) {
     // Coarse masking detection. Returns false if all ray points are
     // on the same side of the EA_arr plane. True otherwise.
-    Vector3d p0;
-    Vector3d n;
-    Vector3d l0, l1;
 
-    double r0, r1, r2;
+    Vector3d EApos = EA.ea_pos;
+    Vector3d n = EA.ea_norm;
+    Vector3d l1, l2;
+    double s1, s2, sr1, sr2, sl1, sl2, rad1, rad2;
 
-    p0 = EA.ea_pos;
-    n  = EA.ea_norm;
-    r0 = EA.radius;
+    double EAr[3];
+    double r1[3], r2[3];
 
-    // // Check each of the 8 rays:
-    for (int rr = 0; rr < 8; rr++) {
+    double side = 0;
+    double rside= 0;
+    double lside = 0;
 
-        l0 = Map<VectorXd>(cur_rays[rr]->pos[t - 1].data(), 3, 1);
-        l1 = Map<VectorXd>(cur_rays[rr]->pos[t].data(), 3, 1);
+    bool sideflag = false;
+    bool radflag  = false;
+    bool lonflag  = false;
 
-        r1 = (l0 - p0).norm();
-        r2 = (l1 - p0).norm();
+    carsph(EA.ea_pos.data(), EAr);
 
-        // cout << "r1: " << r1 << " r2: " << r2 << " EA: " << EA.radius << "\n";
-        if ( (r1 < r0) ) {
-            cout << "r1: " << r1 << " r2: " << r2 << " EA: " << EA.radius << "\n";
-            return true;
+    
+    // cout << EAr[0] << ", " << EAr[1]*R2D << ", " << EAr[2]*R2D << "\n";
+
+    for (int rr=0; rr < 8; rr++) {
+        l1 = Map<VectorXd>(cur_rays[rr]->pos[t-1].data(), 3,  1);
+        l2 = Map<VectorXd>(cur_rays[rr]->pos[t  ].data(), 3,  1);
+
+        carsph(l1.data(), r1);
+        carsph(l2.data(), r2);
+
+        // Check if any are on opposite sides of the plane:
+        if (rr==0) {
+            side = signof((l1 - EApos).dot(n));
+        }
+
+        s1 = signof((l1 - EApos).dot(n));
+        s2 = signof((l2 - EApos).dot(n));
+
+        if ( (s1 != side) || (s2 != side) ) {
+            sideflag = true;
+            // return true;
+        }
+
+        // Check if radii are all too low or too high:
+        if (rr==0) {
+            rside= ( (r1[0] < EAr[0] - L_MARGIN) ? - 1 :
+                     (r1[0] > EAr[0] + L_MARGIN) ?   1 : 0);
+        }
+        sr1 = ( (r1[0] < EAr[0] - L_MARGIN) ? - 1 :
+                (r1[0] > EAr[0] + L_MARGIN) ?   1 : 0);
+
+        sr2 = ( (r2[0] < EAr[0] - L_MARGIN) ? - 1 :
+                (r2[0] > EAr[0] + L_MARGIN) ?   1 : 0);
+
+        if ( (sr1 != rside) || (sr2 != rside) ) {
+            radflag = true;
+        }
+
+        // cout << "lon1: " << R2D*r1[2] << " EAlon: " << R2D*EAr[2] << "\n";
+
+
+        // Check if longitudes are all on the same side of the EA:
+        if (rr==0) {
+            lside = longitude_interval(r1[2], EAr[2]);
+        }
+        sl1 = longitude_interval(r1[2], EAr[2]);
+        sl2 = longitude_interval(r2[2], EAr[2]);
+
+        if ( (sl1 != lside) || (sl2 != lside) ) {
+            lonflag = true;
         }
     }
 
-    return false;
+    // All radii are between the limits!
+    if (rside == 0) {
+        radflag = true;
+    }
+    // All longitudes in sweet zone!
+    if (lside == 0) {
+        // cout << "derp ";
+        lonflag = true;
+    }
+    return sideflag && radflag && lonflag; 
+
+}
+
+
+double longitude_interval(double ra, double r0) {
+    // Pretty sure this won't wrap around happily, but it works for now.
+    // (10.28.16)
+
+    // cout << "ra: " << ra*R2D << " r0: " << r0*R2D << " diff: " << R2D*(ra - r0) << "\n";
+
+    const double width = 2.5;
+
+    if ( R2D*(ra - r0) < - width) {
+        return -1;
+    } else if ( R2D*(ra - r0) > width) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 

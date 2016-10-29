@@ -33,6 +33,15 @@ void carsph(double x[3]) {
     x[2] = lon;
 }
 
+void carsph(double x[3], double x_out[3]) {
+    // cartesian to spherical, not in-place.
+    double lat, lon, r;
+    
+    x_out[0] = sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]);
+    x_out[2] = atan2(x[1], x[0]);
+    x_out[1] = asin(x[2]/x_out[0]);
+}
+
 void sphcar(double x[3]) {
     // in-place rotation from Spherical to Cartesian (radians)
     // input is R, Theta, Phi, output is x y z
@@ -41,6 +50,12 @@ void sphcar(double x[3]) {
     x[0] = r*cos(lat)*cos(lon);
     x[1] = r*cos(lat)*sin(lon);
     x[2] = r*sin(lat);
+}
+
+void sphcar(double x[3], double x_out[3]) {
+    x_out[0] = x[0]*cos(x[1])*cos(x[2]);
+    x_out[1] = x[0]*cos(x[1])*sin(x[2]);
+    x_out[2] = x[0]*sin(x[1]);
 }
 
 void transform_data_sph2car(double lat, double lon, double d_in[3], double d_out[3]) {

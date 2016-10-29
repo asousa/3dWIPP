@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
     double v_tot_arr[NUM_E], E_tot_arr[NUM_E];
 
 
-    rayT* r_cur;    // Current interpolated ray (single timestep)
-    rayT* r_prev;   // Previous interpolated ray
+    rayT r_cur;    // Current interpolated ray (single timestep)
+    rayT r_prev;   // Previous interpolated ray
 
     Vector3d l0, l1;
     double* start_pos;
@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
         dump_fieldlines(itime_in, n_lats, n_lons, model_number, dumpFileName);
     }
 
-
+    srand(time(0));
 
 
 
@@ -245,22 +245,6 @@ int main(int argc, char *argv[])
     cur_rays[6] = &(raylist.at(7));
     cur_rays[7] = &(raylist.at(8));
 
-
-    // cout << "sanity check: " << cur_rays[1]->stixB[0] << "\n";
-
-
-    // for (int dd = 0; dd < 8; dd++) {
-    //     cout << "Stix Params [0]: ";
-    //     cout << cur_rays[dd]->stixR[1] << " ";
-    //     cout << cur_rays[dd]->stixL[1] << " ";
-    //     cout << cur_rays[dd]->stixP[1] << " ";
-    //     cout << cur_rays[dd]->stixS[1] << " ";
-    //     cout << cur_rays[dd]->stixD[1] << " ";
-    //     cout << cur_rays[dd]->stixA[1] << " ";
-    //     cout << cur_rays[dd]->stixB[1] << "\n";
-    //     // cout << cur_rays[dd]->time.size() << " ";
-    // }
-
     cout << "\n";
 
     // Get the length of the shortest ray in the batch:
@@ -281,46 +265,60 @@ int main(int argc, char *argv[])
 
 
 
+    // r_cur = new rayT;
+    // r_prev= new rayT;
+
     crossing_log = fopen(crossingFileName.c_str(), "w");
 
 
+
     double hit_counter = 0;
+    double crossing_counter = 0;
     for (int tt = 1; tt < tmax; tt++) {
         // cout << "t = " << tt << "\n";
 
         // Check each EA segment:
         for (int rr = 0; rr < NUM_EA; rr++) {
 
+            
             // Ignore anything that looks way out of range
-            // if (coarse_mask(cur_rays, tt, EA_array[rr])) {
-            if (true) {
+            if (coarse_mask(cur_rays, tt, EA_array[rr])) {
+            // if (true) {
+            // if (randval == 1) {
+            // if (coarse_mask()) {
                 hit_counter ++;
 
                 // cout << tt << ", ";
+                // print_array((cur_rays[0])->pos[tt].data(),3);
   
                 // Interpolate on fine-scale grid:
                 for (double ii=0; ii <= 1; ii+=1./num_freqs_fine) {         // freqs
                     for (double jj=0; jj <= 1; jj+= 1./num_lats_fine) {     // lats
                         for (double kk=0; kk <= 1; kk+= 1./num_lons_fine) { // lons
 
-                            r_cur = new rayT;
-                            r_prev= new rayT;
+                            // Clear previous values
+                            r_cur = {};
+                            r_prev = {};
                             
-                            interp_ray_fine(cur_rays, ii, jj, kk, tt,   r_cur);
-                            interp_ray_fine(cur_rays, ii, jj, kk, tt-1, r_prev);
+                            interp_ray_fine(cur_rays, ii, jj, kk, tt,  &r_cur);
+                            interp_ray_fine(cur_rays, ii, jj, kk, tt-1,&r_prev);
 
-                            // l0 = Map<VectorXd>(r_cur->pos, 3,  1);
-                            // l1 = Map<VectorXd>(r_prev->pos, 3, 1);
-
-                            l0 = r_cur->pos;
-                            l1 = r_prev->pos;
+                            // cout << "out: ";
+                            // print_array(r_cur.pos, 3);
+                            l0 = Map<VectorXd>(r_cur.pos, 3,  1);
+                            l1 = Map<VectorXd>(r_prev.pos, 3, 1);
+                            // l0 = r_cur.pos;
+                            // l1 = r_prev.pos;
                             // Bam -- we finally have some little rays to check for crossings.
                             if (crosses_EA(l0, l1, EA_array[rr])) {
+                                crossing_counter++;
                                 // cout << l0.transpose() << " " << l1.transpose() << "\n";
                                 fprintf(crossing_log, "%g %g %g %g %g %g\n",
                                     l0[0], l0[1], l0[2], l1[0], l1[1], l1[2]);
 
-                            }
+
+
+                            }   // Crossings
                         }   // kk
                     }   // jj
                 }   // ii
@@ -330,7 +328,7 @@ int main(int argc, char *argv[])
 
 
     cout << "hit counter: " << hit_counter << "\n";
-
+    cout << "crossing counter: " << crossing_counter << "\n";
 
 
 
