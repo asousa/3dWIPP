@@ -65,7 +65,7 @@ print "day: ", idoy
 print "sec: ", isec
 
 inp_lats = [45]
-inp_lons = [180]
+inp_lons = [0]
 launch_alt = (R_E + 5)*1e3;
 
 # freqs    = np.array([23]) 

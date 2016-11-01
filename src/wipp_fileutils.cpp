@@ -151,7 +151,7 @@ map <int, rayF> read_rayfile(string fileName)
                 pos.push_back(v[4]/R_E);
                 pos.push_back(v[5]/R_E);
                 raylist[ray_num].pos.push_back(pos);
-                
+
                 vprel.push_back(v[6]);
                 vprel.push_back(v[7]);
                 vprel.push_back(v[8]);
@@ -207,7 +207,35 @@ map <int, rayF> read_rayfile(string fileName)
         cout << "Something's Fucky\n";
     }
 
-    // return 0; // Return statement.
+
+    // // Go thru raylist and set start value, length, Stix parameters, etc
+    // for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
+    
+    //     ray = &(iter->second);
+
+    //     start_pos = &(ray->pos[0].data()[0]);
+
+    //     // Get magnetic lat:
+    //     sm_to_mag_d_(itime_in, start_pos, tmp_coords2);
+    //     cart_to_pol_d_(tmp_coords2, &maglat0, &maglon0, &magrad0);
+    //     maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
+    //     printf("MAG lat: %g lon: %g alt: %g\n",maglat0,maglon0,magrad0);
+        
+    //     // Get power scaling:
+    //     // (still need to multiply by space + freq bin sizes)
+    //     ray->inp_pwr = input_power_scaling(flash_pos_sm, start_pos, maglat0, iter->second.w, flash_I0);
+    //     ray->in_radius = magrad0;
+    //     ray->in_lat = maglat0;
+    //     ray->in_lon = maglon0;
+
+    //     // Calculate Stix parameters:
+    //     calc_stix_parameters(ray);
+    // }
+
+
+
+
+
     return raylist;
 } // Closing Main.
 

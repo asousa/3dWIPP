@@ -50,10 +50,13 @@
 #define     TRACER_MAX  20000    // Maximum steps in field line tracer
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)
 
-// // Radius around field line, in L-shells, in which to consider a crossing
+// Radius around field line, in L-shells, in which to consider a crossing
 #define		L_MARGIN    0.2
 
+// Output time axis:
+#define     TIME_MAX    10      // Seconds
+#define     NUM_TIMES   1000    //ceil(TIME_MAX/TIME_STEP)
 
-// #define     ROOT_DIR    /shared/users/asousa/WIPP/3dWIPP/
+#define     TIME_STEP   (NUM_TIMES/TIME_MAX)     // Seconds
 
 #endif

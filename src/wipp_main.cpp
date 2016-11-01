@@ -3,21 +3,7 @@
 using namespace std;
 using namespace Eigen;
 
-// External functions we'll use (libxformd for coordinate transforms)
-// extern "C" void sm_to_geo_d_(int* itime, double* x_in, double* x_out);
-// extern "C" void sm_to_mag_d_(int* itime, double* x_in, double* x_out);
-// extern "C" void geo_to_sm_d_(int* itime, double* x_in, double* x_out);
-// extern "C" void cart_to_pol_d_(double* x_in, double* lat, double* lon, double* radius);
-// extern "C" void pol_to_cart_d_(double* lat, double* lon, double* radius, double* x_out);
 
-// // lib_onera_desp (the Cospar IRBEM library, which is the internal support for SpacePy):
-// extern "C" void sm2geo1_(int* iyr,int* idoy, double* secs, double* xSM, double* xGEO);
-// extern "C" void geo2sm1_(int* iyr,int* idoy, double* secs, double* xGEO, double* xSM);
-
-// // cartesian - spherical (trig terms in degrees!)
-// extern "C" void car_sph_(double* xCAR, double* r, double* lat, double* loni);
-// extern "C" void sph_car_(double* r, double* lat, double* loni, double* xCAR);
- 
 int main(int argc, char *argv[]) 
 {
     map <int, rayF> raylist;
@@ -49,6 +35,10 @@ int main(int argc, char *argv[])
 
     double dd;
 
+    double wmin, wmax, latmin, latmax, lonmin, lonmax;
+    double dw, dlon, dlat;  
+    int tmax;
+
     // Energy and velocity grids at output
     double v_tot_arr[NUM_E], E_tot_arr[NUM_E];
 
@@ -61,6 +51,10 @@ int main(int argc, char *argv[])
 
     rayF* ray;
     
+    // Output arrays (change in pitch angle, north and south hemispheres)
+    double da_N[NUM_E][NUM_TIMES];
+    double da_S[NUM_E][NUM_TIMES];
+
     // Array of pointers to current rays of interest
     // (does this copy or just point? I hope it points.)
     rayF* cur_rays[8];
@@ -82,13 +76,13 @@ int main(int argc, char *argv[])
     double isec; // Seconds into day (UTC)
 
     // Fine-scale interpolation steps:
-    int num_lats_fine  = 2;
-    int num_lons_fine  = 2; 
-    int num_freqs_fine = 2;
+    int num_lats_fine;
+    int num_lons_fine;   
+    int num_freqs_fine; 
 
-    double freq_step_size;
-    double lat_step_size;
-    double lon_step_size;
+    double freq_step_size = 10;   // Hz
+    double lat_step_size = 100;   // km
+    double lon_step_size = 100;   // km
     
     EA_segment EA_array[NUM_EA];
 
@@ -96,7 +90,7 @@ int main(int argc, char *argv[])
     // To do: set this up as a grid
     double outLat = 50;
     double outLon = 2;
-    int model_number = 2; // Magnetic field model
+    int model_number = 0; // Magnetic field model
 
     int dump_field = 0;
 
@@ -224,7 +218,7 @@ int main(int argc, char *argv[])
         
         // Get power scaling:
         // (still need to multiply by space + freq bin sizes)
-        ray->inp_pwr = input_power_scaling(flash_pos_sm, start_pos, maglat0, iter->second.w, flash_I0);
+        // ray->inp_pwr = input_power_scaling(flash_pos_sm, start_pos, maglat0, iter->second.w, flash_I0);
         ray->in_radius = magrad0;
         ray->in_lat = maglat0;
         ray->in_lon = maglon0;
@@ -247,26 +241,59 @@ int main(int argc, char *argv[])
 
     cout << "\n";
 
-    // Get the length of the shortest ray in the batch:
-    int tmaxes[] = {cur_rays[0]->time.size(),
-                    cur_rays[1]->time.size(),
-                    cur_rays[2]->time.size(),
-                    cur_rays[3]->time.size(),
-                    cur_rays[4]->time.size(),
-                    cur_rays[5]->time.size(),
-                    cur_rays[6]->time.size(),
-                    cur_rays[7]->time.size()};
-    int tmax = *min_element(tmaxes, tmaxes + 8);
-
-    cout << "tmax is: " << tmax << "\n";
-
-    // Determine fine-scale grid steps:
-        // (do this later)
+    // // Get the length of the shortest ray in the batch:
+    // int tmaxes[] = {cur_rays[0]->time.size(),
+    //                 cur_rays[1]->time.size(),
+    //                 cur_rays[2]->time.size(),
+    //                 cur_rays[3]->time.size(),
+    //                 cur_rays[4]->time.size(),
+    //                 cur_rays[5]->time.size(),
+    //                 cur_rays[6]->time.size(),
+    //                 cur_rays[7]->time.size()};
+    // int tmax = *min_element(tmaxes, tmaxes + 8);
 
 
+    // Find minimum and maximum frequencies, start lats, and start lons:
+    wmin   = cur_rays[0]->w;         wmax = cur_rays[0]->w;
+    latmin = cur_rays[0]->in_lat;  latmax = cur_rays[0]->in_lat;
+    lonmin = cur_rays[0]->in_lon;  lonmax = cur_rays[0]->in_lon;
+    tmax   = cur_rays[0]->time.size();
 
-    // r_cur = new rayT;
-    // r_prev= new rayT;
+    for (int i=1; i < 8; i++) {
+        if (cur_rays[i]->w < wmin)  { wmin = cur_rays[i]->w; } 
+        if (cur_rays[i]->w > wmax ) { wmax = cur_rays[i]->w; }
+        if (cur_rays[i]->in_lat < latmin ) { latmin = cur_rays[i]->in_lat; }
+        if (cur_rays[i]->in_lat > latmax ) { latmax = cur_rays[i]->in_lat; }
+        if (cur_rays[i]->in_lon < lonmin ) { lonmin = cur_rays[i]->in_lon; }
+        if (cur_rays[i]->in_lon > lonmax ) { lonmax = cur_rays[i]->in_lon; }
+        if (cur_rays[i]->time.size() < tmax) { tmax = cur_rays[i]->time.size(); }
+    }
+
+    // starting separation in lat, lon directions (meters)
+    dlat = D2R*R_E*(latmax - latmin);
+    dlon = D2R*R_E*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
+    dw   = wmax - wmin;
+
+
+
+
+    // Scale the input power by dlat, dlon, dw:
+    // (ray spacing may not be consistent)
+    for (int i=1; i < 8; i++) {
+        cur_rays[i]->inp_pwr = input_power_scaling(flash_pos_sm, cur_rays[i]->pos[0].data(),
+                               cur_rays[i]->in_lat, cur_rays[i]->w, flash_I0);
+        // cout << "in pwr (pre scale): " << cur_rays[i]->inp_pwr << "\n";
+        cur_rays[i]->inp_pwr *= (dlat*dlon)*(2*PI*dw);
+        // cout << "in pwr (post scale): " << cur_rays[i]->inp_pwr << "\n";
+    }
+
+
+    // Always do at least 2 steps in each axis (corner rays)
+    num_freqs_fine = max(2, (int)ceil( (wmax - wmin)/(2*PI*freq_step_size )));
+    num_lats_fine  = max(2, (int)ceil( (dlat*1e-3)/(lat_step_size) ));
+    num_lons_fine  = max(2, (int)ceil( (dlon*1e-3)/(lon_step_size) ));
+
+    cout << "num steps: " << num_freqs_fine << ", " << num_lats_fine << ", " << num_lons_fine << "\n";
 
     crossing_log = fopen(crossingFileName.c_str(), "w");
 
@@ -283,14 +310,9 @@ int main(int argc, char *argv[])
             
             // Ignore anything that looks way out of range
             if (coarse_mask(cur_rays, tt, EA_array[rr])) {
-            // if (true) {
-            // if (randval == 1) {
-            // if (coarse_mask()) {
+
                 hit_counter ++;
 
-                // cout << tt << ", ";
-                // print_array((cur_rays[0])->pos[tt].data(),3);
-  
                 // Interpolate on fine-scale grid:
                 for (double ii=0; ii <= 1; ii+=1./num_freqs_fine) {         // freqs
                     for (double jj=0; jj <= 1; jj+= 1./num_lats_fine) {     // lats
@@ -300,15 +322,13 @@ int main(int argc, char *argv[])
                             r_cur = {};
                             r_prev = {};
                             
+                            // (to do: Save r_curs to avoid having to recalculate it)
                             interp_ray_fine(cur_rays, ii, jj, kk, tt,  &r_cur);
                             interp_ray_fine(cur_rays, ii, jj, kk, tt-1,&r_prev);
 
-                            // cout << "out: ";
-                            // print_array(r_cur.pos, 3);
                             l0 = Map<VectorXd>(r_cur.pos, 3,  1);
                             l1 = Map<VectorXd>(r_prev.pos, 3, 1);
-                            // l0 = r_cur.pos;
-                            // l1 = r_prev.pos;
+
                             // Bam -- we finally have some little rays to check for crossings.
                             if (crosses_EA(l0, l1, EA_array[rr])) {
                                 crossing_counter++;
@@ -316,7 +336,13 @@ int main(int argc, char *argv[])
                                 fprintf(crossing_log, "%g %g %g %g %g %g\n",
                                     l0[0], l0[1], l0[2], l1[0], l1[1], l1[2]);
 
+                                // store time and frequency for the middle of this interpolation
+                                r_cur.dt = (r_cur.time - r_prev.time);
+                                r_cur.dw = (r_cur.w - r_prev.w);
+                                r_cur.dlat = dlat;
+                                r_cur.dlon = dlon;
 
+                                calc_resonance(&r_cur, v_tot_arr, da_N, da_S);
 
                             }   // Crossings
                         }   // kk
@@ -329,11 +355,6 @@ int main(int argc, char *argv[])
 
     cout << "hit counter: " << hit_counter << "\n";
     cout << "crossing counter: " << crossing_counter << "\n";
-
-
-
-
-
 
 
 

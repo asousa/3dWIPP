@@ -56,6 +56,7 @@ typedef struct rayF {
     vector <double> damping;         // Damping vector (normalized to 1)
 
     double inp_pwr;                  // input power of ray
+    
 
     // Stix parameters
     vector <double> stixP;
@@ -74,6 +75,11 @@ typedef struct rayT {
     double nspec;                      // Number of species in plasmasphere model
     // double ray_num;                 // Ray index number
     double time;            // Group time
+
+    double dt;              // time and frequency bin size
+    double dw;
+    double dlat;
+    double dlon;
 
     // double pos[3];
     double pos[3];
@@ -110,11 +116,21 @@ typedef struct EA_segment {
     Eigen::Vector3d ea_norm;           // Vector normal to crossing plane
     Eigen::Vector3d ea_pos;            // Location in plane where field line intersects
 
-    double Lsh;                       // L shell
+    double Lsh;                        // L shell
     double radius;                     // Radius around field line to consider a crossing
 
-    double dist_to_n;
-    double dist_to_s;
+    double lat;                        // Latitude (geomagnetic)
+    double dist_to_n;                  // Distance along field line to northern iono (R_E)
+    double dist_to_s;                  // Distance along field line to southern iono (R_E) 
+
+    // Precalculated stuff for scattering:
+    double wh;                         // Electron gyrofrequency     (angular)
+    double dwh_ds;                     // Derivative of gyrofrequency
+    double alpha_lc;                   // Local loss-cone angle      (radians)
+    double alpha_eq;                   // Equatorial loss-cone angle (radians)
+    double ds;                         // Distance along field line between entries (m) (Walt 3.19)
+    double dv_para_ds;                 // hm... good question.
+
     // Should we do Stix parameters here? They're a constant of the background
     // medium, not of the wave... but we'd have to get the plasmasphere model.
 
@@ -255,6 +271,8 @@ bool coarse_mask(rayF* cur_rays[8], int t, EA_segment EA_arr);
 bool crosses_EA(Vector3d l0, Vector3d l1, EA_segment EA_seg);
 
 double longitude_interval(double ra, double r0);
+
+void calc_resonance(rayT* ray, double v_tot_arr[NUM_E], double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
 
 
 #endif

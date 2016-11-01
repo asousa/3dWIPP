@@ -34,7 +34,7 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
     // cout << "theta: " << R2D*theta << " deg\n";
     // Arc length (~great-circle distance) between vI0ectors
     gc_distance = (R_E)*theta;
-    // cout << " gc_dist: " << gc_distance << "\n";
+    // cout << " gc_dist: " << gc_distance*1e-3 << "\n";
     // total distance up to ionosphere:
     dist_tot = hypot(gc_distance, H_IONO);
     xi = atan2(gc_distance, H_IONO);  // Incident angle
@@ -83,7 +83,11 @@ void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_i
 
         // scalar-valued here
         // cout << "corner w: " << raylist[jj]->w << "\n";
+        rayout->time +=  W[jj]*(raylist[jj]->time[t_ind]);
         rayout->w += W[jj]*(raylist[jj]->w);
+        rayout->inp_pwr += W[jj]*(raylist[jj]->inp_pwr);
+        rayout->damping += W[jj]*(raylist[jj]->damping[t_ind]);
+
         rayout->stixR += W[jj]*(raylist[jj]->stixR[t_ind]);
         rayout->stixL += W[jj]*(raylist[jj]->stixL[t_ind]);
         rayout->stixP += W[jj]*(raylist[jj]->stixP[t_ind]);
@@ -91,7 +95,11 @@ void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_i
         rayout->stixD += W[jj]*(raylist[jj]->stixD[t_ind]);
         rayout->stixA += W[jj]*(raylist[jj]->stixA[t_ind]);
         rayout->stixB += W[jj]*(raylist[jj]->stixB[t_ind]);
+
+
     }
+
+
     // cout << "in: ";
     // print_array(rayout->pos, 3);
 }
@@ -210,13 +218,16 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
 
     double x_fl[TRACER_MAX][3]; // elements along the field line
 
-
     double b_dipole[3], b_sm[3];    
     int Nsteps;
 
     double lam, slam, clam, dL_lam, ptR, ptX, ptY, x1, x2, y1, y2;
     double slam2, clam2, rootTerm, x_unit_vect, y_unit_vect, ptL;
+    double slat_term;
     double EA_a, EA_b, EA_c;
+    double x_iono[3], x_iono_tmp[3];
+    double B_iono[3], B_eq[3];
+    double alpha_eq;
 
 
     x_in = {1, lat, lon};
@@ -271,6 +282,7 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
                             +pow(x_fl[i][2] - x_fl[i-1][2], 2))
                         + dist_n[i - 1];
         }
+        // cout << "d[" << i << "] " << dist_n[i] << "\n";
     }
 
     cout << "total distance: " << dist_n[Nsteps] << "\n";
@@ -281,9 +293,23 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     double Lsh = norm(x_fl[Lsh_index], 3);
     cout << "L shell: " << Lsh << "\n";
 
+    // Get b-field at equator:
+    bmodel(itime_in, x_fl[Lsh_index], tsyg_params, model_number, B_eq);
+
+    // Get b-field at H_IONO:
+    sm_to_mag_d_(itime_in, x_fl[0], x_iono_tmp);
+    cardeg(x_iono_tmp);
+    x_iono_tmp[0] += H_IONO/R_E;
+    degcar(x_iono_tmp);
+    mag_to_sm_d_(itime_in, x_iono_tmp, x_iono);
+
+    bmodel(itime_in, x_iono, tsyg_params, model_number, B_iono);
+
+    // get loss cone at equator:
+    alpha_eq = asin(sqrt(norm(B_eq,3)/norm(B_iono, 3)));
+
     int ind;
     double targ_lat = EALimN;
-
 
     // generate entries for each EA segment
     for (int i=0; i < NUM_EA; i++) {
@@ -293,9 +319,12 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         // L shell:
         EA_array[i].Lsh = Lsh;
 
+        // Latitude:
+        EA_array[i].lat = lats[ind];
+
         // Distance to northern and southern ionosphere intersections:
-        EA_array[i].dist_to_n = dist_n[i]                  - (R_E + H_IONO)/R_E;
-        EA_array[i].dist_to_n = dist_n[Nsteps] - dist_n[i] - (R_E + H_IONO)/R_E;
+        EA_array[i].dist_to_n = dist_n[ind]                  - H_IONO/R_E;
+        EA_array[i].dist_to_s = dist_n[Nsteps] - dist_n[ind] - H_IONO/R_E;
 
         // Intersection point:
         EA_array[i].ea_pos = Map<VectorXd>(x_fl[ind],3,1);
@@ -311,7 +340,7 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         // Calculate the width in the same way Jacob did:
         // (Width in L_MARGIN, assuming a dipole field)
         lam = lats[ind];
-        
+
         clam = cos(lam*D2R);
         slam = sin(lam*D2R);
         clam2 = pow(clam,2);
@@ -339,22 +368,65 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         
         EA_array[i].radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2; 
 
+
+        // Calculate electron gyrofrequency:
+        EA_array[i].wh = (Q_EL/M_EL)*Bomag;
+
+        // Spatial derivative of gyrofrequency:
+        // (Currently evaluating using Jacob's formula -- dipole model assumption!!)
+        slat_term = sqrt(1+3*slam*slam);
+
+        EA_array[i].dwh_ds = 3*(EA_array[i].wh)/(Lsh*R_E)*slam/slat_term*
+                (1/(slat_term*slat_term) + 2/(clam*clam));
+
+
+
+        // Calculate local loss cone:
+        EA_array[i].alpha_lc = asin(sqrt(Bomag/norm(B_iono,3)));
+        
+        // Equatorial loss cone:
+        EA_array[i].alpha_eq = alpha_eq;
+
+        // dv_|| / ds: 
+        EA_array[i].dv_para_ds = -0.5*pow(sin(EA_array[i].alpha_lc),2)/
+                                      cos(EA_array[i].alpha_lc)/
+                                      EA_array[i].wh*EA_array[i].dwh_ds;
+
+
+        // // analytical (for comparison)
+        // double epsm = (1/Lsh)*(R_E+H_IONO)/R_E;
+        // double alpha_eq = asin(sqrt( pow(epsm,3)/sqrt(1+3*(1-epsm)) ));
+        // double slat_term = sqrt(1+3*slam*slam);
+        // double alpha_calc = asin(sqrt( slat_term/pow(clam,6) )*sin(alpha_eq));
+
+        // cout << "alpha_lc: " << EA_array[i].alpha_lc << " calculated: " << alpha_calc << "\n";
+
+
         // Bump index
         targ_lat-= EAIncr;
     }
 
+    // Loop through again to calculate ds:
+    for (int i=0; i < NUM_EA; i++) {
+        if (i==0) {
+            EA_array[i].ds = EA_array[i+1].dist_to_n - EA_array[i].dist_to_n;
+        } else if (i== NUM_EA - 1) {
+            EA_array[i].ds = EA_array[i].dist_to_n - EA_array[i-1].dist_to_n;
+        } else {
+            EA_array[i].ds = (EA_array[i+1].dist_to_n - EA_array[i].dist_to_n)*0.5
+                            +(EA_array[i].dist_to_n - EA_array[i-1].dist_to_n)*0.5;
+        }
 
-    // double x_tmp[3];
-    // // Read out found data:
-    // for (int j=0; j < NUM_EA; j++) {
-    //     sm_to_mag_d_(itime_in, EA_array[j].ea_pos.data(), x_tmp);
-    //     cardeg(x_tmp);
-    //     print_array(x_tmp, 3);
+        EA_array[i].ds *= R_E;  // Meters
 
-    //     cout << EA_array[j].radius << "\n";
+        // clam = cos(EA_array[i].lat*D2R);
+        // slam = sin(EA_array[i].lat*D2R);
+        // slat_term = sqrt(1+3*slam*slam);
+        // double ds_calc = EA_array[i].Lsh*slat_term*clam*EAIncr*D2R*R_E; 
 
-    // }
-
+        // cout << "lat: " << EA_array[i].lat << " ds: " << EA_array[i].ds << " calc: " << ds_calc << 
+        //      "dist to n: " << EA_array[i].dist_to_n << "\n";
+    }
 }
 
 
@@ -568,7 +640,6 @@ bool crosses_EA(Vector3d p1, Vector3d p2, EA_segment EA) {
 }
 
 
-
 void dump_EA_array(EA_segment EA_array[NUM_EA], string filename) {
     // Write the EA array to a file, so I can plot it.
 
@@ -590,5 +661,18 @@ void dump_EA_array(EA_segment EA_array[NUM_EA], string filename) {
         cout << "Could not open file " << filename.c_str() << "\n";
     }
 }
+
+
+void calc_resonance(rayT* ray, double v_tot_arr[NUM_E], 
+    double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]) {
+    // Performs resonance calculation for a single ray entry, and records
+    // changes in pitch angle into da_N and da_S (for northern and southern hemis)
+
+    double t = ray->time + ray->dt/2.;
+    double w = ray->w + ray->dw/2.;
+    double pwr = (ray->inp_pwr)*(ray->damping);
+
+}
+
 
 
