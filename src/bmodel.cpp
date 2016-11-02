@@ -272,7 +272,7 @@ void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10], int model_n
 
 
 int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3], 
-    double ds_in, int model_number, double tsyg_params[10]) {
+    double b_out[TRACER_MAX], double ds_in, int model_number, double tsyg_params[10]) {
 // x_in: R, Lat, Lon in magnetic dipole coordinates (earth radii)
 // x_out: [nx3] array of field line coordinates
 
@@ -326,16 +326,19 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
         Bomag = norm(Bo, 3);
         dx = Bo[0]/Bomag; dy = Bo[1]/Bomag; dz = Bo[2]/Bomag;
 
+        x_out[i][0] = x_cur[0];
+        x_out[i][1] = x_cur[1];
+        x_out[i][2] = x_cur[2];
+
+        b_out[i] = Bomag;
+
+
         // Update x_cur:
         x_cur[0] += dx*ds;
         x_cur[1] += dy*ds;
         x_cur[2] += dz*ds;
 
         x_alt = norm(x_cur, 3);
-
-        x_out[i][0] = x_cur[0];
-        x_out[i][1] = x_cur[1];
-        x_out[i][2] = x_cur[2];
 
 
     //     // Analytical dipole calculation:

@@ -32,7 +32,7 @@ iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
 isec = (ray_datenum.second + (ray_datenum.minute)*60 + ray_datenum.hour*60*60)
 
-inp_rayfile = '/shared/users/asousa/WIPP/3dWIPP/outputs/rayout_damped.ray'
+inp_rayfile = '/shared/users/asousa/WIPP/3dWIPP/outputs/rayout_ngo_damped.ray'
 # Get closest Kp value (Or should we interpolate?)
 tvec, kvec = load_Kp()
 

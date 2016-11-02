@@ -12,7 +12,7 @@ map <int, rayF> read_rayfile(string fileName)
     ray.pos   (n x 3 double)   Position in SM cartesian coordinates
     ray.vprel (n x 3 double)   Phase velocity (relative to c)
     ray.vgrel (n x 3 double)   Group velocity (relative to c)
-    ray.n     (n x 3 double)   Index of refraction along each axis
+    ray.n     (n x 3 double)   Refractive index vector
     ray.B0    (n x 3 double)   Background magnetic field vector
 
     Constants:
@@ -170,7 +170,6 @@ map <int, rayF> read_rayfile(string fileName)
                 B0.push_back(v[15]);
                 B0.push_back(v[16]);
                 B0.push_back(v[17]);
-
                 raylist[ray_num].B0.push_back(B0);
 
                 for (int i = 0; i < nspec; i++) {
@@ -192,6 +191,12 @@ map <int, rayF> read_rayfile(string fileName)
                         raylist[ray_num].qs.push_back(v[20 + 0*nspec + i]);
                         raylist[ray_num].ms.push_back(v[20 + 1*nspec + i]);
                     }
+                }
+
+                // Do we have damping data? if so load it too.
+                if (v.size() > (20 + 4*nspec) ) {
+                    // cout <<"damping " << v[20+4*nspec] <<"\n";
+                    raylist[ray_num].damping.push_back(v[20+4*nspec]);
                 }
                 
                 linecounter++;

@@ -1,5 +1,5 @@
 /* -----------------------------------
- *             consts.h         
+ *       consts.h -- 3DWIPP        
  * -----------------------------------
  */
 #ifndef consts_H
@@ -58,5 +58,7 @@
 #define     NUM_TIMES   1000    //ceil(TIME_MAX/TIME_STEP)
 
 #define     TIME_STEP   (NUM_TIMES/TIME_MAX)     // Seconds
+
+#define     SCATTERING_RES_MODES   5        
 
 #endif

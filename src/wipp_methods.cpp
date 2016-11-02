@@ -79,6 +79,9 @@ void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_i
         for (int ii=0; ii<3; ii++){  // X, Y, Z
             (rayout->pos)[ii]   += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
             (rayout->vgrel)[ii] += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
+            (rayout->n)[ii]     += W[jj]*((raylist[jj]->n[t_ind]).data()[ii]);
+            (rayout->B0)[ii]    += W[jj]*((raylist[jj]->B0[t_ind]).data()[ii]);
+
         }
 
         // scalar-valued here
@@ -217,7 +220,7 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     double Bomag;
 
     double x_fl[TRACER_MAX][3]; // elements along the field line
-
+    double b_fl[TRACER_MAX];    // b-field magnitude along line
     double b_dipole[3], b_sm[3];    
     int Nsteps;
 
@@ -259,10 +262,11 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     tsyg_params[1] = -20;
 
     // Trace field line:
-    Nsteps = trace_fieldline(itime_in, x_sm, x_fl, 0.001, model_number, tsyg_params);
+    Nsteps = trace_fieldline(itime_in, x_sm, x_fl, b_fl, 0.001, model_number, tsyg_params);
     
     double lats[Nsteps];
     double dist_n[Nsteps];
+    double ftc_n[Nsteps];   // Flight time constant to northern hemi
 
     double target_lat = EALimN;
     int EA_index = 0;
@@ -308,6 +312,29 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     // get loss cone at equator:
     alpha_eq = asin(sqrt(norm(B_eq,3)/norm(B_iono, 3)));
 
+
+    // Calculate flight-time constants:
+    int iono_ind = 0;
+    double alt = 0;
+    // Find index of ionosphere
+    while (alt < (H_IONO/R_E + 1)) {
+        iono_ind +=1;
+        Vector3d xtmp = Map<VectorXd>(x_fl[iono_ind],3,1);
+        alt = xtmp.norm();
+    }
+
+    cout << "Iono ind: " << iono_ind << "\n";
+
+    for (int i=0; i < Nsteps; i++) {
+        if (i < iono_ind) {
+            ftc_n[i] = 0;
+        } else {
+            ftc_n[i] = ftc_n[i-1] + (dist_n[i] - dist_n[i-1])/
+                                    sqrt(1 - b_fl[i]/b_fl[iono_ind]);
+        }
+    }
+
+
     int ind;
     double targ_lat = EALimN;
 
@@ -315,7 +342,7 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     for (int i=0; i < NUM_EA; i++) {
         ind = nearest(lats, Nsteps, targ_lat, true);
         cout << "lat: " << lats[ind] << "\n";
-
+        cout << "Lsh: " << Lsh << "\n";
         // L shell:
         EA_array[i].Lsh = Lsh;
 
@@ -326,15 +353,21 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         EA_array[i].dist_to_n = dist_n[ind]                  - H_IONO/R_E;
         EA_array[i].dist_to_s = dist_n[Nsteps] - dist_n[ind] - H_IONO/R_E;
 
+        // Flight-time constants:
+        EA_array[i].ftc_n     = ftc_n[ind];
+        EA_array[i].ftc_s     = ftc_n[Nsteps] - ftc_n[ind];
+        
         // Intersection point:
         EA_array[i].ea_pos = Map<VectorXd>(x_fl[ind],3,1);
-
         // Get B:
+        // Bomag = b_fl[ind];
+        // cout << "Bo: " << Bomag << "\n";
         bmodel(itime_in, x_fl[ind], tsyg_params, model_number, Bo);
 
         // Get unit vector pointing along field line:
         // (i.e., normal vector to this EA segment)
         Bomag = norm(Bo, 3);
+        // Bomag = b_fl[ind];
         EA_array[i].ea_norm = Map<VectorXd>(Bo, 3, 1)/Bomag;
 
         // Calculate the width in the same way Jacob did:
@@ -430,6 +463,11 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
 }
 
 
+
+
+
+
+
 void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int model_number, string filename) {
     // Run the field-line tracer and output the results. Cute!
 
@@ -477,7 +515,7 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int model_number, 
             degcar(x_geocar);
             mag_to_sm_d_(itime_in, x_geocar, x_sm);
 
-            lens[i] = trace_fieldline(itime_in, x_sm, grid[i], stepsize, model_number, tsyg_params);
+            lens[i] = trace_fieldline(itime_in, x_sm, grid[i], NULL, stepsize, model_number, tsyg_params);
             i++;
         }
     }
@@ -663,14 +701,213 @@ void dump_EA_array(EA_segment EA_array[NUM_EA], string filename) {
 }
 
 
-void calc_resonance(rayT* ray, double v_tot_arr[NUM_E], 
+void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], 
     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]) {
     // Performs resonance calculation for a single ray entry, and records
     // changes in pitch angle into da_N and da_S (for northern and southern hemis)
+    double t, w, pwr;
+    Vector3d n, B0;
+    double psi, mu, mu_sq, spsi, cpsi, spsi_sq, cpsi_sq;
+    double k, kx, kz;
+    double n_x, n_z;
+    double wh, alpha_lc, calph, salph, ds, dv_para_ds, dwh_ds;
+    double Y;
+    double stixS, stixD, stixA, stixB, stixX, stixR, stixL, stixP;
+    double rho1, rho2, Byw_sq;
+    double Byw, Exw, Eyw, Ezw, Bxw, Bzw;
+    double R1, R2, w1, w2, alpha1;
+    double t1, t2, t3;
+    double direction;
+    double v_para_res, v_tot_res, E_res;
+    double e_starti, e_endi;
+    double slat, clat, slat_term;
+    double alpha_eq;
 
-    double t = ray->time + ray->dt/2.;
-    double w = ray->w + ray->dw/2.;
-    double pwr = (ray->inp_pwr)*(ray->damping);
+    t = ray->time + ray->dt/2.;
+    w = ray->w + ray->dw/2.;
+    pwr = (ray->inp_pwr)*(ray->damping);
+    n  = ray->n;
+    B0 = ray->B0;
+
+    // For this calculation, we're working in a frame with z parallel to 
+    // the background magnetic field. 
+
+    // Angle between wavenormal and background magnetic field.
+    // ( -90 - (dot product) matches original raytracer's output... 11.1.2016)
+
+    psi = -90*D2R - n.dot(B0)/(n.norm()*B0.norm());
+
+    // Parameters from the EA array:
+    wh = EA->wh;
+    alpha_lc = EA->alpha_lc;
+    calph = cos(alpha_lc);
+    salph = sin(alpha_lc);
+    ds    = EA->ds;
+    dv_para_ds = EA->dv_para_ds;
+    dwh_ds     = EA->dwh_ds;
+    slat  = sin(D2R*EA->lat);
+    clat  = cos(D2R*EA->lat);
+    alpha_eq = EA->alpha_eq;
+
+    slat_term = sqrt(1+3*slat*slat);
+
+
+    // cout << "t= " << t << " psi= " << R2D*psi << "\n";
+    mu = n.norm();
+    mu_sq = pow(mu, 2);
+    spsi = sin(psi);
+    cpsi = cos(psi);
+    spsi_sq = pow(spsi, 2);
+    cpsi_sq = pow(cpsi, 2);
+
+    n_x =  mu*fabs(spsi);
+    n_z =  mu*cpsi;
+
+    k = w*mu/C;
+    kx = w*n_x/C;
+    kz = w*n_z/C;
+
+    Y = wh / w;
+
+    stixP = ray->stixP;
+    stixR = ray->stixR;
+    stixL = ray->stixL;
+    stixS = ray->stixS;
+    stixD = ray->stixD;
+    stixA = ray->stixA;
+    stixB = ray->stixB;
+
+    stixX = stixP/(stixP - mu_sq*spsi_sq);  // Ristic 3.2, pg 41
+
+    // Polarization ratios
+    rho1 = ((mu_sq-stixS)*mu_sq*spsi*cpsi)/(stixD*(mu_sq*spsi_sq-stixP));
+    rho2 = (mu_sq - stixS) / stixD ;
+
+    Byw_sq =  2.0*MU0/C*pwr*stixX*stixX*rho2*rho2*mu*fabs(cpsi)/
+       sqrt(  pow((tan(psi)-rho1*rho2*stixX),2) + 
+       pow( (1+rho2*rho2*stixX), 2 ) );
+
+    // RMS wave components
+    Byw = sqrt(Byw_sq);
+    Exw = fabs(C*Byw * (stixP - n_x*n_x)/(stixP*n_z)); 
+    Eyw = fabs(Exw * stixD/(stixS-mu_sq));
+    Ezw = fabs(Exw *n_x*n_z / (n_x*n_x - stixP));
+    Bxw = fabs(Exw *stixD*n_z /C/ (stixS - mu_sq));
+    Bzw = fabs((Exw *stixD *n_x) /(C*(stixX - mu_sq)));
+
+    // Oblique integration quantities
+    R1 = (Exw + Eyw)/(Bxw+Byw);
+    R2 = (Exw - Eyw)/(Bxw-Byw);
+    w1 = Q_EL/(2*M_EL)*(Bxw+Byw);
+    w2 = Q_EL/(2*M_EL)*(Bxw-Byw);
+    alpha1 = w2/w1;
+
+    // Sum over all resonance modes
+    for (int mres=-SCATTERING_RES_MODES; mres <= SCATTERING_RES_MODES; mres++) {
+        // get parallel resonance velocity
+        t1 = w*w*kz*kz;
+        t2 = pow((mres*wh),2)-w*w;
+        t3 = kz*kz + pow((mres*wh),2)/(pow(C*cos(alpha_lc),2));
+        if(mres==0) {
+          direction = -kz/fabs(kz);
+        } else {
+          direction = kz/fabs(kz) * mres/fabs(mres) ;
+        }
+
+        v_para_res = ( direction*sqrt(t1 + t2*t3) - w*kz ) / t3;
+        v_tot_res = v_para_res / cos(alpha_lc); 
+        E_res = E_EL*( 1.0/sqrt( 1.0-(v_tot_res*v_tot_res/(C*C)) ) -1.0 );
+
+        // indexes into the energy / velocity arrays
+        e_starti = floor((log10(E_res) - E_EXP_BOT - 0.3)/(DE_EXP));
+        e_endi   =  ceil((log10(E_res) - E_EXP_BOT + 0.3)/(DE_EXP));
+
+        if(e_endi>NUM_E) e_endi=NUM_E;
+        if(e_starti>NUM_E) e_starti=NUM_E;
+        if(e_endi<0) e_endi=0;
+        if(e_starti<0) e_starti=0;
+
+        double v_tot, v_para, v_perp;
+        double gamma, alpha2, beta, wtau_sq, T1;
+        double eta_dot, dalpha_eq;
+        double v_para_star, v_para_star_sq;
+        double AA, BB;
+        double Farg, Farg0, Fs, Fs0, Fc, Fc0;
+        double dFs_sq, dFc_sq;
+        double dalpha, alpha_eq_p;
+
+        // begin V_TOT loop here
+        for(int e_toti=e_starti; e_toti < e_endi; e_toti++) {
+
+            v_tot = direction*v_tot_arr[e_toti];
+            v_para = v_tot * calph;
+            v_perp = fabs(v_tot * salph);
+
+            gamma = 1.0 / sqrt(1 - pow((v_tot/C),2));   // Relativisitc correction
+            alpha2 = Q_EL*Ezw /(M_EL*gamma*w1*v_perp);
+            beta = kx*v_perp / wh ;
+            wtau_sq = pow((-1),(mres-1)) * w1/gamma * 
+                ( jn( (mres-1), beta ) - 
+                alpha1*jn( (mres+1) , beta ) +
+                gamma*alpha2*jn( mres , beta ) ); 
+            T1 = -wtau_sq*(1+ ( (calph*calph) / (mres*Y-1) ) );
+
+            // Now -- start the analytical evaluation!!
+            if( fabs(EA->lat) < 1e-3) {
+                // Near the equator we can use a simplified expression:
+
+                eta_dot = mres*wh/gamma - w - kz*v_para;
+
+                if(fabs(eta_dot)<10) {
+                    // Bortnik A.31
+                    dalpha_eq = fabs(T1/v_para)*ds/sqrt(2);
+                } else {
+                    // Bortnik A.30
+                    dalpha_eq = fabs(T1/eta_dot)*sqrt(1-cos(ds*eta_dot/v_para)); 
+                }
+
+            } else { // Full analytical expression required:
+
+                v_para_star = v_para - dv_para_ds*ds/2.0;   // Bortnik A.17
+                v_para_star_sq = v_para_star * v_para_star;
+
+                // Bortnik A.18 -- part A1
+                AA = - mres/(2.0*v_para_star_sq*gamma)*wh*dv_para_ds
+                     + (mres/(2.0*v_para_star*gamma))*dwh_ds * (1 + ds/(2.0*v_para_star)*dv_para_ds) 
+                     + w/(2.0*v_para_star_sq)*dv_para_ds;
+
+                // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
+                BB =   mres/(gamma*v_para_star)*wh 
+                     - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0)
+                     - w/v_para_star - kz;
+
+
+                // Evaluate Bortnik A.26 -- integration performed thru Fresnel functions
+                Farg = (BB + 2*AA*ds) / sqrt(2*PI*fabs(AA));
+                Farg0 = BB / sqrt(2*PI*fabs(AA));  
+
+                Fresnel(Farg,  &Fs,  &Fc);
+                Fresnel(Farg0, &Fs0, &Fc0);
+
+                dFs_sq = pow((Fs - Fs0),2);
+                dFc_sq = pow((Fc - Fc0),2);
+
+                dalpha = sqrt(PI/4/fabs(AA))*fabs(T1/v_para)*sqrt(dFs_sq+dFc_sq);
+
+                // Map the local change in pitch angle to the equivalent
+                // pitch angle at the equator:
+                alpha_eq_p = asin( sin(alpha_lc+dalpha)*pow(clat,3) / 
+                                   sqrt(slat_term) );
+                dalpha_eq = alpha_eq_p - alpha_eq;
+
+            }
+
+        }
+
+
+    } // Resonant modes
+
+
 
 }
 

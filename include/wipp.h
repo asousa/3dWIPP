@@ -56,7 +56,7 @@ typedef struct rayF {
     vector <double> damping;         // Damping vector (normalized to 1)
 
     double inp_pwr;                  // input power of ray
-    
+
 
     // Stix parameters
     vector <double> stixP;
@@ -82,12 +82,13 @@ typedef struct rayT {
     double dlon;
 
     // double pos[3];
-    double pos[3];
+    Eigen::Vector3d pos;
     double vprel[3];
     double vgrel[3];
-    double n[3];
-    double B0[3];
-
+    // double n[3];
+    Eigen::Vector3d n;
+    // double B0[3];
+    Eigen::Vector3d B0;
     // Variable-length stuff (depending on number of constituents in model)
     vector <double> qs;    // species charge
     vector <double> ms;    // species mass
@@ -123,6 +124,8 @@ typedef struct EA_segment {
     double dist_to_n;                  // Distance along field line to northern iono (R_E)
     double dist_to_s;                  // Distance along field line to southern iono (R_E) 
 
+    double ftc_n;                      // flight-time constants (Walt 4.25)
+    double ftc_s;
     // Precalculated stuff for scattering:
     double wh;                         // Electron gyrofrequency     (angular)
     double dwh_ds;                     // Derivative of gyrofrequency
@@ -240,7 +243,7 @@ void dipole_sm(int itime_in[2], double x_in[3], double b_out[3]);
 void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10],
             int model_number, double b_out[3]);
 
-int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3], 
+int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3], double bmag[TRACER_MAX],
                     double ds_in, int model_number, double tsyg_params[10]);
 void init_igrf(int itime_in[2]);
 void igrf_geo(double x_in[3], double b_out[3]);
@@ -272,7 +275,8 @@ bool crosses_EA(Vector3d l0, Vector3d l1, EA_segment EA_seg);
 
 double longitude_interval(double ra, double r0);
 
-void calc_resonance(rayT* ray, double v_tot_arr[NUM_E], double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+void Fresnel(double x0, double *FS, double *FC);
 
 
 #endif

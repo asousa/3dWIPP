@@ -52,8 +52,8 @@ int main(int argc, char *argv[])
     rayF* ray;
     
     // Output arrays (change in pitch angle, north and south hemispheres)
-    double da_N[NUM_E][NUM_TIMES];
-    double da_S[NUM_E][NUM_TIMES];
+    double da_N[NUM_E][NUM_TIMES] = {0};
+    double da_S[NUM_E][NUM_TIMES] = {0};
 
     // Array of pointers to current rays of interest
     // (does this copy or just point? I hope it points.)
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     // Location to determine output at (geomagnetic)
     // To do: set this up as a grid
     double outLat = 50;
-    double outLon = 2;
+    double outLon = 0;
     int model_number = 0; // Magnetic field model
 
     int dump_field = 0;
@@ -241,6 +241,44 @@ int main(int argc, char *argv[])
 
     cout << "\n";
 
+
+
+    double tsyg_params[10] = {0};
+    double VG[3];
+   
+    // int model_number = 0;
+
+    //  // Setup for IGRF:    
+    // load_TS05_params(itime_in, tsyg_params, VG);
+    // init_igrf(itime_in);
+
+    // // set DST:
+    // tsyg_params[1] = -20;
+
+
+
+    // double btmp[3];
+    // // Confirm we're using the same B model:
+    // for (int i =0; i < 8; i++) {
+    //     for (int t=0; t < cur_rays[i]->time.size(); t++) {
+
+    //         bmodel(itime_in, cur_rays[i]->pos[t].data(), tsyg_params, model_number, btmp);
+
+    //         Vector3d nt = Map<Vector3d>(cur_rays[i]->n[t].data(),3,1);
+    //         Vector3d Bt = Map<Vector3d>(cur_rays[i]->B0[t].data(),3,1);
+    //         double psi = -90*D2R - nt.dot(Bt)/(nt.norm()*Bt.norm());
+    //         cout << "t= " << cur_rays[i]->time[t] << " psi: " << R2D*psi << "\n";
+    //         // cout << "b(model) ";
+    //         // print_array(btmp,3);
+    //         // cout << "b(raytracer) ";
+    //         // print_array(cur_rays[i]->B0[t].data(), 3);
+    //     }
+    // }
+
+
+
+
+
     // // Get the length of the shortest ray in the batch:
     // int tmaxes[] = {cur_rays[0]->time.size(),
     //                 cur_rays[1]->time.size(),
@@ -258,14 +296,17 @@ int main(int argc, char *argv[])
     latmin = cur_rays[0]->in_lat;  latmax = cur_rays[0]->in_lat;
     lonmin = cur_rays[0]->in_lon;  lonmax = cur_rays[0]->in_lon;
     tmax   = cur_rays[0]->time.size();
-
+    double in_lat, in_lon;
     for (int i=1; i < 8; i++) {
+        in_lon = cur_rays[i]->in_lon;
+        if (in_lon >= 360) { in_lon -= 360; }
+
         if (cur_rays[i]->w < wmin)  { wmin = cur_rays[i]->w; } 
         if (cur_rays[i]->w > wmax ) { wmax = cur_rays[i]->w; }
         if (cur_rays[i]->in_lat < latmin ) { latmin = cur_rays[i]->in_lat; }
         if (cur_rays[i]->in_lat > latmax ) { latmax = cur_rays[i]->in_lat; }
-        if (cur_rays[i]->in_lon < lonmin ) { lonmin = cur_rays[i]->in_lon; }
-        if (cur_rays[i]->in_lon > lonmax ) { lonmax = cur_rays[i]->in_lon; }
+        if (in_lon < lonmin ) { lonmin = in_lon; }
+        if (in_lon > lonmax ) { lonmax = in_lon; }
         if (cur_rays[i]->time.size() < tmax) { tmax = cur_rays[i]->time.size(); }
     }
 
@@ -274,7 +315,7 @@ int main(int argc, char *argv[])
     dlon = D2R*R_E*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
     dw   = wmax - wmin;
 
-
+    cout << "lon: " << lonmax << ", " << lonmin << "\n";
 
 
     // Scale the input power by dlat, dlon, dw:
@@ -301,11 +342,13 @@ int main(int argc, char *argv[])
 
     double hit_counter = 0;
     double crossing_counter = 0;
-    for (int tt = 1; tt < tmax; tt++) {
-        // cout << "t = " << tt << "\n";
 
-        // Check each EA segment:
-        for (int rr = 0; rr < NUM_EA; rr++) {
+    // Check each EA segment:
+    for (int rr = 0; rr < NUM_EA; rr++) {
+        cout << "EA: " << EA_array[rr].lat << "\n";
+
+        for (int tt = 1; tt < tmax; tt++) {
+            // cout << "t = " << tt << "\n";
 
             
             // Ignore anything that looks way out of range
@@ -321,20 +364,20 @@ int main(int argc, char *argv[])
                             // Clear previous values
                             r_cur = {};
                             r_prev = {};
-                            
                             // (to do: Save r_curs to avoid having to recalculate it)
                             interp_ray_fine(cur_rays, ii, jj, kk, tt,  &r_cur);
                             interp_ray_fine(cur_rays, ii, jj, kk, tt-1,&r_prev);
 
-                            l0 = Map<VectorXd>(r_cur.pos, 3,  1);
-                            l1 = Map<VectorXd>(r_prev.pos, 3, 1);
+                            // l0 = r_cur.pos;// Map<VectorXd>(r_cur.pos, 3,  1);
+                            // l1 = r_prev.pos;//Map<VectorXd>(r_prev.pos, 3, 1);
 
                             // Bam -- we finally have some little rays to check for crossings.
-                            if (crosses_EA(l0, l1, EA_array[rr])) {
+                            if (crosses_EA(r_cur.pos, r_prev.pos, EA_array[rr])) {
                                 crossing_counter++;
                                 // cout << l0.transpose() << " " << l1.transpose() << "\n";
                                 fprintf(crossing_log, "%g %g %g %g %g %g\n",
-                                    l0[0], l0[1], l0[2], l1[0], l1[1], l1[2]);
+                                    r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
+                                    r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
 
                                 // store time and frequency for the middle of this interpolation
                                 r_cur.dt = (r_cur.time - r_prev.time);
@@ -342,7 +385,7 @@ int main(int argc, char *argv[])
                                 r_cur.dlat = dlat;
                                 r_cur.dlon = dlon;
 
-                                calc_resonance(&r_cur, v_tot_arr, da_N, da_S);
+                                calc_resonance(&r_cur, &(EA_array[rr]), v_tot_arr, da_N, da_S);
 
                             }   // Crossings
                         }   // kk
