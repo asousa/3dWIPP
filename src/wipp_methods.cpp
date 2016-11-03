@@ -41,15 +41,17 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 
     // cout << "xi: " << R2D*xi << " deg\n";
     w_sq =  pow( w , 2 );
-    S = ( (1/Z0) * pow( (H_E*i0*2E-7*(sin(xi)/dist_tot)*w*(A-B)) , 2 ) 
-                   /  (  (w_sq+pow(A,2))*(w_sq+pow(B,2))  )      ) ;
+    S = ( (1/Z0) * pow( (H_E*i0*2E-7*(sin(xi)/dist_tot)*w*(P_A-P_B)) , 2 ) 
+                   /  (  (w_sq+pow(P_A,2))*(w_sq+pow(P_B,2))  )      ) ;
     S_vert = S * cos(xi) ;  // factor for vert prop.
 
 
-
+    // Ionosphere absorption model
     attn_factor = pow(10,-(ionoAbsorp(mag_lat,f)/10)  );
-    S_vert = S_vert * attn_factor ;
+    S_vert = S_vert * attn_factor;
+
     printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
+    
     return S_vert;
 } 
 
@@ -138,7 +140,7 @@ void calc_stix_parameters(rayF* ray) {
         n_vec = Map<VectorXd>(ray->n[ii].data(),3,1);
 
         B0mag = B0.norm();
-        
+
 
         k = n_vec*w/C;
         kmag = k.norm();
@@ -199,7 +201,7 @@ void calc_stix_parameters(rayF* ray) {
         ray->stixL.push_back(L);
         ray->stixP.push_back(P);
         ray->stixS.push_back(S);
-        ray->stixD.push_back(D);
+        ray->stixD.push_back(D); 
         ray->stixA.push_back(a);
         ray->stixB.push_back(b);
 
@@ -848,10 +850,12 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     Ezw = fabs(Exw *n_x*n_z / (n_x*n_x - stixP));
     Bxw = fabs(Exw *stixD*n_z /C/ (stixS - mu_sq));
     Bzw = fabs((Exw *stixD *n_x) /(C*(stixX - mu_sq)));
-
-    cout << " Byw_sq: " << Byw_sq << " pwr: " << pwr << " damping: " << ray->damping << " inp: " << ray->inp_pwr << "\n";
-    printf("\nByw_sq: %g, rho1: %g, rho2: %g, \nstixS: %g, stixB: %g\n", Byw_sq, rho1, rho2, stixS, stixB);  
-    printf("\nn_x: %g, n_z: %g, stixX: %g, stixD: %g, stixA: %g,mu_sq: %g\n", n_x, n_z, stixX, stixD, stixA, mu_sq);
+    
+    // printf("Byw: %g Exw: %g Eyw: %g Ezw: %g Bxw: %g Bzw: %g\n",
+    //           Byw,    Exw,    Eyw,    Ezw,    Bxw,    Bzw);
+    // cout << " Byw_sq: " << Byw_sq << " pwr: " << pwr << " damping: " << ray->damping << " inp: " << ray->inp_pwr << "\n";
+    // // printf("\nByw_sq: %g, rho1: %g, rho2: %g, \nstixS: %g, stixB: %g\n", Byw_sq, rho1, rho2, stixS, stixB);  
+    // printf("\nn_x: %g, n_z: %g, stixX: %g, stixD: %g, stixA: %g,mu_sq: %g\n", n_x, n_z, stixX, stixD, stixA, mu_sq);
       
     // Oblique integration quantities
     R1 = (Exw + Eyw)/(Bxw+Byw);

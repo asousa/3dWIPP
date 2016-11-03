@@ -22,8 +22,8 @@
 
 // For input power scaling:
 #define     Z0      377.0
-#define		A		5E3	
-#define		B		1E5
+#define		P_A		5E3	
+#define		P_B		1E5
 #define		H_E		5000.0
 
 // Maximum number of species in the raytracer (to avoid using scalable arrays)
@@ -51,7 +51,7 @@
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)
 
 // Radius around field line, in L-shells, in which to consider a crossing
-#define		L_MARGIN    0.2
+#define		L_MARGIN    0.4
 
 // Output time axis:
 #define     TIME_MAX    10.0      // Seconds
@@ -61,5 +61,5 @@
 
 #define     SCATTERING_RES_MODES   5        
 
-#define     WAVE_PWR_THRESH   1e-6
+#define     WAVE_PWR_THRESH   1e-30
 #endif

@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
 
     cout << "flash geo: ";
     print_vector(vector<double>(flash_pos, flash_pos + 3));
-    double flash_I0 = 100e3;
+    double flash_I0 = -100e3;
     
     // int yearday = iyr*1000 + idoy;
     // itime_in[0] = yearday;
@@ -312,12 +312,14 @@ int main(int argc, char *argv[])
     }
 
     // starting separation in lat, lon directions (meters)
-    dlat = D2R*R_E*(latmax - latmin);
-    dlon = D2R*R_E*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
+    dlat = (latmax - latmin);
+    dlon = (lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
     dw   = wmax - wmin;
 
     cout << "lon: " << lonmax << ", " << lonmin << "\n";
-
+    cout << "lat: " << latmax << ", " << latmin << "\n";
+    cout << "dlat: " << dlat << " dlon: " << dlon << "\n";
+    cout << "dw: " << dw << "\n";
 
     // Scale the input power by dlat, dlon, dw:
     // (ray spacing may not be consistent)
@@ -326,8 +328,7 @@ int main(int argc, char *argv[])
                                cur_rays[i]->in_lat, cur_rays[i]->w, flash_I0);
         // cout << "in pwr (pre scale): " << cur_rays[i]->inp_pwr << "\n";
         // cur_rays[i]->inp_pwr *= (dlat*dlon)*(2*PI*dw);
-        cur_rays[i]->inp_pwr *= (2*PI*dw);
-
+        cur_rays[i]->inp_pwr *= (dw/(2*PI));
         // cout << "in pwr (post scale): " << cur_rays[i]->inp_pwr << "\n";
     }
 
