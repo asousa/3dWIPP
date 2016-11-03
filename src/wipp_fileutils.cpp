@@ -398,10 +398,29 @@ void load_TS05_params(int itime_in[2], double TS_params[10], double VG[3]) {
         }
 
 
-
-
     } else {
         cout << "Out of bounds of TS files!\n";
     }
-
 }
+
+
+void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
+    FILE* file;
+    int x, y;
+
+    file = fopen(filename.c_str(),"wb");
+
+    if (file == NULL) {
+        cout << "Failed to open file " << filename << "\n";
+    } else {
+        for (x=0; x < NUM_E; x++) {
+            for (y=0; y < NUM_TIMES; y++) {
+               fprintf(file, "%g ",arr[x][y]);
+            }    
+        }
+    }
+    fclose(file);
+}
+
+
+

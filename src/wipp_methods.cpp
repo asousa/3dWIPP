@@ -49,7 +49,7 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 
     attn_factor = pow(10,-(ionoAbsorp(mag_lat,f)/10)  );
     S_vert = S_vert * attn_factor ;
-
+    printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
     return S_vert;
 } 
 
@@ -138,6 +138,7 @@ void calc_stix_parameters(rayF* ray) {
         n_vec = Map<VectorXd>(ray->n[ii].data(),3,1);
 
         B0mag = B0.norm();
+        
 
         k = n_vec*w/C;
         kmag = k.norm();
@@ -232,6 +233,11 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     double B_iono[3], B_eq[3];
     double alpha_eq;
 
+    double dx;
+    double tmp_ftc;
+    int ind;
+
+
 
     x_in = {1, lat, lon};
 
@@ -262,8 +268,19 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     tsyg_params[1] = -20;
 
     // Trace field line:
-    Nsteps = trace_fieldline(itime_in, x_sm, x_fl, b_fl, 0.001, model_number, tsyg_params);
+    Nsteps = trace_fieldline(itime_in, x_sm, x_fl, b_fl, TRACER_STEP, model_number, tsyg_params);
     
+
+    // FILE* dump;
+
+    // dump = fopen("trace.txt", "w");
+
+    // for (int i=0; i < Nsteps; i++ ) {
+    //     fprintf(dump, "%i %g %g %g %g\n",i, x_fl[i][0], x_fl[i][1], x_fl[i][2], b_fl[i]);
+    // }
+    // fclose(dump);
+
+
     double lats[Nsteps];
     double dist_n[Nsteps];
     double ftc_n[Nsteps];   // Flight time constant to northern hemi
@@ -291,7 +308,7 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
 
     cout << "total distance: " << dist_n[Nsteps] << "\n";
     // Get effective L-shell
-    //  (Do we take this to be the radius at geomag equator, or the maximum?)
+    // (Do we take this to be the radius at geomag equator, or the maximum?)
     int Lsh_index = nearest(lats, Nsteps, 0, true);
 
     double Lsh = norm(x_fl[Lsh_index], 3);
@@ -306,12 +323,11 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     x_iono_tmp[0] += H_IONO/R_E;
     degcar(x_iono_tmp);
     mag_to_sm_d_(itime_in, x_iono_tmp, x_iono);
-
     bmodel(itime_in, x_iono, tsyg_params, model_number, B_iono);
 
     // get loss cone at equator:
     alpha_eq = asin(sqrt(norm(B_eq,3)/norm(B_iono, 3)));
-
+    cout << "Alpha_eq: " << alpha_eq << "\n";
 
     // Calculate flight-time constants:
     int iono_ind = 0;
@@ -325,17 +341,31 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
 
     cout << "Iono ind: " << iono_ind << "\n";
 
+    // Integrate Walt 4.25
     for (int i=0; i < Nsteps; i++) {
-        if (i < iono_ind) {
+        if (i <= iono_ind) {
             ftc_n[i] = 0;
         } else {
-            ftc_n[i] = ftc_n[i-1] + (dist_n[i] - dist_n[i-1])/
-                                    sqrt(1 - b_fl[i]/b_fl[iono_ind]);
+            dx = R_E*(dist_n[i] - dist_n[i-1]);
+            tmp_ftc = dx/(sqrt(1 - b_fl[i]/b_fl[iono_ind]) );
+            // Skip over infs and nans (only occurs at b_fl = b_iono)
+            if (isnan(tmp_ftc)) {
+                ftc_n[i] = ftc_n[i-1];
+            } else {
+                ftc_n[i] = ftc_n[i-1] + tmp_ftc;    
+            }
         }
+        // cout << "i: " << i << " lat: " << lats[i] << " dist: " << dx <<" ftc: " << ftc_n[i] << "\n";
     }
 
+    // // Evaluate Walt's flight-time constant, from equator to mirror pt.
+    // double walt_tau = (0.117/2.)*Lsh*C*(1 - 0.4635*pow(sin(alpha_eq),0.75));
 
-    int ind;
+    // cout << "Walt tau: " << walt_tau << "\n";
+    // cout << "Integrated tau: " << ftc_n[Nsteps-1] << "\n";
+
+
+
     double targ_lat = EALimN;
 
     // generate entries for each EA segment
@@ -350,13 +380,14 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         EA_array[i].lat = lats[ind];
 
         // Distance to northern and southern ionosphere intersections:
-        EA_array[i].dist_to_n = dist_n[ind]                  - H_IONO/R_E;
-        EA_array[i].dist_to_s = dist_n[Nsteps] - dist_n[ind] - H_IONO/R_E;
+        EA_array[i].dist_to_n = dist_n[ind]                    - H_IONO/R_E;
+        EA_array[i].dist_to_s = dist_n[Nsteps-1] - dist_n[ind] - H_IONO/R_E;
 
         // Flight-time constants:
         EA_array[i].ftc_n     = ftc_n[ind];
-        EA_array[i].ftc_s     = ftc_n[Nsteps] - ftc_n[ind];
-        
+        EA_array[i].ftc_s     = ftc_n[Nsteps-1] - ftc_n[ind];
+        cout << "ftc n: " << EA_array[i].ftc_n << " ftc s: " << EA_array[i].ftc_s << "\n";
+
         // Intersection point:
         EA_array[i].ea_pos = Map<VectorXd>(x_fl[ind],3,1);
         // Get B:
@@ -417,10 +448,10 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         // Calculate local loss cone:
         EA_array[i].alpha_lc = asin(sqrt(Bomag/norm(B_iono,3)));
         
-        // Equatorial loss cone:
+        // Save equatorial loss cone:
         EA_array[i].alpha_eq = alpha_eq;
 
-        // dv_|| / ds: 
+        // dv_|| / ds:  (again, Jacob's formula -- dipole model assumption)
         EA_array[i].dv_para_ds = -0.5*pow(sin(EA_array[i].alpha_lc),2)/
                                       cos(EA_array[i].alpha_lc)/
                                       EA_array[i].wh*EA_array[i].dwh_ds;
@@ -439,7 +470,9 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         targ_lat-= EAIncr;
     }
 
+
     // Loop through again to calculate ds:
+    // (Distance along field line between EA segments)
     for (int i=0; i < NUM_EA; i++) {
         if (i==0) {
             EA_array[i].ds = EA_array[i+1].dist_to_n - EA_array[i].dist_to_n;
@@ -722,12 +755,30 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     double e_starti, e_endi;
     double slat, clat, slat_term;
     double alpha_eq;
+    double ftc_n, ftc_s;
+    
+    double v_tot, v_para, v_perp;
+    double gamma, alpha2, beta, wtau_sq, T1;
+    double eta_dot, dalpha_eq;
+    double v_para_star, v_para_star_sq;
+    double AA, BB;
+    double Farg, Farg0, Fs, Fs0, Fc, Fc0;
+    double dFs_sq, dFc_sq;
+    double dalpha, alpha_eq_p;
+    double flt_time;
+    int timei;
+
 
     t = ray->time + ray->dt/2.;
     w = ray->w + ray->dw/2.;
     pwr = (ray->inp_pwr)*(ray->damping);
     n  = ray->n;
     B0 = ray->B0;
+
+
+    if (pwr == 0) {
+        return;
+    }
 
     // For this calculation, we're working in a frame with z parallel to 
     // the background magnetic field. 
@@ -748,10 +799,12 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     slat  = sin(D2R*EA->lat);
     clat  = cos(D2R*EA->lat);
     alpha_eq = EA->alpha_eq;
+    ftc_n = EA->ftc_n;
+    ftc_s = EA->ftc_s;
 
     slat_term = sqrt(1+3*slat*slat);
 
-
+    // cout << "wh: " << wh << "\n";
     // cout << "t= " << t << " psi= " << R2D*psi << "\n";
     mu = n.norm();
     mu_sq = pow(mu, 2);
@@ -770,8 +823,8 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     Y = wh / w;
 
     stixP = ray->stixP;
-    stixR = ray->stixR;
-    stixL = ray->stixL;
+    // stixR = ray->stixR;
+    // stixL = ray->stixL;
     stixS = ray->stixS;
     stixD = ray->stixD;
     stixA = ray->stixA;
@@ -783,9 +836,10 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     rho1 = ((mu_sq-stixS)*mu_sq*spsi*cpsi)/(stixD*(mu_sq*spsi_sq-stixP));
     rho2 = (mu_sq - stixS) / stixD ;
 
-    Byw_sq =  2.0*MU0/C*pwr*stixX*stixX*rho2*rho2*mu*fabs(cpsi)/
-       sqrt(  pow((tan(psi)-rho1*rho2*stixX),2) + 
-       pow( (1+rho2*rho2*stixX), 2 ) );
+    // (bortnik 2.28)
+    Byw_sq =  (2.0*MU0/C) * pwr * stixX*stixX * rho2*rho2 * mu*fabs(cpsi)/
+                       sqrt(  pow((tan(psi)-rho1*rho2*stixX),2) + 
+                              pow( (1+rho2*rho2*stixX), 2 ) );
 
     // RMS wave components
     Byw = sqrt(Byw_sq);
@@ -795,6 +849,10 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     Bxw = fabs(Exw *stixD*n_z /C/ (stixS - mu_sq));
     Bzw = fabs((Exw *stixD *n_x) /(C*(stixX - mu_sq)));
 
+    cout << " Byw_sq: " << Byw_sq << " pwr: " << pwr << " damping: " << ray->damping << " inp: " << ray->inp_pwr << "\n";
+    printf("\nByw_sq: %g, rho1: %g, rho2: %g, \nstixS: %g, stixB: %g\n", Byw_sq, rho1, rho2, stixS, stixB);  
+    printf("\nn_x: %g, n_z: %g, stixX: %g, stixD: %g, stixA: %g,mu_sq: %g\n", n_x, n_z, stixX, stixD, stixA, mu_sq);
+      
     // Oblique integration quantities
     R1 = (Exw + Eyw)/(Bxw+Byw);
     R2 = (Exw - Eyw)/(Bxw-Byw);
@@ -827,18 +885,9 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
         if(e_endi<0) e_endi=0;
         if(e_starti<0) e_starti=0;
 
-        double v_tot, v_para, v_perp;
-        double gamma, alpha2, beta, wtau_sq, T1;
-        double eta_dot, dalpha_eq;
-        double v_para_star, v_para_star_sq;
-        double AA, BB;
-        double Farg, Farg0, Fs, Fs0, Fc, Fc0;
-        double dFs_sq, dFc_sq;
-        double dalpha, alpha_eq_p;
 
         // begin V_TOT loop here
         for(int e_toti=e_starti; e_toti < e_endi; e_toti++) {
-
             v_tot = direction*v_tot_arr[e_toti];
             v_para = v_tot * calph;
             v_perp = fabs(v_tot * salph);
@@ -899,6 +948,32 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                 alpha_eq_p = asin( sin(alpha_lc+dalpha)*pow(clat,3) / 
                                    sqrt(slat_term) );
                 dalpha_eq = alpha_eq_p - alpha_eq;
+
+
+                // if (isnan(wtau_sq)) {
+                //     // cout << "w1: " << w1 << " gamma: " << gamma << " beta: " << beta << " alpha2: " << alpha2 << "\n";
+                //     // cout << "Ezw: " << Ezw << "\n";
+                //     cout << "alpha1: " << alpha1 << " alpha2: " << alpha2 << " gamma: " << gamma << " w1: " << w1 << " vperp: " << v_perp << "\n";
+                                
+
+                // }
+
+                // Determine where to bin the output:
+                if(direction>0) {
+                    flt_time = fabs(ftc_n/v_para);
+                } else {
+                    flt_time = fabs(ftc_s/v_para);
+                }
+                  
+                // Get time index into output array
+                timei = floor((t + flt_time)/TIME_STEP);
+                
+                // Save it!
+                if (direction > 0) {
+                    da_N[e_toti][timei] += dalpha_eq*dalpha_eq;
+                } else {
+                    da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
+                }
 
             }
 

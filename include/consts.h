@@ -54,11 +54,12 @@
 #define		L_MARGIN    0.2
 
 // Output time axis:
-#define     TIME_MAX    10      // Seconds
+#define     TIME_MAX    10.0      // Seconds
 #define     NUM_TIMES   1000    //ceil(TIME_MAX/TIME_STEP)
 
-#define     TIME_STEP   (NUM_TIMES/TIME_MAX)     // Seconds
+#define     TIME_STEP   (TIME_MAX/NUM_TIMES)     // Seconds
 
 #define     SCATTERING_RES_MODES   5        
 
+#define     WAVE_PWR_THRESH   1e-6
 #endif

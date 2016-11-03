@@ -55,6 +55,7 @@ int main(int argc, char *argv[])
     double da_N[NUM_E][NUM_TIMES] = {0};
     double da_S[NUM_E][NUM_TIMES] = {0};
 
+
     // Array of pointers to current rays of interest
     // (does this copy or just point? I hope it points.)
     rayF* cur_rays[8];
@@ -324,7 +325,9 @@ int main(int argc, char *argv[])
         cur_rays[i]->inp_pwr = input_power_scaling(flash_pos_sm, cur_rays[i]->pos[0].data(),
                                cur_rays[i]->in_lat, cur_rays[i]->w, flash_I0);
         // cout << "in pwr (pre scale): " << cur_rays[i]->inp_pwr << "\n";
-        cur_rays[i]->inp_pwr *= (dlat*dlon)*(2*PI*dw);
+        // cur_rays[i]->inp_pwr *= (dlat*dlon)*(2*PI*dw);
+        cur_rays[i]->inp_pwr *= (2*PI*dw);
+
         // cout << "in pwr (post scale): " << cur_rays[i]->inp_pwr << "\n";
     }
 
@@ -398,6 +401,12 @@ int main(int argc, char *argv[])
 
     cout << "hit counter: " << hit_counter << "\n";
     cout << "crossing counter: " << crossing_counter << "\n";
+
+
+    // Write pN, pS files:
+
+    write_p_array(da_N, "pN.dat");
+    write_p_array(da_S, "pS.dat");
 
 
 

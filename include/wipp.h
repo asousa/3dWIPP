@@ -275,8 +275,12 @@ bool crosses_EA(Vector3d l0, Vector3d l1, EA_segment EA_seg);
 
 double longitude_interval(double ra, double r0);
 
-void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], 
+                    double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
 void Fresnel(double x0, double *FS, double *FC);
+
+void write_p_array(double arr[NUM_E][NUM_TIMES], string filename);
+
 
 
 #endif

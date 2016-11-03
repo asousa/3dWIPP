@@ -11,8 +11,8 @@ using namespace Eigen;
 void bmodel_dipole(double* x_in, double* B_out) {
     // x_in: R, lat, lon in magnetic dipole coordinates (spherical)
     // B_out: Br, Blat, Blon in magnetic dipole coordinates (Upward, Southward, Eastward)
+    // const double Bo = (3.12e-5)*1e9;
     const double Bo = (3.12e-5)*1e9;
-
     double R, theta, phi;
     double Brad, Btheta, Bphi, Bor3;
     // Walt, pg 30, equations 3.13 - 3.14
@@ -201,73 +201,10 @@ void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10], int model_n
             gsm_to_sm_d_(itime_in, b_int, b_out);
         break;
     }
-        
-
-
-
-
-
-
-
-    // if (use_IGRF==1) {
-
-    //     // update IGRF if needed:
-    //    if (recalc==1) {
-    //         init_igrf(itime_in);
-    //     }
-
-    //     // IGRF model uses Tsyganenko's GSW coordinates. These collapse to the standard
-    //     // GSM coordinates if we set the solar wind velocities vgsex = -400, vgsey = vgsez=0.
-    //     // (Default assigned in init_igrf()).
-    //     igrf_gsw_08_(x_gsm, x_gsm +1, x_gsm + 2, b_int, b_int + 1, b_int + 2);
-    // } else {
-    //     dipole_sm(itime_in, x_in, b_tmp);
-    //     sm_to_gsm_d_(itime_in, b_tmp, b_int);
-    //     // b_int = {0, 0, 0};
-    // }
-    // // cout << "in mag: " << norm(b_int, 3);
-
-    // if (use_tsyg==1) {
-
-    //    if (recalc==1) {
-    //         init_igrf(itime_in);
-    //     }
-    //     // cout << "xgsm: ";
-    //     // print_array(x_gsm, 3);
-    //     // Make sure we're passing singles where singles need passed
-    //     psi = float(geopack1_.PSI);
-
-    //     // cout << "psi: " << psi << "\n";
-    //     tX = float(x_gsm[0]);
-    //     tY = float(x_gsm[1]);
-    //     tZ = float(x_gsm[2]);
-        
-    //     t04_s_(&iopt, tsyg_params, &psi,
-    //         &tX, &tY, &tZ, &beX, &beY, &beZ);
-
-    //     // cout << " ts mag: " << sqrt(beX*beX + beY*beY + beZ*beZ);
-    //     // cout << "tsyg: ";
-    //     // cout << beX << ", " << beY << ", " << beZ << "\n";
-
-    // } else {
-    //     // b_ext = {0, 0, 0};
-    //     beX = 0; beY = 0; beZ = 0;
-    // }
-
-    // // Combine internal and external fields
-    // // b_tmp[0] =  -(beX);
-    // // b_tmp[1] =  -(beY);
-    // // b_tmp[2] =  -(beZ);
-
-    // b_tmp[0] = b_int[0] + double(beX);
-    // b_tmp[1] = b_int[1] + double(beY);
-    // b_tmp[2] = b_int[2] + double(beZ);
-
-    // // cout << " bo mag: " << norm(b_tmp, 3) << "\n";
-
-    // // Rotate back to SM
-    // gsm_to_sm_d_(itime_in, b_tmp, b_out);
-
+    // Convert nanotesla -> tesla
+    b_out[0]*=1e-9;
+    b_out[1]*=1e-9;
+    b_out[2]*=1e-9;
 }
 
 
