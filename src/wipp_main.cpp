@@ -81,8 +81,8 @@ int main(int argc, char *argv[])
     int num_lons_fine;   
     int num_freqs_fine; 
 
-    double freq_step_size = 10;   // Hz
-    double lat_step_size = 100;   // km
+    double freq_step_size = 1;   // Hz
+    double lat_step_size = 1;     // km
     double lon_step_size = 100;   // km
     
     EA_segment EA_array[NUM_EA];
@@ -312,8 +312,8 @@ int main(int argc, char *argv[])
     }
 
     // starting separation in lat, lon directions (meters)
-    dlat = (latmax - latmin);
-    dlon = (lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
+    dlat = D2R*R_E*(latmax - latmin);
+    dlon = D2R*R_E*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
     dw   = wmax - wmin;
 
     cout << "lon: " << lonmax << ", " << lonmin << "\n";

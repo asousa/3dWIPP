@@ -773,7 +773,7 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 
     t = ray->time + ray->dt/2.;
     w = ray->w + ray->dw/2.;
-    pwr = (ray->inp_pwr)*(ray->damping);
+    pwr = (ray->inp_pwr)*(ray->damping)/TIME_STEP;
     n  = ray->n;
     B0 = ray->B0;
 
@@ -871,9 +871,9 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
         t2 = pow((mres*wh),2)-w*w;
         t3 = kz*kz + pow((mres*wh),2)/(pow(C*cos(alpha_lc),2));
         if(mres==0) {
-          direction = -kz/fabs(kz);
+          direction = -1*signof(kz); //kz/fabs(kz);
         } else {
-          direction = kz/fabs(kz) * mres/fabs(mres) ;
+          direction = signof(kz)*signof(mres); //kz/fabs(kz) * mres/fabs(mres) ;
         }
 
         v_para_res = ( direction*sqrt(t1 + t2*t3) - w*kz ) / t3;
@@ -970,7 +970,7 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                 }
                   
                 // Get time index into output array
-                timei = floor((t + flt_time)/TIME_STEP);
+                timei = round((t + flt_time)/TIME_STEP);
                 
                 // Save it!
                 if (direction > 0) {
