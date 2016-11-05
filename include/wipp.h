@@ -84,7 +84,7 @@ typedef struct rayT {
     Eigen::Vector3d pos;
     Eigen::Vector3d n;
     Eigen::Vector3d B0;
-    
+
     // double pos[3];
     // double vprel[3];
     // double vgrel[3];
@@ -107,8 +107,8 @@ typedef struct rayT {
     double stixL;
     double stixS;
     double stixD;
-    double stixA;
-    double stixB;
+    // double stixA;
+    // double stixB;
 
     int num_rays;           // Number of rays summed together here (for averaging)
 
@@ -172,8 +172,11 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 double ionoAbsorp(float lat, long f);
 float interpPt(float *xI, float *yI, int n, float xO);
 
-void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
-void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
+// void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
+// void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
+void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z, rayT* rayout);
+void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT* rayout);
+
 void calc_stix_parameters(rayF* ray);
 void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2], int model_number);
 void dump_EA_array(EA_segment EA_array[NUM_EA], string filename);
@@ -275,7 +278,7 @@ extern "C" {
 
 bool descending_order(double a, double b);
 int nearest(double arr[], int arr_len, double target, bool reverse_order);
-bool coarse_mask(rayF* cur_rays[8], int t, EA_segment EA_arr);
+bool coarse_mask(rayT cur_rays[8], rayT prev_rays[8], EA_segment EA);
 // bool coarse_mask();
 bool crosses_EA(Vector3d l0, Vector3d l1, EA_segment EA_seg);
 

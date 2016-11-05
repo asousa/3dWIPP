@@ -20,6 +20,7 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
     Vector3d v1;
     Vector3d v2;
 
+
     f = w/(2.0*PI);
 
     // cout << "flash loc: " << flash_loc[0] << " " << flash_loc[1] << " " << flash_loc[2] << "\n";
@@ -52,10 +53,13 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 
     printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
     
+
     return S_vert;
 } 
 
-void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
+// void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
+void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z, rayT* rayout) {
+
     // Fine-scale interpolation (positions only)
 
     double W[8];
@@ -72,7 +76,7 @@ void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, in
 
     for (int jj=0; jj<8; jj++){  // Corner rays
         for (int ii=0; ii<3; ii++){  // X, Y, Z
-            (rayout->pos)[ii]   += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
+            (rayout->pos)[ii]   += W[jj]*((framelist[jj].pos).data()[ii]);
         }
     }
 }
@@ -81,7 +85,9 @@ void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, in
 
 
 
-void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
+// void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
+void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT* rayout) {
+
     // Interpolate the rest of the stuff we'll need in the ray
 
     double W[8];
@@ -102,25 +108,25 @@ void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_i
         for (int ii=0; ii<3; ii++){  // X, Y, Z
             // (rayout->pos)[ii]   += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
             // (rayout->vgrel)[ii] += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
-            (rayout->n)[ii]     += W[jj]*((raylist[jj]->n[t_ind]).data()[ii]);
-            (rayout->B0)[ii]    += W[jj]*((raylist[jj]->B0[t_ind]).data()[ii]);
+            (rayout->n)[ii]     += W[jj]*((framelist[jj].n).data()[ii]);
+            (rayout->B0)[ii]    += W[jj]*((framelist[jj].B0).data()[ii]);
 
         }
 
         // scalar-valued here
         // cout << "corner w: " << raylist[jj]->w << "\n";
-        rayout->time +=  W[jj]*(raylist[jj]->time[t_ind]);
-        rayout->w += W[jj]*(raylist[jj]->w);
-        rayout->inp_pwr += W[jj]*(raylist[jj]->inp_pwr);
-        rayout->damping += W[jj]*(raylist[jj]->damping[t_ind]);
+        rayout->time +=  W[jj]*(framelist[jj].time);
+        rayout->w += W[jj]*(framelist[jj].w);
+        rayout->inp_pwr += W[jj]*(framelist[jj].inp_pwr);
+        rayout->damping += W[jj]*(framelist[jj].damping);
 
-        rayout->stixR += W[jj]*(raylist[jj]->stixR[t_ind]);
-        rayout->stixL += W[jj]*(raylist[jj]->stixL[t_ind]);
-        rayout->stixP += W[jj]*(raylist[jj]->stixP[t_ind]);
-        rayout->stixS += W[jj]*(raylist[jj]->stixS[t_ind]);
-        rayout->stixD += W[jj]*(raylist[jj]->stixD[t_ind]);
-        rayout->stixA += W[jj]*(raylist[jj]->stixA[t_ind]);
-        rayout->stixB += W[jj]*(raylist[jj]->stixB[t_ind]);
+        rayout->stixR += W[jj]*(framelist[jj].stixR);
+        rayout->stixL += W[jj]*(framelist[jj].stixL);
+        rayout->stixP += W[jj]*(framelist[jj].stixP);
+        rayout->stixS += W[jj]*(framelist[jj].stixS);
+        rayout->stixD += W[jj]*(framelist[jj].stixD);
+        // rayout->stixA += W[jj]*(framelist[jj].stixA);
+        // rayout->stixB += W[jj]*(framelist[jj].stixB);
 
 
     }
@@ -163,22 +169,6 @@ void calc_stix_parameters(rayF* ray) {
         B0mag = B0.norm();
 
 
-        k = n_vec*w/C;
-        kmag = k.norm();
-        Bhat = B0.array()/B0.norm();
-        kpar = k.dot(Bhat); //k.array()*Bhat.array();
-        kperp = (k - kpar*Bhat).norm();
-
-        // Theta is the angle between parallel and perpendicular K
-        theta = atan2(kperp, kpar);
-
-        // Some trig.
-        sin_th = sin(theta);
-        cos_th = cos(theta);
-        sin_th_sq = pow(sin_th,2);
-        cos_th_sq = pow(cos_th,2);
-
-
         // Sum over constituents
         for (int jj=0; jj < ray->Ns[ii].size(); jj++) {
             
@@ -198,24 +188,26 @@ void calc_stix_parameters(rayF* ray) {
         S = (R + L)/2.;
         D = (R - L)/2.;
 
-        A = S*sin_th_sq + P*cos_th_sq;
-        B = R*L*sin_th_sq + P*S*(1+cos_th_sq);
 
+        // k = n_vec*w/C;
+        // kmag = k.norm();
+        // Bhat = B0.array()/B0.norm();
+        // kpar = k.dot(Bhat); //k.array()*Bhat.array();
+        // kperp = (k - kpar*Bhat).norm();
 
+        // // Theta is the angle between parallel and perpendicular K
+        // theta = atan2(-kperp, -kpar);   // negation on both sides matches the original raytracer
+        //                                 // (Probably means the magnitude of the b-field is backwards
+        //                                 // between forrest or jacob)
+        // // Some trig.
+        // sin_th = sin(theta);
+        // cos_th = cos(theta);
+        // sin_th_sq = pow(sin_th,2);
+        // cos_th_sq = pow(cos_th,2);
 
+        // A = S*sin_th_sq + P*cos_th_sq;
+        // B = R*L*sin_th_sq + P*S*(1+cos_th_sq);
 
-        // if (ii==1) {
-        //     cout << "wps2: " << wps2 << " whs: " << whs << "\n";
-        //     cout << "Stix Params [0]: ";
-        //     cout << R << " ";
-        //     cout << L << " ";
-        //     cout << P << " ";
-        //     cout << S << " ";
-        //     cout << D << " ";
-        //     cout << a << " ";
-        //     cout << b << "\n";
-        // }
-        // cout << cur_rays[dd]->time.size() << " ";
 
 
         ray->stixR.push_back(R);
@@ -223,8 +215,8 @@ void calc_stix_parameters(rayF* ray) {
         ray->stixP.push_back(P);
         ray->stixS.push_back(S);
         ray->stixD.push_back(D); 
-        ray->stixA.push_back(A);
-        ray->stixB.push_back(B);
+        // ray->stixA.push_back(A);
+        // ray->stixB.push_back(B);
 
         // --------------------------------------------
 
@@ -453,7 +445,8 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         EA_b = x2 - x1;
         EA_c = x1*y2 - y1*x2;
         
-        EA_array[i].radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2; 
+        EA_array[i].radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2.0; 
+        printf("EA_length: %g\n",2*R_E*EA_array[i].radius);
 
 
         // Calculate electron gyrofrequency:
@@ -603,7 +596,7 @@ void dump_fieldlines(int itime_in[2], int n_lats, int n_lons, int model_number, 
 
 
 
-bool coarse_mask(rayF* cur_rays[8], int t, EA_segment EA) {
+bool coarse_mask(rayT cur_frames[8], rayT prev_frames[8], EA_segment EA) {
     // Coarse masking detection. Returns false if all ray points are
     // on the same side of the EA_arr plane. True otherwise.
 
@@ -629,9 +622,11 @@ bool coarse_mask(rayF* cur_rays[8], int t, EA_segment EA) {
     // cout << EAr[0] << ", " << EAr[1]*R2D << ", " << EAr[2]*R2D << "\n";
 
     for (int rr=0; rr < 8; rr++) {
-        l1 = Map<VectorXd>(cur_rays[rr]->pos[t-1].data(), 3,  1);
-        l2 = Map<VectorXd>(cur_rays[rr]->pos[t  ].data(), 3,  1);
+        // l1 = Map<VectorXd>(cur_rays[rr]->pos[t-1].data(), 3,  1);
+        // l2 = Map<VectorXd>(cur_rays[rr]->pos[t  ].data(), 3,  1);
 
+        l1 = prev_frames[rr].pos;
+        l2 = cur_frames[rr].pos;
         carsph(l1.data(), r1);
         carsph(l2.data(), r2);
 
@@ -789,30 +784,11 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     double dFs_sq, dFc_sq;
     double dalpha, alpha_eq_p;
     double flt_time;
+
+    Vector3d kvec, Bhat;
     int timei;
 
-
-    t = ray->time + ray->dt/2.;
-    w = ray->w + FREQ_STEP_SIZE*PI;
-    pwr = (ray->inp_pwr)*(ray->damping)*(FREQ_STEP_SIZE) /(1 + ray->num_rays) / TIME_STEP;
-    n  = ray->n /(1 + ray->num_rays);
-    B0 = ray->B0;
-
-    cout << "Num_rays: "<< ray->num_rays << "\n";
-
-    if (pwr < WAVE_PWR_THRESH) {
-        return;
-    }
-
-    // For this calculation, we're working in a frame with z parallel to 
-    // the background magnetic field. 
-
-    // Angle between wavenormal and background magnetic field.
-    // ( -90 - (dot product) matches original raytracer's output... 11.1.2016)
-
-    psi = -90*D2R - n.dot(B0)/(n.norm()*B0.norm());
-
-    // Parameters from the EA array:
+    // Parameters from the EA array (maybe we should calculate them here, for organization)
     wh = EA->wh;
     alpha_lc = EA->alpha_lc;
     calph = cos(alpha_lc);
@@ -825,6 +801,44 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     alpha_eq = EA->alpha_eq;
     ftc_n = EA->ftc_n;
     ftc_s = EA->ftc_s;
+
+
+    t = ray->time + ray->dt/2.;
+    w = ray->w + FREQ_STEP_SIZE*PI;
+    pwr = (ray->inp_pwr)*(ray->damping)/(1 + ray->num_rays)*FREQ_STEP_SIZE;
+
+    n  = ray->n /(1 + ray->num_rays);
+    B0 = ray->B0;
+
+
+    if (pwr < WAVE_PWR_THRESH) {
+        return;
+    }
+
+    // For this calculation, we're working in a frame with z parallel to 
+    // the background magnetic field. 
+
+    // Angle between wavenormal and background magnetic field.
+    // ( -90 - (dot product) matches original raytracer's output... 11.1.2016)
+
+    // psi = -90*D2R - n.dot(B0)/(n.norm()*B0.norm());
+
+
+    kvec = n*w/C;
+    k    = kvec.norm();
+    Bhat = B0.array()/B0.norm();
+    kz = -1*kvec.dot(Bhat); //k.array()*Bhat.array();
+    kx = (kvec + kz*Bhat).norm();
+
+    // Theta is the angle between parallel and perpendicular K
+    psi = atan2(-kx, kz);
+
+
+
+    // printf("t: %g psi: %2.3f  pwr: %g num_rays: %i\n",t, psi*R2D, pwr, ray->num_rays);
+    // cout << "t: " << t << " psi: " << psi*R2D << " Num_rays: "<< ray->num_rays <<  "\n";
+
+
 
     slat_term = sqrt(1+3*slat*slat);
 
@@ -840,19 +854,25 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     n_x =  mu*fabs(spsi);
     n_z =  mu*cpsi;
 
-    k = w*mu/C;
-    kx = w*n_x/C;
-    kz = w*n_z/C;
+    // k = w*mu/C;
+    // kx = w*n_x/C;
+    // kz = w*n_z/C;
 
     Y = wh / w;
 
+
+    // printf("kx: %g kperp: %g kz: %g kpar: %g dkx: %g dkz: %g\n",kx, kperp, kz, kpar, kx - kperp, kz + kpar);
+
     stixP = ray->stixP /(1 + ray->num_rays);
-    // stixR = ray->stixR;
-    // stixL = ray->stixL;
+    stixR = ray->stixR /(1 + ray->num_rays);
+    stixL = ray->stixL /(1 + ray->num_rays);
     stixS = ray->stixS /(1 + ray->num_rays);
     stixD = ray->stixD /(1 + ray->num_rays);
-    stixA = ray->stixA /(1 + ray->num_rays);
-    stixB = ray->stixB /(1 + ray->num_rays);
+
+
+
+    stixA = stixS*spsi_sq       + stixP*cpsi_sq;
+    stixB = stixR*stixL*spsi_sq + stixP*stixS*(1+cpsi_sq);
 
     stixX = stixP/(stixP - mu_sq*spsi_sq);  // Ristic 3.2, pg 41
 
@@ -925,7 +945,7 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                 ( jn( (mres-1), beta ) - 
                 alpha1*jn( (mres+1) , beta ) +
                 gamma*alpha2*jn( mres , beta ) ); 
-            T1 = -wtau_sq*(1+ ( (calph*calph) / (mres*Y-1) ) );
+            T1 = -wtau_sq*(1+ ( (calph*calph) / (mres*Y-1) )  );
 
             // Now -- start the analytical evaluation!!
             if( fabs(EA->lat) < 1e-3) {
@@ -951,10 +971,14 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                      + (mres/(2.0*v_para_star*gamma))*dwh_ds * (1 + ds/(2.0*v_para_star)*dv_para_ds) 
                      + w/(2.0*v_para_star_sq)*dv_para_ds;
 
-                // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
-                BB =   mres/(gamma*v_para_star)*wh 
-                     - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0)
-                     - w/v_para_star - kz;
+                // // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
+                // BB =   mres/(gamma*v_para_star)*wh 
+                //      - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0)
+                //      - w/v_para_star - kz;
+
+                // Bortnik A.18 -- part A0
+                BB =   mres*wh/(gamma*v_para_star)
+                     - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) * (w/v_para_star)*kz;
 
 
                 // Evaluate Bortnik A.26 -- integration performed thru Fresnel functions
@@ -970,19 +994,10 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                 dalpha = sqrt(PI/4/fabs(AA))*fabs(T1/v_para)*sqrt(dFs_sq+dFc_sq);
 
                 // Map the local change in pitch angle to the equivalent
-                // pitch angle at the equator:
+                // pitch angle at the equator:  (still using dipole model here...)
                 alpha_eq_p = asin( sin(alpha_lc+dalpha)*pow(clat,3) / 
                                    sqrt(slat_term) );
                 dalpha_eq = alpha_eq_p - alpha_eq;
-
-
-                // if (isnan(wtau_sq)) {
-                //     // cout << "w1: " << w1 << " gamma: " << gamma << " beta: " << beta << " alpha2: " << alpha2 << "\n";
-                //     // cout << "Ezw: " << Ezw << "\n";
-                //     cout << "alpha1: " << alpha1 << " alpha2: " << alpha2 << " gamma: " << gamma << " w1: " << w1 << " vperp: " << v_perp << "\n";
-                                
-
-                // }
 
                 // Determine where to bin the output:
                 if(direction>0) {
@@ -990,25 +1005,21 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                 } else {
                     flt_time = fabs(ftc_s/v_para);
                 }
-                  
+                
+
                 // Get time index into output array
                 timei = round((t + flt_time)/TIME_STEP);
                 
+                // cout << "flt_time: " << flt_time << " t: " << t << " timei: " << timei << "\n";
                 // Save it!
                 if (direction > 0) {
                     da_N[e_toti][timei] += dalpha_eq*dalpha_eq;
                 } else {
                     da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
                 }
-
-            }
-
-        }
-
-
+            }   
+        }   // v_tot, e_tot
     } // Resonant modes
-
-
 
 }
 
@@ -1022,8 +1033,8 @@ void add_rayT(rayT* rayA, rayT* rayB) {
     rayA->stixP   += rayB->stixP;         
     rayA->stixR   += rayB->stixR;         
     rayA->stixL   += rayB->stixL;         
-    rayA->stixA   += rayB->stixA;         
-    rayA->stixB   += rayB->stixB;         
+    // rayA->stixA   += rayB->stixA;         
+    // rayA->stixB   += rayB->stixB;         
     rayA->stixS   += rayB->stixS;         
     rayA->stixD   += rayB->stixD;
 
@@ -1091,10 +1102,14 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target) {
     frame->stixL = ( rayfile->stixL[iMid+1]-rayfile->stixL[iMid] )*M + rayfile->stixL[iMid];
     frame->stixS = ( rayfile->stixS[iMid+1]-rayfile->stixS[iMid] )*M + rayfile->stixS[iMid]; 
     frame->stixD = ( rayfile->stixD[iMid+1]-rayfile->stixD[iMid] )*M + rayfile->stixD[iMid];
-    frame->stixA = ( rayfile->stixA[iMid+1]-rayfile->stixA[iMid] )*M + rayfile->stixA[iMid];
-    frame->stixB = ( rayfile->stixB[iMid+1]-rayfile->stixB[iMid] )*M + rayfile->stixB[iMid];   
+    // frame->stixA = ( rayfile->stixA[iMid+1]-rayfile->stixA[iMid] )*M + rayfile->stixA[iMid];
+    // frame->stixB = ( rayfile->stixB[iMid+1]-rayfile->stixB[iMid] )*M + rayfile->stixB[iMid];   
+    
 
+    // Stuff that doesn't need interpolation:
+    frame->w    = rayfile->w;
     frame->time = t_target;
+    frame->inp_pwr = rayfile->inp_pwr;
     // cout << t_target << " " << frame->damping <<"\n";
 
 }

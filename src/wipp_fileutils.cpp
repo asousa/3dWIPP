@@ -407,7 +407,7 @@ void load_TS05_params(int itime_in[2], double TS_params[10], double VG[3]) {
 void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
     FILE* file;
     int x, y;
-
+    cout << "file shape: " << NUM_E << ", " << NUM_TIMES << "\n";
     file = fopen(filename.c_str(),"wb");
 
     if (file == NULL) {
