@@ -55,13 +55,34 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
     return S_vert;
 } 
 
+void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
+    // Fine-scale interpolation (positions only)
 
-void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
-    // raylist: an array of pointers to the 8 corner rays
-    // nx, ny, nz: location within the grid (0..1) to interpolate at
-    // t_ind: time index
+    double W[8];
+    W[0] = (1. - n_x)*(1. - n_y)*(1. - n_z);
+    W[1] = n_x*(1. - n_y)*(1. - n_z);
+    W[2] = n_y*(1. - n_x)*(1. - n_z);
+    W[3] = n_x*n_y*1.*(1. - n_z);
+    W[4] = (1. - n_x)*(1. - n_y)*n_z;
+    W[5] = n_x*(1. - n_y)*n_z;
+    W[6] = n_y*(1. - n_x)*n_z;
+    W[7] = n_x*n_y*n_z*1.;
+
+    rayout->pos = {0, 0, 0};
+
+    for (int jj=0; jj<8; jj++){  // Corner rays
+        for (int ii=0; ii<3; ii++){  // X, Y, Z
+            (rayout->pos)[ii]   += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
+        }
+    }
+}
 
 
+
+
+
+void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
+    // Interpolate the rest of the stuff we'll need in the ray
 
     double W[8];
     W[0] = (1. - n_x)*(1. - n_y)*(1. - n_z);
@@ -79,8 +100,8 @@ void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_i
     // print_array(raylist[jj]->pos[t_ind].data(), 3);
         // Vector-valued
         for (int ii=0; ii<3; ii++){  // X, Y, Z
-            (rayout->pos)[ii]   += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
-            (rayout->vgrel)[ii] += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
+            // (rayout->pos)[ii]   += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
+            // (rayout->vgrel)[ii] += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
             (rayout->n)[ii]     += W[jj]*((raylist[jj]->n[t_ind]).data()[ii]);
             (rayout->B0)[ii]    += W[jj]*((raylist[jj]->B0[t_ind]).data()[ii]);
 
@@ -115,7 +136,7 @@ void calc_stix_parameters(rayF* ray) {
     // Results are stored in the ray structure.
 
     double w, whs, wps2;
-    double R, L, P, S, D, a, b;
+    double R, L, P, S, D, A, B;
     double kpar, kperp, kmag;
     double theta;
     double B0mag;
@@ -177,8 +198,8 @@ void calc_stix_parameters(rayF* ray) {
         S = (R + L)/2.;
         D = (R - L)/2.;
 
-        a = S*sin_th_sq + P*cos_th_sq;
-        b = R*L*sin_th_sq + P*S*(1+cos_th_sq);
+        A = S*sin_th_sq + P*cos_th_sq;
+        B = R*L*sin_th_sq + P*S*(1+cos_th_sq);
 
 
 
@@ -202,8 +223,8 @@ void calc_stix_parameters(rayF* ray) {
         ray->stixP.push_back(P);
         ray->stixS.push_back(S);
         ray->stixD.push_back(D); 
-        ray->stixA.push_back(a);
-        ray->stixB.push_back(b);
+        ray->stixA.push_back(A);
+        ray->stixB.push_back(B);
 
         // --------------------------------------------
 
@@ -772,13 +793,14 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 
 
     t = ray->time + ray->dt/2.;
-    w = ray->w + ray->dw/2.;
-    pwr = (ray->inp_pwr)*(ray->damping)/TIME_STEP;
-    n  = ray->n;
+    w = ray->w + FREQ_STEP_SIZE*PI;
+    pwr = (ray->inp_pwr)*(ray->damping)*(FREQ_STEP_SIZE) /(1 + ray->num_rays) / TIME_STEP;
+    n  = ray->n /(1 + ray->num_rays);
     B0 = ray->B0;
 
+    cout << "Num_rays: "<< ray->num_rays << "\n";
 
-    if (pwr == 0) {
+    if (pwr < WAVE_PWR_THRESH) {
         return;
     }
 
@@ -824,13 +846,13 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 
     Y = wh / w;
 
-    stixP = ray->stixP;
+    stixP = ray->stixP /(1 + ray->num_rays);
     // stixR = ray->stixR;
     // stixL = ray->stixL;
-    stixS = ray->stixS;
-    stixD = ray->stixD;
-    stixA = ray->stixA;
-    stixB = ray->stixB;
+    stixS = ray->stixS /(1 + ray->num_rays);
+    stixD = ray->stixD /(1 + ray->num_rays);
+    stixA = ray->stixA /(1 + ray->num_rays);
+    stixB = ray->stixB /(1 + ray->num_rays);
 
     stixX = stixP/(stixP - mu_sq*spsi_sq);  // Ristic 3.2, pg 41
 
@@ -990,5 +1012,91 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 
 }
 
+
+void add_rayT(rayT* rayA, rayT* rayB) {
+
+    rayA->inp_pwr += rayB->inp_pwr;       
+    rayA->damping += rayB->damping;      
+    rayA->n       += rayB->n;         
+    rayA->B0      += rayB->B0;        
+    rayA->stixP   += rayB->stixP;         
+    rayA->stixR   += rayB->stixR;         
+    rayA->stixL   += rayB->stixL;         
+    rayA->stixA   += rayB->stixA;         
+    rayA->stixB   += rayB->stixB;         
+    rayA->stixS   += rayB->stixS;         
+    rayA->stixD   += rayB->stixD;
+
+    rayA->num_rays += 1;         
+
+    for (int i=0; i < rayA->Ns.size(); i++) {
+        rayA->Ns[i]  += rayB->Ns[i];
+        rayA->nus[i] += rayB->nus[i];        
+    }
+}
+
+
+void interp_rayF(rayF* rayfile, rayT* frame, double t_target) {
+// float interpPt(float *xI, float *yI, int n, float t_target )
+                //  time axis   data vector length   t_targ       
+    int i, iHigh, iLow, iMid;
+    double yO;
+
+    double M;
+    vector <double> xI = rayfile->time;
+    int n = rayfile->time.size();
+
+
+    // Check that t_target is within bounds
+    if( (t_target < xI[0]) || t_target  > xI[n-1] ) {
+        printf("\nPoint is out of bounds! %g, {%g, %g}\a\n",t_target , xI[0], xI[n-1]);
+        return;
+    }
+      
+    // Do a binary search for the correct index 
+    iHigh = n-1;
+    iLow = 0;  
+    while(1) {
+        iMid = (iHigh+iLow)/2;
+        if( (t_target  >= xI[iLow]) && (t_target  < xI[iMid]) ) {
+            iHigh = iMid;
+        } else {
+            iLow = iMid;
+        }
+        if(t_target ==xI[n-1]){printf("\nin interpPt\n"); return;}
+        if(iHigh==iLow) {
+            printf("\nexiting from binary search in 1st condtion\n");
+            break;
+        }
+        if( (t_target >=xI[iMid]) && (t_target <xI[iMid+1]) ) break;
+        if( (t_target >=xI[iMid-1]) && (t_target <xI[iMid]) ) {
+           iMid--;
+           break;
+            }
+        }
+
+    M = ( t_target -xI[iMid] )/( xI[iMid+1]-xI[iMid] );
+    // Now, let's interpolate the output values:
+    // Vector-valued
+    for (int k = 0; k < 3; k++) {
+        frame->pos[k] = ( rayfile->pos[iMid+1][k]-rayfile->pos[iMid][k] )*M + rayfile->pos[iMid][k];
+        frame->n[k] =   ( rayfile->n[iMid+1][k]  -rayfile->n[iMid][k]   )*M + rayfile->n[iMid][k];
+        frame->B0[k] =  ( rayfile->B0[iMid+1][k] -rayfile->B0[iMid][k]  )*M + rayfile->B0[iMid][k];
+    }
+    // cout << "Scalars\n";
+    // Scalar-valued
+    frame->damping = ( rayfile->damping[iMid+1]-rayfile->damping[iMid] )*M + rayfile->damping[iMid];
+    frame->stixP = ( rayfile->stixP[iMid+1]-rayfile->stixP[iMid] )*M + rayfile->stixP[iMid];
+    frame->stixR = ( rayfile->stixR[iMid+1]-rayfile->stixR[iMid] )*M + rayfile->stixR[iMid];
+    frame->stixL = ( rayfile->stixL[iMid+1]-rayfile->stixL[iMid] )*M + rayfile->stixL[iMid];
+    frame->stixS = ( rayfile->stixS[iMid+1]-rayfile->stixS[iMid] )*M + rayfile->stixS[iMid]; 
+    frame->stixD = ( rayfile->stixD[iMid+1]-rayfile->stixD[iMid] )*M + rayfile->stixD[iMid];
+    frame->stixA = ( rayfile->stixA[iMid+1]-rayfile->stixA[iMid] )*M + rayfile->stixA[iMid];
+    frame->stixB = ( rayfile->stixB[iMid+1]-rayfile->stixB[iMid] )*M + rayfile->stixB[iMid];   
+
+    frame->time = t_target;
+    // cout << t_target << " " << frame->damping <<"\n";
+
+}
 
 

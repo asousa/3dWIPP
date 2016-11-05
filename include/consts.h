@@ -50,6 +50,12 @@
 #define     TRACER_MAX  20000    // Maximum steps in field line tracer
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)
 
+// Fine-scale interpolation step sizes:
+#define     FREQ_STEP_SIZE  1    // Hz
+#define     LAT_STEP_SIZE   1    // km
+#define     LON_STEP_SIZE   100  // km
+
+
 // Radius around field line, in L-shells, in which to consider a crossing
 #define		L_MARGIN    0.4
 

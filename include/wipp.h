@@ -81,14 +81,17 @@ typedef struct rayT {
     double dlat;
     double dlon;
 
-    // double pos[3];
     Eigen::Vector3d pos;
-    double vprel[3];
-    double vgrel[3];
-    // double n[3];
     Eigen::Vector3d n;
-    // double B0[3];
     Eigen::Vector3d B0;
+    
+    // double pos[3];
+    // double vprel[3];
+    // double vgrel[3];
+    // double n[3];
+
+    // double B0[3];
+    
     // Variable-length stuff (depending on number of constituents in model)
     vector <double> qs;    // species charge
     vector <double> ms;    // species mass
@@ -106,6 +109,8 @@ typedef struct rayT {
     double stixD;
     double stixA;
     double stixB;
+
+    int num_rays;           // Number of rays summed together here (for averaging)
 
 } rayT;
 
@@ -167,7 +172,8 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 double ionoAbsorp(float lat, long f);
 float interpPt(float *xI, float *yI, int n, float xO);
 
-void interp_ray_fine(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
+void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
+void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
 void calc_stix_parameters(rayF* ray);
 void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2], int model_number);
 void dump_EA_array(EA_segment EA_array[NUM_EA], string filename);
@@ -280,7 +286,9 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 void Fresnel(double x0, double *FS, double *FC);
 
 void write_p_array(double arr[NUM_E][NUM_TIMES], string filename);
+void add_rayT(rayT* rayA, rayT* rayB);
 
+void interp_rayF(rayF* rayfile, rayT* frame, double t_target);
 
 
 #endif
