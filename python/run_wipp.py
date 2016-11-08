@@ -32,7 +32,7 @@ iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
 isec = (ray_datenum.second + (ray_datenum.minute)*60 + ray_datenum.hour*60*60)
 
-inp_rayfile = '/shared/users/asousa/WIPP/3dWIPP/outputs/rayout_ngo_gridtest_damped.ray'
+ray_input_directory = '/shared/users/asousa/WIPP/3dWIPP/outputs/parallel_test'
 # Get closest Kp value (Or should we interpolate?)
 tvec, kvec = load_Kp()
 
@@ -103,7 +103,7 @@ if buildstatus != 0:
     sys.exit("Build failed!")
 
 # run it
-wipp_cmd = 'bin/wipp -i %s -t %s -u %d -v %d -a %g -b %g -c %g -d 0'%(inp_rayfile, iyr, idoy, isec,
+wipp_cmd = 'bin/wipp -i %s -t %s -u %d -v %d -a %g -b %g -c %g -d 0'%(ray_input_directory, iyr, idoy, isec,
                 inp_coords[0][0], inp_coords[0][1], inp_coords[0][2])
 print wipp_cmd
 

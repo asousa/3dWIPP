@@ -131,7 +131,7 @@ map <int, rayF> read_rayfile(string fileName)
 
                 // Start a new entry if not in the dictionary already:
                 if (raylist.count(ray_num) == 0) {
-                    printf("Adding new entry for ray number %u\n",ray_num);
+                    // printf("Adding new entry for ray number %u\n",ray_num);
                     raylist.insert(make_pair(ray_num, rf));
                     // Set single-value elements
                     raylist[ray_num].w = w;

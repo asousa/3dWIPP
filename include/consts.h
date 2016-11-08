@@ -44,16 +44,16 @@
 // // EA array grid settings:
 #define		EALimS		-40.0
 #define		EALimN	    40.0
-#define     NUM_EA      21
+#define     NUM_EA      41
 #define		EAIncr	    ((EALimN - EALimS)/(NUM_EA - 1))	
 
 #define     TRACER_MAX  20000    // Maximum steps in field line tracer
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)
 
 // Fine-scale interpolation step sizes:
-#define     FREQ_STEP_SIZE  1  // Hz
-#define     LAT_STEP_SIZE   5  // km
-#define     LON_STEP_SIZE   5  // km
+#define     FREQ_STEP_SIZE  10 // Hz
+#define     LAT_STEP_SIZE   10  // km
+#define     LON_STEP_SIZE   10  // km
 
 
 // Radius around field line, in L-shells, in which to consider a crossing
@@ -68,4 +68,10 @@
 #define     SCATTERING_RES_MODES   5        
 
 #define     WAVE_PWR_THRESH   1e-30
+
+#define     FREQ_VEC    {200,240,289,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000}
+
+#define     NUM_FREQS   2
+
+
 #endif

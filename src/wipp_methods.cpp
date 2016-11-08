@@ -51,7 +51,7 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
     attn_factor = pow(10,-(ionoAbsorp(mag_lat,f)/10)  );
     S_vert = S_vert * attn_factor;
 
-    printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
+    // printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
     
 
     return S_vert;
