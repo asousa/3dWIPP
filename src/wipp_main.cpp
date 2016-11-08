@@ -59,6 +59,10 @@ int main(int argc, char *argv[])
     pair<int, int> grid_ind;
     int t_grid, f_grid;
 
+
+    map <int, vector<double> > start_locs;
+    vector < vector<int> > adjacency_list;  // ( n x 4 ) list of adjacent ray indexes
+
     // Array of pointers to current rays of interest
     // (does this copy or just point? I hope it points.)
     rayF* cur_rays[8];
@@ -218,22 +222,43 @@ int main(int argc, char *argv[])
 
         start_pos = &(ray->pos[0].data()[0]);
 
+
         // Get magnetic lat:
         sm_to_mag_d_(itime_in, start_pos, tmp_coords2);
-        cart_to_pol_d_(tmp_coords2, &maglat0, &maglon0, &magrad0);
-        maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
-        printf("MAG lat: %g lon: %g alt: %g\n",maglat0,maglon0,magrad0);
+        // cart_to_pol_d_(tmp_coords2, &maglat0, &maglon0, &magrad0);
+        cardeg(tmp_coords2);
+
+        // maglat0 = R2D*maglat0; maglon0 = R2D*maglon0;
+        printf("MAG lat: %g lon: %g alt: %g\n",tmp_coords2[1],tmp_coords2[2],tmp_coords2[0]);
         
+
+        start_locs.insert(make_pair(iter->first, vector<double>(tmp_coords2, tmp_coords2 + 3)));
+
+
         // Get power scaling:
         // (still need to multiply by space + freq bin sizes)
         // ray->inp_pwr = input_power_scaling(flash_pos_sm, start_pos, maglat0, iter->second.w, flash_I0);
-        ray->in_radius = magrad0;
-        ray->in_lat = maglat0;
-        ray->in_lon = maglon0;
+        ray->in_radius = tmp_coords2[0];
+        ray->in_lat = tmp_coords2[1];
+        ray->in_lon = tmp_coords[2];
 
         // Calculate Stix parameters:
         calc_stix_parameters(ray);
     }
+
+
+    // Find all sets of adjacent rays to iterate over:
+    adjacency_list = find_adjacent_rays(start_locs);
+
+    cout << "Found " << adjacency_list.size() << " sets of adjacent guide rays\n";
+    for (int i=0; i < adjacency_list.size(); i++ ){
+
+        cout << adjacency_list[i][0] << ", ";
+        cout << adjacency_list[i][1] << ", ";
+        cout << adjacency_list[i][2] << ", ";
+        cout << adjacency_list[i][3] << "\n";
+    }
+
 
 
     // Choose the 8 corner rays we'll work with (this is where you'll iterate
@@ -307,6 +332,7 @@ int main(int argc, char *argv[])
 
     cout << "checking for crossings...\n";
 
+ /*
 
     // Interpolate the first frames:
     for (int zz=0; zz<8; zz++) { interp_rayF(cur_rays[zz], &(prev_frames[zz]), 0); }
@@ -360,9 +386,14 @@ int main(int argc, char *argv[])
                                 r_cur.dt = (r_cur.time - r_prev.time);
                                 r_cur.dlat = dlat;
                                 r_cur.dlon = dlon;
+                                r_cur.ds   = (r_cur.pos - r_prev.pos).norm()*R_E;   // Jacob uses ds between the EA segments... hm
+
+                                // cout <<"t = " << tt <<  " Incident angle: " << (r_cur.pos - r_prev.pos).dot(EA_array[rr].ea_norm)*R2D << "\n";
 
                                 t_grid = floor(r_cur.time/(TIME_STEP));
                                 f_grid = num_freqs_fine*ii;
+
+
                                 grid_ind = make_pair(t_grid, f_grid);
 
                                 if (crossing_db[rr].count(grid_ind)==0) {
@@ -407,11 +438,6 @@ int main(int argc, char *argv[])
     write_p_array(da_N, "pN.dat");
     write_p_array(da_S, "pS.dat");
 
-
-
-    // for(map<int,rayF>::iterator iter = raylist.begin(); iter != raylist.end(); ++iter){
-
-    //     cout << "debuggingd: " << iter->second.inp_pwr << "\n";
-    // }
+*/
     return 0; // Return statement.
 } // Closing Main.

@@ -73,24 +73,17 @@ typedef struct rayF {
 typedef struct rayT {
     double w;                          // frequency (angular)
     double nspec;                      // Number of species in plasmasphere model
-    // double ray_num;                 // Ray index number
+
     double time;            // Group time
 
     double dt;              // time and frequency bin size
     double dw;
     double dlat;
     double dlon;
-
+    double ds;              // Length of ray segment (meters)
     Eigen::Vector3d pos;
     Eigen::Vector3d n;
     Eigen::Vector3d B0;
-
-    // double pos[3];
-    // double vprel[3];
-    // double vgrel[3];
-    // double n[3];
-
-    // double B0[3];
     
     // Variable-length stuff (depending on number of constituents in model)
     vector <double> qs;    // species charge
@@ -107,8 +100,6 @@ typedef struct rayT {
     double stixL;
     double stixS;
     double stixD;
-    // double stixA;
-    // double stixB;
 
     int num_rays;           // Number of rays summed together here (for averaging)
 
@@ -143,6 +134,7 @@ typedef struct EA_segment {
     // medium, not of the wave... but we'd have to get the plasmasphere model.
 
 } EA_segment;
+
 
 
 // rayfile loader
@@ -293,5 +285,8 @@ void add_rayT(rayT* rayA, rayT* rayB);
 
 void interp_rayF(rayF* rayfile, rayT* frame, double t_target);
 
+
+vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs);
+double haversine_distance(double latitude1, double longitude1, double latitude2, double longitude2);
 
 #endif

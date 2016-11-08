@@ -159,3 +159,25 @@ void transform_data_mag2geo(int itime_in[2], double d_in[3], double d_out[3]) {
     d_out[1] = d_in[0]*B1[1] + d_in[1]*B2[1] + d_in[2]*B3[1];
     d_out[2] = d_in[0]*B1[2] + d_in[1]*B2[2] + d_in[2]*B3[2];
 }
+
+
+double haversine_distance(double latitude1, double longitude1, double latitude2,
+                          double longitude2) {
+    // Great-circle distance between two pairs of (lat, lon), in degrees.
+    double lat1 = D2R*latitude1;
+    double lon1 = D2R*longitude1;
+    double lat2 = D2R*latitude2;
+    double lon2 = D2R*longitude2;
+
+    double d_lat = abs(lat1 - lat2);
+    double d_lon = abs(lon1 - lon2);
+
+    double a = pow(sin(d_lat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(d_lon / 2), 2);
+
+    //double d_sigma = 2 * atan2(sqrt(a), sqrt(1 - a));
+    double d_sigma = 2 * asin(sqrt(a));
+
+    return R_E * d_sigma;
+}
+
+

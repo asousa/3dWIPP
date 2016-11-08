@@ -793,7 +793,7 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     alpha_lc = EA->alpha_lc;
     calph = cos(alpha_lc);
     salph = sin(alpha_lc);
-    ds    = EA->ds;
+    // ds    = EA->ds;
     dv_para_ds = EA->dv_para_ds;
     dwh_ds     = EA->dwh_ds;
     slat  = sin(D2R*EA->lat);
@@ -802,6 +802,9 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     ftc_n = EA->ftc_n;
     ftc_s = EA->ftc_s;
 
+    ds = ray->ds /(1 + ray->num_rays);   // Try a different interaction length?
+
+    // printf("ds (EA): %g, ds (ray): %g\n", EA->ds, ds);
 
     t = ray->time + ray->dt/2.;
     w = ray->w + FREQ_STEP_SIZE*PI;
@@ -1017,6 +1020,11 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                 } else {
                     da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
                 }
+
+
+                // if (e_toti > NUM_E/2) {
+                //     cout << "t= " << t << " flt_time: " << flt_time << "\n";
+                // }
             }   
         }   // v_tot, e_tot
     } // Resonant modes
@@ -1037,6 +1045,8 @@ void add_rayT(rayT* rayA, rayT* rayB) {
     // rayA->stixB   += rayB->stixB;         
     rayA->stixS   += rayB->stixS;         
     rayA->stixD   += rayB->stixD;
+
+    rayA->ds      += rayB->ds;
 
     rayA->num_rays += 1;         
 
@@ -1115,3 +1125,143 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target) {
 }
 
 
+vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs) {
+    // Given a set of input starting coordinates, determine
+    // a list of adjacent rays to iterate over.
+    // (this is kind of overkill)
+
+    // map <int, int> closest_up;
+    map <int, int> closest_down;
+    map <int, int> closest_right;
+
+    double lat1, lat2, lon1, lon2;
+    double dist_down, dist_right, dist;
+    int cur_ind, check_ind;
+    double lat3, lon3, lat4, lon4;
+    double d1, d2;
+    
+    vector <vector <int> > adjacency_list;
+
+
+    cout << "Finding adjacent rays...\n";
+    for(map<int, vector<double> >::iterator iter = start_locs.begin(); iter != start_locs.end(); ++iter){
+        // cout << "searching around ";  print_vector(iter->second);
+        cur_ind = iter->first;
+
+        lat1 = iter->second[1];
+        lon1 = iter->second[2];
+        dist_down = 1e12;
+        dist_right= 1e12;
+
+        for(map<int, vector<double> >::iterator other = start_locs.begin(); other != start_locs.end(); ++other){
+            if (iter->first != other->first) {
+                lat2 = other->second[1];
+                lon2 = other->second[2];
+                check_ind = other->first;
+
+                dist = haversine_distance(lat1, lon1, lat2, lon2);
+
+                // find closest entry below current latitude
+                if ( lat1 - lat2 > 0.001) {
+                    // Distance in latitude:
+                    // printf("dist from (%2.1f, %2.1f) to (%2.1f, %2.1f): %g\n",lat1, lon1, lat2, lon2, dist);
+                    if (dist < dist_down) {
+                        closest_down[iter->first] = other->first;
+                        dist_down = dist;
+                        // cout << "dist_down = " << dist_down << " ";
+                        // cout << "iter: " << iter->first << " other: " << other->first << "\n";
+                    }
+                }
+                // find closest entry to right of current longitude
+                if (lon2 - lon1 > 0.001) {
+                    if (dist < dist_right) {
+                        closest_right[iter->first] = other->first;
+                        dist_right = dist;
+                    }
+                }
+            }   // not checking against itself
+        }   // Loop over each entry
+    }
+
+
+
+    // Next, select entries which have both a ray down and a ray right:
+    for(map<int, vector<double> >::iterator iter = start_locs.begin(); iter != start_locs.end(); ++iter){
+        vector <int> cur_inds;
+
+        // cout << iter->first << " ";
+        if ( (closest_down.count(iter->first) != 0) && (closest_right.count(iter->first) != 0) ) {
+            lat1 = iter->second[1];
+            lon1 = iter->second[2];
+            lat2 = start_locs.at(closest_down[iter->first])[1];
+            lon2 = start_locs.at(closest_down[iter->first])[2];
+            lat3 = start_locs.at(closest_right[iter->first])[1];
+            lon3 = start_locs.at(closest_right[iter->first])[2];
+        
+            // Select the fourth value -- is it right and down, or down and right?
+            d1 = 1e12;
+            d2 = 1e12;
+
+            if (closest_down.count(closest_right[iter->first]) != 0) {
+                lat4 = start_locs[closest_down[closest_right[iter->first]]][1];
+                lon4 = start_locs[closest_down[closest_right[iter->first]]][2];
+                d1 = haversine_distance(lat1, lon1, lat4, lon4);
+            }
+                // cout << "down and right: " << closest_down[closest_right[iter->first]] << "\n";
+            if (closest_right.count(closest_down[iter->first]) != 0) {
+                lat4 = start_locs[closest_right[closest_down[iter->first]]][1];
+                lon4 = start_locs[closest_right[closest_down[iter->first]]][2];
+                d2 = haversine_distance(lat1, lon1, lat4, lon4);
+
+                // cout << "right and down: " << closest_right[closest_down[iter->first]] << "\n";
+            }
+
+            if ( (d1 != 1e12) || (d2 != 1e12) ) {
+                cur_inds.push_back(iter->first);
+                cur_inds.push_back(closest_right[iter->first]);
+                cur_inds.push_back(closest_down[iter->first]);
+                if (d1 <= d2) {
+                    cur_inds.push_back(closest_down[closest_right[iter->first]]);
+                } else {
+                    cur_inds.push_back(closest_right[closest_down[iter->first]]);
+                }
+                adjacency_list.push_back(cur_inds);
+            }
+            // printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f), (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2, lat3, lon3);
+        }
+    }
+
+    // cout << "Found " << adjacency_list.size() << " sets of adjacent guide rays\n";
+    // for (int i=0; i < adjacency_list.size(); i++ ){
+
+    //     cout << adjacency_list[i][0] << ", ";
+    //     cout << adjacency_list[i][1] << ", ";
+    //     cout << adjacency_list[i][2] << ", ";
+    //     cout << adjacency_list[i][3] << "\n";
+    // }
+
+    // // Print out some results:
+    // cout << "closest down: \n";
+    // for(map<int, int>::iterator iter = closest_down.begin(); iter != closest_down.end(); ++iter){
+    //     lat1 = start_locs.at(iter->first)[1];
+    //     lon1 = start_locs.at(iter->first)[2];
+    //     lat2 = start_locs.at(iter->second)[1];
+    //     lon2 = start_locs.at(iter->second)[2];
+    //     cout << iter->first << " " << iter->second << " ";
+    //     printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2);
+
+    // }
+    // cout << "closest right: \n";
+    // for(map<int, int>::iterator iter = closest_right.begin(); iter != closest_right.end(); ++iter){
+    //     lat1 = start_locs.at(iter->first)[1];
+    //     lon1 = start_locs.at(iter->first)[2];
+    //     lat2 = start_locs.at(iter->second)[1];
+    //     lon2 = start_locs.at(iter->second)[2];
+    //     cout << iter->first << " " << iter->second << " ";
+    //     printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2);
+
+    // }
+
+return adjacency_list;
+
+}
