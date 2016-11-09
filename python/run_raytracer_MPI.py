@@ -29,7 +29,7 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 raytracer_root = '/shared/users/asousa/software/foust_raytracer/'
 damping_root = '/shared/users/asousa/WIPP/3dWIPP/damping/'
 ray_bin_dir    = os.path.join(raytracer_root, 'bin')
-ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/single_longitude/'
+ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/'
 
 R_E = 6371.0    # km
 
@@ -52,14 +52,14 @@ minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
 # ---------- Ray inputs -----------------
 
 # Geomagnetic please.
-inp_lats = np.arange(35,55)
-inp_lons = np.arange(0, 1)
+inp_lats = [40, 41]
+inp_lons = [0,1]
 launch_alt = (R_E + 1000.)*1e3
 
 # freqs    = np.array([1000, 2000]) 
 
-freqs = [200,240,289,347,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000]
-
+# freqs = [200,240,289,347,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000]
+freqs = [1000, 1100]
 
 
 
@@ -147,6 +147,7 @@ if (rank < len(chunks)):
         # Create coordinates
         inp_coords = zip(alts, lats, lons)  # Geomagnetic pls.
 
+        print "Frequency = ", ws/(2.*np.pi)
         print "Inputs (geomagnetic RLL)"
         for r in inp_coords: print r
 
@@ -174,15 +175,13 @@ if (rank < len(chunks)):
 
         # Rotate from geomagnetic to SM cartesian coordinates
         inp_coords = [xf.rllmag2sm(r, ray_datenum) for r in inp_coords]
-        # print "SM inputs:"
-        # for r in inp_coords: print r
 
         # inp_coords = inp_coords.convert('SM','car')
         N = len(inp_coords)
 
         # Write rays to the input file (used by the raytracer):
         f = open(ray_inpfile,'w+')
-        for pos0, w0 in zip(inp_coords, ws):
+        for pos0, w0 in zip(inp_coords, ws):        
             dir0 = pos0/np.linalg.norm(pos0)    # radial outward
             f.write('%1.15e %1.15e %1.15e %1.15e %1.15e %1.15e %1.15e\n'%(pos0[0], pos0[1], pos0[2], dir0[0], dir0[1], dir0[2], w0))
         f.close()
@@ -240,7 +239,7 @@ if (rank < len(chunks)):
 
         # print Kp, AE
 
-        damp_cmd = '%sbin/damping -i %s -o %s -k %g -a %g -m %d'%(damping_root, ray_outfile, damp_outfile, Kp, AE, damp_mode)
+        damp_cmd = '%sbin/damping -i %s -o %s -k %g -a %g -m %d -t %s -u %d'%(damping_root, ray_outfile, damp_outfile, Kp, AE, damp_mode, yearday, milliseconds_day)
         print damp_cmd
 
         # Start the damping code

@@ -423,4 +423,56 @@ void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
 }
 
 
+vector<cellT> load_crossings(string filename) {
+    ifstream file;
+    istringstream iss;
+    string line;
+    double x_in[3];
+    double x_out[3];
 
+    vector<cellT> outs;
+
+    double Lsh, lat, t, f, pwr, psi, mu, stixP, stixR, stixL;
+    cout << "Fuckin jesus \n";
+    file.open(filename.c_str());
+    if (file.is_open()) {
+        while (getline(file, line)) {
+            vector <double> v;
+            istringstream iss;
+
+            // cout << line;
+            cellT ray = {};
+
+
+            iss.str(line);
+            
+            //  // // Iterate over the istream, using >> to grab doubles
+            // // // and push_back to store them in the vector
+            copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
+            
+            // print_vector(v);
+
+            Lsh = v[0]; lat = v[1]; t = v[2]; f = v[3]; pwr = v[4]; psi = v[5]; mu = v[6];
+            stixP = v[7]; stixR = v[8]; stixL = v[9];
+            // Get coordinates in SM:
+            double radius = Lsh*pow(cos(D2R*lat),2);  
+            x_in = {radius, D2R*lat, 0};
+            sphcar(x_in, x_out);
+            // print_array(x_out, 3);              
+
+            ray.pos = Map<Vector3d>(x_out, 3,1);
+            ray.pwr = pwr;
+            ray.mu  = mu;
+            ray.t   = t;
+            ray.f   = f;
+            ray.psi = psi;
+            ray.stixP = stixP;
+            ray.stixR = stixR;
+            ray.stixL = stixL;
+            ray.num_rays = 1;
+
+            outs.push_back(ray);
+        }
+    }
+    return outs;
+}

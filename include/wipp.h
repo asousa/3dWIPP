@@ -100,10 +100,29 @@ typedef struct rayT {
     double stixL;
     double stixS;
     double stixD;
+    double in_lat;
+    double in_lon;
 
     int num_rays;           // Number of rays summed together here (for averaging)
 
 } rayT;
+
+// Store each cell in the spectrogram in cellT
+typedef struct cellT {
+  double        t;
+  double        f;
+  double        pwr;
+  double        psi;
+  double        mu;
+  double        stixP;
+  double        stixR;
+  double        stixL;
+  Eigen::Vector3d      pos;
+  int           num_rays;   
+} cellT;
+
+
+
 
 // Structure for holding parameters for a single EA segment 
 // (planes perpendicular to field line of interest, where we
@@ -288,5 +307,8 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target);
 
 vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs);
 double haversine_distance(double latitude1, double longitude1, double latitude2, double longitude2);
+
+vector<cellT> load_crossings(string filename);
+
 
 #endif

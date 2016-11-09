@@ -42,9 +42,9 @@
 #define 	DE_EXP	    ((E_EXP_TOP - E_EXP_BOT)/(NUM_E))
 
 // // EA array grid settings:
-#define		EALimS		-40.0
-#define		EALimN	    40.0
-#define     NUM_EA      41
+#define		EALimS		32
+#define		EALimN	    34
+#define     NUM_EA      2
 #define		EAIncr	    ((EALimN - EALimS)/(NUM_EA - 1))	
 
 #define     TRACER_MAX  20000    // Maximum steps in field line tracer
@@ -52,8 +52,8 @@
 
 // Fine-scale interpolation step sizes:
 #define     FREQ_STEP_SIZE  10 // Hz
-#define     LAT_STEP_SIZE   10  // km
-#define     LON_STEP_SIZE   10  // km
+#define     LAT_STEP_SIZE   10    // km
+#define     LON_STEP_SIZE   100  // km
 
 
 // Radius around field line, in L-shells, in which to consider a crossing
@@ -63,13 +63,13 @@
 #define     TIME_MAX    10.0      // Seconds
 #define     NUM_TIMES   1000    //ceil(TIME_MAX/TIME_STEP)
 
-#define     TIME_STEP   (TIME_MAX/NUM_TIMES)     // Seconds
+#define     TIME_STEP   (1.0*((1.0*TIME_MAX)/NUM_TIMES))     // Seconds
 
 #define     SCATTERING_RES_MODES   5        
 
-#define     WAVE_PWR_THRESH   1e-30
+#define     WAVE_PWR_THRESH   0
 
-#define     FREQ_VEC    {200,240,289,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000}
+#define     FREQ_VEC    {1000, 1100}//{200,240,289,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000}
 
 #define     NUM_FREQS   2
 

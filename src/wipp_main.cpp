@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
 
     cout << "flash geo: ";
     print_vector(vector<double>(flash_pos, flash_pos + 3));
-    double flash_I0 = -10000e3;
+    double flash_I0 = -100e3;
     
     lat0 = D2R*flash_pos[1];
     lon0 = D2R*flash_pos[2];
@@ -235,7 +235,7 @@ int main(int argc, char *argv[])
 
         // printf("MAG lat: %g lon: %g alt: %g\n",tmp_coords2[1],tmp_coords2[2],tmp_coords2[0]);
         start_locs.insert(make_pair(iter->first, vector<double>(tmp_coords2, tmp_coords2 + 3)));
-        ray->in_radius = tmp_coords2[0]; ray->in_lat = tmp_coords2[1]; ray->in_lon = tmp_coords2[2];
+        iter->second.in_radius = tmp_coords2[0]; iter->second.in_lat = tmp_coords2[1]; iter->second.in_lon = tmp_coords2[2];
 
         // Calculate Stix parameters:
         calc_stix_parameters(ray);
@@ -259,10 +259,11 @@ int main(int argc, char *argv[])
         sm_to_mag_d_(itime_in, start_pos, tmp_coords2);
         cardeg(tmp_coords2);
 
-        // printf("MAG lat: %g lon: %g alt: %g\n",tmp_coords2[1],tmp_coords2[2],tmp_coords2[0]);
-        start_locs.insert(make_pair(iter->first, vector<double>(tmp_coords2, tmp_coords2 + 3)));
+        printf("MAG lat: %g lon: %g alt: %g\n",tmp_coords2[1],tmp_coords2[2],tmp_coords2[0]);
         ray->in_radius = tmp_coords2[0]; ray->in_lat = tmp_coords2[1]; ray->in_lon = tmp_coords2[2];
+        start_locs.insert(make_pair(iter->first, vector<double>(tmp_coords2, tmp_coords2 + 3)));
 
+        printf("(from ray): %g %g %g\n",ray->in_radius, ray->in_lat, ray->in_lon);
         // Calculate Stix parameters:
         calc_stix_parameters(ray);
     }
@@ -273,166 +274,190 @@ int main(int argc, char *argv[])
 
     cout << "Found " << adjacency_list.size() << " sets of adjacent guide rays\n";
 
-    // Iterate over each set of adjacent guide rays:
-    for (int adj_row =0; adj_row < adjacency_list.size(); adj_row++) {
-        // Choose the 8 corner rays we'll work with (this is where you'll iterate
-        // over the larger set)
-        cur_rays[0] = &(raylist_low.at(adjacency_list[adj_row][0]));
-        cur_rays[1] = &(raylist_low.at(adjacency_list[adj_row][1]));
-        cur_rays[2] = &(raylist_low.at(adjacency_list[adj_row][2]));
-        cur_rays[3] = &(raylist_low.at(adjacency_list[adj_row][3]));
-        cur_rays[4] = &(raylist_hi.at( adjacency_list[adj_row][0]));
-        cur_rays[5] = &(raylist_hi.at( adjacency_list[adj_row][1]));
-        cur_rays[6] = &(raylist_hi.at( adjacency_list[adj_row][2]));
-        cur_rays[7] = &(raylist_hi.at( adjacency_list[adj_row][3]));
+    // // Iterate over each set of adjacent guide rays:
+    // for (int adj_row =0; adj_row < adjacency_list.size(); adj_row++) {
+    //     // Choose the 8 corner rays we'll work with (this is where you'll iterate
+    //     // over the larger set)
+    //     cur_rays[0] = &(raylist_low.at(adjacency_list[adj_row][0]));
+    //     cur_rays[1] = &(raylist_low.at(adjacency_list[adj_row][1]));
+    //     cur_rays[2] = &(raylist_low.at(adjacency_list[adj_row][2]));
+    //     cur_rays[3] = &(raylist_low.at(adjacency_list[adj_row][3]));
+    //     cur_rays[4] = &(raylist_hi.at( adjacency_list[adj_row][0]));
+    //     cur_rays[5] = &(raylist_hi.at( adjacency_list[adj_row][1]));
+    //     cur_rays[6] = &(raylist_hi.at( adjacency_list[adj_row][2]));
+    //     cur_rays[7] = &(raylist_hi.at( adjacency_list[adj_row][3]));
         
-        // Find minimum and maximum frequencies, start lats, and start lons:
-        wmin   = cur_rays[0]->w;         wmax = cur_rays[0]->w;
-        latmin = cur_rays[0]->in_lat;  latmax = cur_rays[0]->in_lat;
-        lonmin = cur_rays[0]->in_lon;  lonmax = cur_rays[0]->in_lon;
-        tmax   = cur_rays[0]->time.back();
-        double in_lat, in_lon;
-        for (int i=1; i < 8; i++) {
-            in_lon = cur_rays[i]->in_lon;
-            if (in_lon >= 360) { in_lon -= 360; }
+    //     // Find minimum and maximum frequencies, start lats, and start lons:
+    //     wmin   = cur_rays[0]->w;         wmax = cur_rays[0]->w;
+    //     latmin = cur_rays[0]->in_lat;  latmax = cur_rays[0]->in_lat;
+    //     lonmin = cur_rays[0]->in_lon;  lonmax = cur_rays[0]->in_lon;
+    //     tmax   = cur_rays[0]->time.back();
+    //     double in_lat, in_lon;
+    //     for (int i=1; i < 8; i++) {
+    //         in_lon = cur_rays[i]->in_lon;
+    //         in_lat = cur_rays[i]->in_lat;
+    //         // cout << "HEY FUCKER " << in_lon << " " << in_lat << "\n"; 
+    //         if (in_lon >= 360) { in_lon -= 360; }
 
-            if (cur_rays[i]->w < wmin)  { wmin = cur_rays[i]->w; } 
-            if (cur_rays[i]->w > wmax ) { wmax = cur_rays[i]->w; }
-            if (cur_rays[i]->in_lat < latmin ) { latmin = cur_rays[i]->in_lat; }
-            if (cur_rays[i]->in_lat > latmax ) { latmax = cur_rays[i]->in_lat; }
-            if (in_lon < lonmin ) { lonmin = in_lon; }
-            if (in_lon > lonmax ) { lonmax = in_lon; }
-            if (cur_rays[i]->time.back() < tmax) { tmax = cur_rays[i]->time.back(); }
-        }
+    //         if (cur_rays[i]->w < wmin)  { wmin = cur_rays[i]->w; } 
+    //         if (cur_rays[i]->w > wmax ) { wmax = cur_rays[i]->w; }
+    //         if (cur_rays[i]->in_lat < latmin ) { latmin = cur_rays[i]->in_lat; }
+    //         if (cur_rays[i]->in_lat > latmax ) { latmax = cur_rays[i]->in_lat; }
+    //         if (in_lon < lonmin ) { lonmin = in_lon; }
+    //         if (in_lon > lonmax ) { lonmax = in_lon; }
+    //         if (cur_rays[i]->time.back() < tmax) { tmax = cur_rays[i]->time.back(); }
 
-        // starting separation in lat, lon directions (meters)
-        dlat = D2R*R_E*(latmax - latmin);
-        dlon = D2R*R_E*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
-        dw   = wmax - wmin;
+    //     }
 
-        cout << "lon: " << lonmax << ", " << lonmin << "\n";
-        cout << "lat: " << latmax << ", " << latmin << "\n";
-        cout << "dlat: " << dlat << " dlon: " << dlon << "\n";
-        cout << "dw: " << dw << "\n";
+    //     // starting separation in lat, lon directions (meters)
+    //     dlat = D2R*R_E*(latmax - latmin);
+    //     dlon = D2R*R_E*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
+    //     dw   = wmax - wmin;
 
-        // Scale the input power by dlat, dlon, dw:
-        // (ray spacing may not be consistent)
-        for (int i=1; i < 8; i++) {
-            cur_rays[i]->inp_pwr = input_power_scaling(flash_pos_sm, cur_rays[i]->pos[0].data(),
-                                   cur_rays[i]->in_lat, cur_rays[i]->w, flash_I0);
+    //     cout << "lon: " << lonmax << ", " << lonmin << "\n";
+    //     cout << "lat: " << latmax << ", " << latmin << "\n";
+    //     cout << "dlat: " << dlat << " dlon: " << dlon << "\n";
+    //     cout << "dw: " << dw << "\n";
 
-            // cur_rays[i]->inp_pwr *= (dlat)*(dw/(2*PI)*0.877);       // This matches Jacob's power scaling (but I disagree with it)
-            // cout << "in pwr (post scale): " << cur_rays[i]->inp_pwr << "\n";
-        }
+    //     // Scale the input power by dlat, dlon, dw:
+    //     // (ray spacing may not be consistent)
+    //     for (int i=1; i < 8; i++) {
+    //         cur_rays[i]->inp_pwr = input_power_scaling(flash_pos_sm, cur_rays[i]->pos[0].data(),
+    //                                cur_rays[i]->in_lat, cur_rays[i]->w, flash_I0);
 
-
-        // Always do at least 2 steps in each axis (corner rays)
-        num_freqs_fine = max(2, (int)ceil( (wmax - wmin)/(2*PI*FREQ_STEP_SIZE )));
-        num_lats_fine  = max(2, (int)ceil( (dlat*1e-3)/(LAT_STEP_SIZE) ));
-        num_lons_fine  = max(2, (int)ceil( (dlon*1e-3)/(LON_STEP_SIZE) ));
-
-        cout << "num steps: " << num_freqs_fine << ", " << num_lats_fine << ", " << num_lons_fine << "\n";
-
-        crossing_log = fopen(crossingFileName.c_str(), "w");
+    //         cur_rays[i]->inp_pwr *= (dlat)*(dw/(2*PI)*0.877);       // This matches Jacob's power scaling (but I disagree with it)
+    //         cout << "in pwr (post scale): " << cur_rays[i]->inp_pwr << "\n";
+    //     }
 
 
-        cout << "T_STEP: " << TIME_STEP << "\n";
-        double hit_counter = 0;
-        double crossing_counter = 0;
-
-        cout << "checking for crossings...\n";
-
-     
-
-        // Interpolate the first frames:
-        for (int zz=0; zz<8; zz++) { interp_rayF(cur_rays[zz], &(prev_frames[zz]), 0); }
-
-        for (double tt=TIME_STEP; tt < tmax; tt+=TIME_STEP) {
-        // for (int tt = 1; tt < tmax; tt++) {
-            // interpolate current frames:
-            for (int zz=0; zz<8; zz++) { interp_rayF(cur_rays[zz], &(cur_frames[zz]), tt); }
-
-            // cout << "time: " << cur_frames[0].time << ", " << prev_frames[0].time << "\n";
+    //     // // Always do at least 2 steps in each axis (corner rays)
+    //     num_freqs_fine = max(2, (int)floor( (wmax - wmin)/(2*PI*FREQ_STEP_SIZE )));
+    //     num_lats_fine  = max(2, (int)floor( (dlat*1e-3)/(LAT_STEP_SIZE) ));
+    //     num_lons_fine  = max(1, (int)floor( (dlon*1e-3)/(LON_STEP_SIZE) ));
 
 
-            // Check each EA segment:
-            for (int rr = 0; rr < NUM_EA; rr++) {
-                // cout << "EA: " << EA_array[rr].lat << "\n";
+    //     // num_freqs_fine = 4;
+    //     // num_lats_fine  = 10;
+    //     // num_lons_fine  = 4;
 
-                // Ignore anything that looks way out of range
-                if (coarse_mask(cur_frames, prev_frames, EA_array[rr])) {
-                // if(true){
-                    // cout << "hit\n";
-                    hit_counter ++;
+    //     cout << "num steps: " << num_freqs_fine << ", " << num_lats_fine << ", " << num_lons_fine << "\n";
 
-                    // Interpolate on fine-scale grid:
-                    for (double ii=0; ii <= 1; ii+=1./num_freqs_fine) {         // freqs
-                        for (double jj=0; jj <= 1; jj+= 1./num_lats_fine) {     // lats
-                            for (double kk=0; kk <= 1; kk+= 1./num_lons_fine) { // lons
-
-                                // // Clear previous values
-                                r_cur =  {};
-                                r_prev = {};
-
-                                // // (to do: Save r_curs to avoid having to recalculate it)
-                                // interp_ray_positions(cur_rays, ii, jj, kk, tt,  &r_cur);
-                                interp_ray_positions(cur_frames, ii, jj, kk, &r_cur);
-                                interp_ray_positions(prev_frames,ii, jj, kk, &r_prev);
+    //     crossing_log = fopen(crossingFileName.c_str(), "w");
 
 
+    //     cout << "T_STEP: " << TIME_STEP << "\n";
+    //     double hit_counter = 0;
+    //     double crossing_counter = 0;
 
-                                // // Bam -- we finally have some little rays to check for crossings.
-                                if (crosses_EA(r_cur.pos, r_prev.pos, EA_array[rr])) {
-                                    crossing_counter++;
+    //     cout << "checking for crossings...\n";
 
-                                    interp_ray_data(cur_frames, ii, jj, kk, &r_cur);
-                                    interp_ray_data(prev_frames,ii, jj, kk, &r_prev);
+        
+    //     cout << "input frequencies: ";
 
-                                    // fprintf(crossing_log, "%g %g %g %g %g %g\n",
-                                    //     r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
-                                    //     r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
-
-                                    // store time and frequency for the middle of this interpolation
-                                    r_cur.dt = (r_cur.time - r_prev.time);
-                                    r_cur.dlat = dlat;
-                                    r_cur.dlon = dlon;
-                                    r_cur.ds   = (r_cur.pos - r_prev.pos).norm()*R_E;   // Jacob uses ds between the EA segments... hm
-
-                                    t_grid = floor(r_cur.time/(TIME_STEP));
-                                    f_grid = num_freqs_fine*ii;
-                                    grid_ind = make_pair(t_grid, f_grid);
-
-                                    if (crossing_db[rr].count(grid_ind)==0) {
-                                        // If we haven't hit this same (time, freq, EA) combo yet, add it:
-                                        crossing_db[rr].insert(make_pair(grid_ind,r_cur));
-                                    } else {
-                                        // Else, sum the current frame with previous frames, so we can average:
-                                        add_rayT(&(crossing_db[rr].at(grid_ind)), &r_cur);
-                                    }
-
-                                }   // Crossings
-                            }   // kk
-                        }   // jj
-                    }   // ii
-                }   // Coarse mask
-            }   // EA array
-
-            // Step forward one frame:
-            for (int zz=0; zz<8; zz++) { prev_frames[zz] = cur_frames[zz]; }
-        } // tt
+    //     for (int eh=0; eh < 8; eh++) {
+    //         cout << cur_rays[eh]->w/(2*PI) << " ";
+    //     }
 
 
 
 
-        cout << "hit counter: " << hit_counter << "\n";
-        cout << "crossing counter: " << crossing_counter << "\n";
+    //     // Interpolate the first frames:
+    //     for (int zz=0; zz<8; zz++) { interp_rayF(cur_rays[zz], &(prev_frames[zz]), 0); }
 
-    } // Cur_rays
+    //     for (double tt=TIME_STEP; tt < tmax; tt+=TIME_STEP) {
 
+
+    //     // for (int tt = 1; tt < tmax; tt++) {
+    //         // interpolate current frames:
+    //         for (int zz=0; zz<8; zz++) { interp_rayF(cur_rays[zz], &(cur_frames[zz]), tt); }
+
+    //         // cout << "time: " << cur_frames[0].time << ", " << prev_frames[0].time << "\n";
+
+
+    //         // Check each EA segment:
+    //         for (int rr = 0; rr < NUM_EA; rr++) {
+    //             // cout << "EA: " << EA_array[rr].lat << "\n";
+
+    //             // Ignore anything that looks way out of range
+    //             if (coarse_mask(cur_frames, prev_frames, EA_array[rr])) {
+    //             // if(true){
+    //                 // cout << "hit\n";
+    //                 hit_counter ++;
+
+    //                 // Interpolate on fine-scale grid:
+    //                 for (double ii=0; ii <= 1; ii+=1./num_lons_fine) {         
+    //                     for (double jj=0; jj < 1; jj+= 1./num_lats_fine) {     
+    //                         for (double kk=0; kk < 1; kk+= 1./num_freqs_fine) { 
+    //                             // cout << ii << " ";
+
+    //                             // // Clear previous values
+    //                             r_cur =  {};
+    //                             r_prev = {};
+
+    //                             // // (to do: Save r_curs to avoid having to recalculate it)
+    //                             // interp_ray_positions(cur_rays, ii, jj, kk, tt,  &r_cur);
+    //                             interp_ray_positions(cur_frames, ii, jj, kk, &r_cur);
+    //                             interp_ray_positions(prev_frames,ii, jj, kk, &r_prev);
+
+
+
+    //                             // // Bam -- we finally have some little rays to check for crossings.
+    //                             if (crosses_EA(r_cur.pos, r_prev.pos, EA_array[rr])) {
+    //                                 crossing_counter++;
+
+    //                                 interp_ray_data(cur_frames, ii, jj, kk, &r_cur);
+    //                                 interp_ray_data(prev_frames,ii, jj, kk, &r_prev);
+
+                                    
+                                    
+    //                                 // cout << "f_int: " << r_cur.w/(2*PI) << "\n";
+    //                                 fprintf(crossing_log, "%g %g %g %g %g %g\n",
+    //                                     r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
+    //                                     r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
+
+    //                                 // store time and frequency for the middle of this interpolation
+    //                                 r_cur.dt = (r_cur.time - r_prev.time);
+    //                                 r_cur.dlat = dlat;
+    //                                 r_cur.dlon = dlon;
+    //                                 r_cur.ds   = (r_cur.pos - r_prev.pos).norm()*R_E;   // Jacob uses ds between the EA segments... hm
+                                    
+    //                                 // cout << "tt: " << tt << "t_cur: " << r_cur.time << "\n";
+    //                                 t_grid = floor(r_cur.time/(TIME_STEP));
+    //                                 f_grid = round(kk*num_freqs_fine); //floor(r_cur.w/num_freqs_fine);
+    //                                                                     cout << "t_grid: " << t_grid << " f_grid: " << f_grid << "\n";
+    //                                 grid_ind = make_pair(t_grid, f_grid);
+
+    //                                 if (crossing_db[rr].count(grid_ind)==0) {
+    //                                     // If we haven't hit this same (time, freq, EA) combo yet, add it:
+    //                                     crossing_db[rr].insert(make_pair(grid_ind,r_cur));
+    //                                 } else {
+    //                                     // Else, sum the current frame with previous frames, so we can average:
+    //                                     add_rayT(&(crossing_db[rr].at(grid_ind)), &r_cur);
+    //                                 }
+
+    //                             }   // Crossings
+    //                         }   // kk
+    //                     }   // jj
+    //                 }   // ii
+    //             }   // Coarse mask
+    //         }   // EA array
+
+    //         // Step forward one frame:
+    //         for (int zz=0; zz<8; zz++) { prev_frames[zz] = cur_frames[zz]; }
+    //     } // tt
+
+
+
+
+    //     cout << "hit counter: " << hit_counter << "\n";
+    //     cout << "crossing counter: " << crossing_counter << "\n";
+
+    // } // Cur_rays
+    vector<cellT> listy = load_crossings("/shared/users/asousa/WIPP/WIPPv4/crossing_log.txt");
 
     // Calculate scattering at crossings:
     cout << "Calculating resonances\n";
-    for (int rr=0; rr<NUM_EA; rr++) {
+    for (int rr=NUM_EA-1; rr>=0; rr--) {
 
         printf("---------------- EA at lat: %2.2f ------------------\n", EA_array[rr].lat);
         for(map<pair<int,int>,rayT>::iterator iter = crossing_db[rr].begin(); iter != crossing_db[rr].end(); ++iter){

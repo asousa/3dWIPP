@@ -51,7 +51,7 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
     attn_factor = pow(10,-(ionoAbsorp(mag_lat,f)/10)  );
     S_vert = S_vert * attn_factor;
 
-    // printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
+    printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
     
 
     return S_vert;
@@ -79,6 +79,8 @@ void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z
             (rayout->pos)[ii]   += W[jj]*((framelist[jj].pos).data()[ii]);
         }
     }
+
+    rayout->time = framelist[0].time;
 }
 
 
@@ -115,8 +117,9 @@ void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT
 
         // scalar-valued here
         // cout << "corner w: " << raylist[jj]->w << "\n";
-        rayout->time +=  W[jj]*(framelist[jj].time);
+        // rayout->time +=  W[jj]*(framelist[jj].time);
         rayout->w += W[jj]*(framelist[jj].w);
+        // cout << rayout->w/(2*PI) << " ";
         rayout->inp_pwr += W[jj]*(framelist[jj].inp_pwr);
         rayout->damping += W[jj]*(framelist[jj].damping);
 
@@ -125,14 +128,24 @@ void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT
         rayout->stixP += W[jj]*(framelist[jj].stixP);
         rayout->stixS += W[jj]*(framelist[jj].stixS);
         rayout->stixD += W[jj]*(framelist[jj].stixD);
+        rayout->in_lat+= W[jj]*(framelist[jj].in_lat);
+        rayout->in_lon+= W[jj]*(framelist[jj].in_lon);
+
         // rayout->stixA += W[jj]*(framelist[jj].stixA);
         // rayout->stixB += W[jj]*(framelist[jj].stixB);
 
 
     }
+    // cout << "inp ray lons: ";
+    // for (int i=0; i< 8; i++) {
+    //     cout << framelist[i].in_lon << " ";
+    // }
 
 
     // cout << "in: ";
+    // cout << "f_interp: " << rayout->w/(2*PI) << "\n";
+    // cout << "lat_interp: " << rayout->in_lat << "\n";
+    // cout << "lon_interp: " << rayout->in_lon << "\n";
     // print_array(rayout->pos, 3);
 }
 
@@ -386,8 +399,8 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
     // generate entries for each EA segment
     for (int i=0; i < NUM_EA; i++) {
         ind = nearest(lats, Nsteps, targ_lat, true);
-        cout << "lat: " << lats[ind] << "\n";
-        cout << "Lsh: " << Lsh << "\n";
+        // cout << "lat: " << lats[ind] << "\n";
+        // cout << "Lsh: " << Lsh << "\n";
         // L shell:
         EA_array[i].Lsh = Lsh;
 
@@ -401,7 +414,7 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         // Flight-time constants:
         EA_array[i].ftc_n     = ftc_n[ind];
         EA_array[i].ftc_s     = ftc_n[Nsteps-1] - ftc_n[ind];
-        cout << "ftc n: " << EA_array[i].ftc_n << " ftc s: " << EA_array[i].ftc_s << "\n";
+        // cout << "ftc n: " << EA_array[i].ftc_n << " ftc s: " << EA_array[i].ftc_s << "\n";
 
         // Intersection point:
         EA_array[i].ea_pos = Map<VectorXd>(x_fl[ind],3,1);
@@ -446,7 +459,7 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
         EA_c = x1*y2 - y1*x2;
         
         EA_array[i].radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2.0; 
-        printf("EA_length: %g\n",2*R_E*EA_array[i].radius);
+        // printf("EA_length: %g\n",2*R_E*EA_array[i].radius);
 
 
         // Calculate electron gyrofrequency:
@@ -693,7 +706,7 @@ double longitude_interval(double ra, double r0) {
 
     // cout << "ra: " << ra*R2D << " r0: " << r0*R2D << " diff: " << R2D*(ra - r0) << "\n";
 
-    const double width = 2.5;
+    const double width = 5;
 
     if ( R2D*(ra - r0) < - width) {
         return -1;
@@ -793,7 +806,7 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     alpha_lc = EA->alpha_lc;
     calph = cos(alpha_lc);
     salph = sin(alpha_lc);
-    // ds    = EA->ds;
+    ds    = EA->ds;
     dv_para_ds = EA->dv_para_ds;
     dwh_ds     = EA->dwh_ds;
     slat  = sin(D2R*EA->lat);
@@ -802,13 +815,16 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     ftc_n = EA->ftc_n;
     ftc_s = EA->ftc_s;
 
-    ds = ray->ds /(1 + ray->num_rays);   // Try a different interaction length?
+    // ds = ray->ds /(1 + ray->num_rays);   // Try a different interaction length?
 
     // printf("ds (EA): %g, ds (ray): %g\n", EA->ds, ds);
 
-    t = ray->time + ray->dt/2.;
+    t = ray->time + TIME_STEP/2.; //ray->dt/2.;
     w = ray->w + FREQ_STEP_SIZE*PI;
-    pwr = (ray->inp_pwr)*(ray->damping)/(1 + ray->num_rays)*FREQ_STEP_SIZE;
+    
+    // pwr = (ray->inp_pwr)*(ray->damping)/(1 + ray->num_rays)*FREQ_STEP_SIZE;
+
+    pwr = (ray->inp_pwr)*(ray->damping)/(1.0 + ray->num_rays)/TIME_STEP/ds;
 
     n  = ray->n /(1 + ray->num_rays);
     B0 = ray->B0;
@@ -817,6 +833,8 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     if (pwr < WAVE_PWR_THRESH) {
         return;
     }
+
+    // cout << "t: " << t << " f: " << w/(2*PI) << "\n";
 
     // For this calculation, we're working in a frame with z parallel to 
     // the background magnetic field. 
@@ -830,7 +848,7 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     kvec = n*w/C;
     k    = kvec.norm();
     Bhat = B0.array()/B0.norm();
-    kz = -1*kvec.dot(Bhat); //k.array()*Bhat.array();
+    kz = -1.0*kvec.dot(Bhat); //k.array()*Bhat.array();
     kx = (kvec + kz*Bhat).norm();
 
     // Theta is the angle between parallel and perpendicular K
@@ -838,8 +856,8 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 
 
 
-    // printf("t: %g psi: %2.3f  pwr: %g num_rays: %i\n",t, psi*R2D, pwr, ray->num_rays);
-    // cout << "t: " << t << " psi: " << psi*R2D << " Num_rays: "<< ray->num_rays <<  "\n";
+    printf("t: %g f: %g pwr: %g psi: %2.3f num_rays: %i\n",t, w/(2*PI), pwr,psi*R2D,  ray->num_rays);
+    // cout << "t: " << t << " f: " << w/(2*PI) << " psi: " << psi*R2D << " Num_rays: "<< ray->num_rays <<  "\n";
 
 
 
@@ -896,11 +914,11 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     Bxw = fabs(Exw *stixD*n_z /C/ (stixS - mu_sq));
     Bzw = fabs((Exw *stixD *n_x) /(C*(stixX - mu_sq)));
     
-    // printf("Byw: %g Exw: %g Eyw: %g Ezw: %g Bxw: %g Bzw: %g\n",
-    //           Byw,    Exw,    Eyw,    Ezw,    Bxw,    Bzw);
+    printf("Byw: %g Exw: %g Eyw: %g Ezw: %g Bxw: %g Bzw: %g\n",
+              Byw,    Exw,    Eyw,    Ezw,    Bxw,    Bzw);
     // cout << " Byw_sq: " << Byw_sq << " pwr: " << pwr << " damping: " << ray->damping << " inp: " << ray->inp_pwr << "\n";
     // // printf("\nByw_sq: %g, rho1: %g, rho2: %g, \nstixS: %g, stixB: %g\n", Byw_sq, rho1, rho2, stixS, stixB);  
-    // printf("\nn_x: %g, n_z: %g, stixX: %g, stixD: %g, stixA: %g,mu_sq: %g\n", n_x, n_z, stixX, stixD, stixA, mu_sq);
+    // printf("\nn_x: %g, n_z: %g, stixX: %g, stixD: %g, stixA: %g, stixB: %g, mu_sq: %g\n", n_x, n_z, stixX, stixD, stixA, stixB, mu_sq);
       
     // Oblique integration quantities
     R1 = (Exw + Eyw)/(Bxw+Byw);
@@ -916,9 +934,9 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
         t2 = pow((mres*wh),2)-w*w;
         t3 = kz*kz + pow((mres*wh),2)/(pow(C*cos(alpha_lc),2));
         if(mres==0) {
-          direction = -1*signof(kz); //kz/fabs(kz);
+          direction = -kz/fabs(kz);
         } else {
-          direction = signof(kz)*signof(mres); //kz/fabs(kz) * mres/fabs(mres) ;
+          direction = kz/fabs(kz) * mres/fabs(mres) ;
         }
 
         v_para_res = ( direction*sqrt(t1 + t2*t3) - w*kz ) / t3;
@@ -934,7 +952,7 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
         if(e_endi<0) e_endi=0;
         if(e_starti<0) e_starti=0;
 
-
+        // printf("dir: %g t1: %g t2: %g t3: %g\n",direction, t1, t2, t3);
         // begin V_TOT loop here
         for(int e_toti=e_starti; e_toti < e_endi; e_toti++) {
             v_tot = direction*v_tot_arr[e_toti];
@@ -1021,9 +1039,9 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                     da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
                 }
 
-
+                // cout << e_toti << ": da: " << dalpha_eq << "\n";
                 // if (e_toti > NUM_E/2) {
-                //     cout << "t= " << t << " flt_time: " << flt_time << "\n";
+                    // cout << "t= " << t << " flt_time: " << flt_time << "\n";
                 // }
             }   
         }   // v_tot, e_tot
@@ -1041,8 +1059,7 @@ void add_rayT(rayT* rayA, rayT* rayB) {
     rayA->stixP   += rayB->stixP;         
     rayA->stixR   += rayB->stixR;         
     rayA->stixL   += rayB->stixL;         
-    // rayA->stixA   += rayB->stixA;         
-    // rayA->stixB   += rayB->stixB;         
+        
     rayA->stixS   += rayB->stixS;         
     rayA->stixD   += rayB->stixD;
 
@@ -1112,12 +1129,12 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target) {
     frame->stixL = ( rayfile->stixL[iMid+1]-rayfile->stixL[iMid] )*M + rayfile->stixL[iMid];
     frame->stixS = ( rayfile->stixS[iMid+1]-rayfile->stixS[iMid] )*M + rayfile->stixS[iMid]; 
     frame->stixD = ( rayfile->stixD[iMid+1]-rayfile->stixD[iMid] )*M + rayfile->stixD[iMid];
-    // frame->stixA = ( rayfile->stixA[iMid+1]-rayfile->stixA[iMid] )*M + rayfile->stixA[iMid];
-    // frame->stixB = ( rayfile->stixB[iMid+1]-rayfile->stixB[iMid] )*M + rayfile->stixB[iMid];   
     
-
+    
     // Stuff that doesn't need interpolation:
     frame->w    = rayfile->w;
+    frame->in_lat = rayfile->in_lat;
+    frame->in_lon = rayfile->in_lon;
     frame->time = t_target;
     frame->inp_pwr = rayfile->inp_pwr;
     // cout << t_target << " " << frame->damping <<"\n";
