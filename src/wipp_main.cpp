@@ -465,9 +465,11 @@ int main(int argc, char *argv[])
     //     }
     // }
 
-
+    // Let's try this with the old crossings:
     for (vector<cellT>::iterator iter = listy.begin(); iter!=listy.end(); iter++) {
-        print_array(iter->pos.data(),3);
+
+
+
     }
 
 
