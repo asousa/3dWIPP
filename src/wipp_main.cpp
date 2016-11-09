@@ -456,13 +456,18 @@ int main(int argc, char *argv[])
     vector<cellT> listy = load_crossings("/shared/users/asousa/WIPP/WIPPv4/crossing_log.txt");
 
     // Calculate scattering at crossings:
-    cout << "Calculating resonances\n";
-    for (int rr=NUM_EA-1; rr>=0; rr--) {
+    // cout << "Calculating resonances\n";
+    // for (int rr=NUM_EA-1; rr>=0; rr--) {
 
-        printf("---------------- EA at lat: %2.2f ------------------\n", EA_array[rr].lat);
-        for(map<pair<int,int>,rayT>::iterator iter = crossing_db[rr].begin(); iter != crossing_db[rr].end(); ++iter){
-            calc_resonance(&(iter->second), &(EA_array[rr]), v_tot_arr, da_N, da_S);
-        }
+    //     printf("---------------- EA at lat: %2.2f ------------------\n", EA_array[rr].lat);
+    //     for(map<pair<int,int>,rayT>::iterator iter = crossing_db[rr].begin(); iter != crossing_db[rr].end(); ++iter){
+    //         calc_resonance(&(iter->second), &(EA_array[rr]), v_tot_arr, da_N, da_S);
+    //     }
+    // }
+
+
+    for (vector<cellT>::iterator iter = listy.begin(); iter!=listy.end(); iter++) {
+        print_array(iter->pos.data(),3);
     }
 
 
