@@ -42,9 +42,9 @@
 #define 	DE_EXP	    ((E_EXP_TOP - E_EXP_BOT)/(NUM_E))
 
 // // EA array grid settings:
-#define		EALimS		32
-#define		EALimN	    34
-#define     NUM_EA      2
+#define		EALimS		-40
+#define		EALimN	    40
+#define     NUM_EA      41
 #define		EAIncr	    ((EALimN - EALimS)/(NUM_EA - 1))	
 
 #define     TRACER_MAX  20000    // Maximum steps in field line tracer
@@ -52,7 +52,7 @@
 
 // Fine-scale interpolation step sizes:
 #define     FREQ_STEP_SIZE  10 // Hz
-#define     LAT_STEP_SIZE   10    // km
+#define     LAT_STEP_SIZE   1    // km
 #define     LON_STEP_SIZE   100  // km
 
 
@@ -65,7 +65,7 @@
 
 #define     TIME_STEP   (1.0*((1.0*TIME_MAX)/NUM_TIMES))     // Seconds
 
-#define     SCATTERING_RES_MODES   5        
+#define     SCATTERING_RES_MODES   5       
 
 #define     WAVE_PWR_THRESH   0
 

@@ -423,12 +423,12 @@ void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
 }
 
 
-vector<cellT> load_crossings(string filename) {
+vector<cellT> load_crossings(int itime_in[2], string filename) {
     ifstream file;
     istringstream iss;
     string line;
     double x_in[3];
-    double x_out[3];
+    double x_out[3], x_sm[3];
 
     vector<cellT> outs;
 
@@ -458,9 +458,10 @@ vector<cellT> load_crossings(string filename) {
             double radius = Lsh*pow(cos(D2R*lat),2);  
             x_in = {radius, D2R*lat, 0};
             sphcar(x_in, x_out);
-            // print_array(x_out, 3);              
+            mag_to_sm_d_(itime_in, x_out, x_sm);
 
-            ray.pos = Map<Vector3d>(x_out, 3,1);
+
+            ray.pos = Map<Vector3d>(x_sm, 3,1);
             ray.pwr = pwr;
             ray.mu  = mu;
             ray.t   = t;
@@ -470,6 +471,8 @@ vector<cellT> load_crossings(string filename) {
             ray.stixR = stixR;
             ray.stixL = stixL;
             ray.num_rays = 1;
+            ray.Lsh = Lsh;
+            ray.lat = lat;
 
             outs.push_back(ray);
         }

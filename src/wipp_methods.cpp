@@ -126,8 +126,8 @@ void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT
         rayout->stixR += W[jj]*(framelist[jj].stixR);
         rayout->stixL += W[jj]*(framelist[jj].stixL);
         rayout->stixP += W[jj]*(framelist[jj].stixP);
-        rayout->stixS += W[jj]*(framelist[jj].stixS);
-        rayout->stixD += W[jj]*(framelist[jj].stixD);
+        // rayout->stixS += W[jj]*(framelist[jj].stixS);
+        // rayout->stixD += W[jj]*(framelist[jj].stixD);
         rayout->in_lat+= W[jj]*(framelist[jj].in_lat);
         rayout->in_lon+= W[jj]*(framelist[jj].in_lon);
 
@@ -765,11 +765,11 @@ void dump_EA_array(EA_segment EA_array[NUM_EA], string filename) {
 }
 
 
-void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], 
+void calc_resonance(cellT* cell, EA_segment* EA, double v_tot_arr[NUM_E], 
     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]) {
     // Performs resonance calculation for a single ray entry, and records
     // changes in pitch angle into da_N and da_S (for northern and southern hemis)
-    double t, w, pwr;
+    double t, f, w, pwr;
     Vector3d n, B0;
     double psi, mu, mu_sq, spsi, cpsi, spsi_sq, cpsi_sq;
     double k, kx, kz;
@@ -819,15 +819,17 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 
     // printf("ds (EA): %g, ds (ray): %g\n", EA->ds, ds);
 
-    t = ray->time + TIME_STEP/2.; //ray->dt/2.;
-    w = ray->w + FREQ_STEP_SIZE*PI;
+    t = cell->t + TIME_STEP/2.; //ray->dt/2.;
+    f = cell->f + FREQ_STEP_SIZE/2;
+
+    w = 2*PI*f;
     
     // pwr = (ray->inp_pwr)*(ray->damping)/(1 + ray->num_rays)*FREQ_STEP_SIZE;
 
-    pwr = (ray->inp_pwr)*(ray->damping)/(1.0 + ray->num_rays)/TIME_STEP/ds;
-
-    n  = ray->n /(1 + ray->num_rays);
-    B0 = ray->B0;
+    // pwr = (ray->inp_pwr)*(ray->damping)/(1.0 + ray->num_rays)/TIME_STEP/ds;
+    pwr = cell->pwr/cell->num_rays;
+    // n  = ray->n /(1 + ray->num_rays);
+    // B0 = ray->B0;
 
 
     if (pwr < WAVE_PWR_THRESH) {
@@ -845,18 +847,18 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
     // psi = -90*D2R - n.dot(B0)/(n.norm()*B0.norm());
 
 
-    kvec = n*w/C;
-    k    = kvec.norm();
-    Bhat = B0.array()/B0.norm();
-    kz = -1.0*kvec.dot(Bhat); //k.array()*Bhat.array();
-    kx = (kvec + kz*Bhat).norm();
+    // kvec = n*w/C;
+    // k    = kvec.norm();
+    // Bhat = B0.array()/B0.norm();
+    // kz = -1.0*kvec.dot(Bhat); //k.array()*Bhat.array();
+    // kx = (kvec + kz*Bhat).norm();
 
     // Theta is the angle between parallel and perpendicular K
-    psi = atan2(-kx, kz);
+    // psi = atan2(-kx, kz);
+    psi = cell->psi/cell->num_rays;
 
 
-
-    printf("t: %g f: %g pwr: %g psi: %2.3f num_rays: %i\n",t, w/(2*PI), pwr,psi*R2D,  ray->num_rays);
+    printf("t: %g f: %g pwr: %g psi: %2.3f num_rays: %i\n",t, f, pwr,psi*R2D,  cell->num_rays);
     // cout << "t: " << t << " f: " << w/(2*PI) << " psi: " << psi*R2D << " Num_rays: "<< ray->num_rays <<  "\n";
 
 
@@ -865,7 +867,8 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 
     // cout << "wh: " << wh << "\n";
     // cout << "t= " << t << " psi= " << R2D*psi << "\n";
-    mu = n.norm();
+    // mu = n.norm();
+    mu = cell->mu/(cell->num_rays);
     mu_sq = pow(mu, 2);
     spsi = sin(psi);
     cpsi = cos(psi);
@@ -884,12 +887,12 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
 
     // printf("kx: %g kperp: %g kz: %g kpar: %g dkx: %g dkz: %g\n",kx, kperp, kz, kpar, kx - kperp, kz + kpar);
 
-    stixP = ray->stixP /(1 + ray->num_rays);
-    stixR = ray->stixR /(1 + ray->num_rays);
-    stixL = ray->stixL /(1 + ray->num_rays);
-    stixS = ray->stixS /(1 + ray->num_rays);
-    stixD = ray->stixD /(1 + ray->num_rays);
+    stixP = cell->stixP /(cell->num_rays);
+    stixR = cell->stixR /(cell->num_rays);
+    stixL = cell->stixL /(cell->num_rays);
 
+    stixS = ( stixR + stixL ) /2.0;
+    stixD = ( stixR - stixL ) /2.0;
 
 
     stixA = stixS*spsi_sq       + stixP*cpsi_sq;
@@ -992,14 +995,14 @@ void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E],
                      + (mres/(2.0*v_para_star*gamma))*dwh_ds * (1 + ds/(2.0*v_para_star)*dv_para_ds) 
                      + w/(2.0*v_para_star_sq)*dv_para_ds;
 
-                // // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
-                // BB =   mres/(gamma*v_para_star)*wh 
-                //      - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0)
-                //      - w/v_para_star - kz;
+                // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
+                BB =   mres/(gamma*v_para_star)*wh 
+                     - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0)
+                     - w/v_para_star - kz;
 
-                // Bortnik A.18 -- part A0
-                BB =   mres*wh/(gamma*v_para_star)
-                     - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) * (w/v_para_star)*kz;
+                // // Bortnik A.18 -- part A0
+                // BB =   mres*wh/(gamma*v_para_star)
+                //      - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) * (w/v_para_star)*kz;
 
 
                 // Evaluate Bortnik A.26 -- integration performed thru Fresnel functions
@@ -1060,8 +1063,8 @@ void add_rayT(rayT* rayA, rayT* rayB) {
     rayA->stixR   += rayB->stixR;         
     rayA->stixL   += rayB->stixL;         
         
-    rayA->stixS   += rayB->stixS;         
-    rayA->stixD   += rayB->stixD;
+    // rayA->stixS   += rayB->stixS;         
+    // rayA->stixD   += rayB->stixD;
 
     rayA->ds      += rayB->ds;
 
@@ -1127,8 +1130,8 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target) {
     frame->stixP = ( rayfile->stixP[iMid+1]-rayfile->stixP[iMid] )*M + rayfile->stixP[iMid];
     frame->stixR = ( rayfile->stixR[iMid+1]-rayfile->stixR[iMid] )*M + rayfile->stixR[iMid];
     frame->stixL = ( rayfile->stixL[iMid+1]-rayfile->stixL[iMid] )*M + rayfile->stixL[iMid];
-    frame->stixS = ( rayfile->stixS[iMid+1]-rayfile->stixS[iMid] )*M + rayfile->stixS[iMid]; 
-    frame->stixD = ( rayfile->stixD[iMid+1]-rayfile->stixD[iMid] )*M + rayfile->stixD[iMid];
+    // frame->stixS = ( rayfile->stixS[iMid+1]-rayfile->stixS[iMid] )*M + rayfile->stixS[iMid]; 
+    // frame->stixD = ( rayfile->stixD[iMid+1]-rayfile->stixD[iMid] )*M + rayfile->stixD[iMid];
     
     
     // Stuff that doesn't need interpolation:
@@ -1282,3 +1285,45 @@ vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs)
 return adjacency_list;
 
 }
+
+
+cellT new_cell(rayT ray) {
+    cellT cell;
+
+    cell.pos = ray.pos;
+    cell.t   = ray.time;
+    cell.f   = ray.w/(2*PI);
+    cell.pwr = ray.inp_pwr*ray.damping/FREQ_STEP_SIZE/TIME_STEP/ray.ds;
+
+
+    Vector3d kvec = ray.n*ray.w/C;
+    double k      = kvec.norm();
+    Vector3d Bhat = ray.B0.array()/ray.B0.norm();
+    double kz     = -1.0*kvec.dot(Bhat); //k.array()*Bhat.array();
+    double kx     = (kvec + kz*Bhat).norm();
+
+    // angle between parallel and perpendicular K
+    cell.psi = R2D*atan2(-kx, kz);
+
+    cout << "psi: " << cell.psi << "\n";
+    cell.mu = ray.n.norm();
+    cell.stixP    = ray.stixP;
+    cell.stixR    = ray.stixR;
+    cell.stixL    = ray.stixL;
+    cell.num_rays = 1;
+
+    return cell;
+}
+
+
+void add_cell(cellT* cell1, cellT* cell2) {
+    
+    cell1->pwr       += cell2->pwr;
+    cell1->psi       += cell2->psi;
+    cell1->mu        += cell2->mu;
+    cell1->stixP     += cell2->stixP;
+    cell1->stixR     += cell2->stixR;
+    cell1->stixL     += cell2->stixL;
+    cell1->num_rays  += 1; 
+}
+

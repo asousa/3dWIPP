@@ -98,8 +98,8 @@ typedef struct rayT {
     double stixP;
     double stixR;
     double stixL;
-    double stixS;
-    double stixD;
+    // double stixS;
+    // double stixD;
     double in_lat;
     double in_lon;
 
@@ -109,6 +109,8 @@ typedef struct rayT {
 
 // Store each cell in the spectrogram in cellT
 typedef struct cellT {
+  double        Lsh;
+  double        lat;
   double        t;
   double        f;
   double        pwr;
@@ -118,7 +120,7 @@ typedef struct cellT {
   double        stixR;
   double        stixL;
   Eigen::Vector3d      pos;
-  int           num_rays;   
+  double         num_rays;   
 } cellT;
 
 
@@ -294,9 +296,10 @@ bool coarse_mask(rayT cur_rays[8], rayT prev_rays[8], EA_segment EA);
 bool crosses_EA(Vector3d l0, Vector3d l1, EA_segment EA_seg);
 
 double longitude_interval(double ra, double r0);
-
-void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], 
-                    double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+void calc_resonance(cellT* cell, EA_segment* EA, double v_tot_arr[NUM_E], 
+    double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+// void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], 
+//                     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
 void Fresnel(double x0, double *FS, double *FC);
 
 void write_p_array(double arr[NUM_E][NUM_TIMES], string filename);
@@ -308,7 +311,12 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target);
 vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs);
 double haversine_distance(double latitude1, double longitude1, double latitude2, double longitude2);
 
-vector<cellT> load_crossings(string filename);
+vector<cellT> load_crossings(int itime_in[2], string filename);
 
+void calcRes(cellT cell, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+void getFltConst(double L, double lat, double alpha_eq, 
+         double *flt_const_N, double *flt_const_S);
 
+cellT new_cell(rayT ray);
+void add_cell(cellT* cell1, cellT* cell2);
 #endif
