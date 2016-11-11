@@ -151,6 +151,8 @@ typedef struct EA_segment {
     double ds;                         // Distance along field line between entries (m) (Walt 3.19)
     double dv_para_ds;                 // hm... good question.
 
+    double Bo_ratio;                   // ratio of field at equator vs local
+    
     // Should we do Stix parameters here? They're a constant of the background
     // medium, not of the wave... but we'd have to get the plasmasphere model.
 
@@ -296,8 +298,13 @@ bool coarse_mask(rayT cur_rays[8], rayT prev_rays[8], EA_segment EA);
 bool crosses_EA(Vector3d l0, Vector3d l1, EA_segment EA_seg);
 
 double longitude_interval(double ra, double r0);
-void calc_resonance(cellT* cell, EA_segment* EA, double v_tot_arr[NUM_E], 
+// void calc_resonance(cellT* cell, EA_segment* EA, double v_tot_arr[NUM_E], 
+//     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+// void calc_resonance(cellT cell, EA_segment EA, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+void calc_resonance(map<pair<int,int>,cellT> db, EA_segment EA, 
     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+
+
 // void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], 
 //                     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
 void Fresnel(double x0, double *FS, double *FC);

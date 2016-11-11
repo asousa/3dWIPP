@@ -22,44 +22,34 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 
 
     f = w/(2.0*PI);
-
-    // cout << "flash loc: " << flash_loc[0] << " " << flash_loc[1] << " " << flash_loc[2] << "\n";
-    // cout << "flash loc: " << ray_loc[0] << " " << ray_loc[1] << " " << ray_loc[2] << "\n";
-   
    
     v1 = Map<VectorXd>(flash_loc,3,1);
     v2 = Map<VectorXd>(ray_loc,  3,1);
 
     theta = acos(v1.dot(v2)/(v1.norm()*v2.norm()));
     
-    // cout << "theta: " << R2D*theta << " deg\n";
     // Arc length (~great-circle distance) between vI0ectors
     gc_distance = (R_E)*theta;
-    // cout << " gc_dist: " << gc_distance*1e-3 << "\n";
+    
     // total distance up to ionosphere:
     dist_tot = hypot(gc_distance, H_IONO);
     xi = atan2(gc_distance, H_IONO);  // Incident angle
 
-    // cout << "xi: " << R2D*xi << " deg\n";
     w_sq =  pow( w , 2 );
     S = ( (1/Z0) * pow( (H_E*i0*2E-7*(sin(xi)/dist_tot)*w*(P_A-P_B)) , 2 ) 
                    /  (  (w_sq+pow(P_A,2))*(w_sq+pow(P_B,2))  )      ) ;
     S_vert = S * cos(xi) ;  // factor for vert prop.
 
-
     // Ionosphere absorption model
     attn_factor = pow(10,-(ionoAbsorp(mag_lat,f)/10)  );
     S_vert = S_vert * attn_factor;
 
-    printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
+    // printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
     
-
     return S_vert;
 } 
 
-// void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
 void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z, rayT* rayout) {
-
     // Fine-scale interpolation (positions only)
 
     double W[8];
@@ -85,8 +75,6 @@ void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z
 
 
 
-
-
 // void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout) {
 void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT* rayout) {
 
@@ -102,7 +90,6 @@ void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT
     W[6] = n_y*(1. - n_x)*n_z;
     W[7] = n_x*n_y*n_z*1.;
 
-    // print_vector(vector<double>(W, W+8));
     // print_array(W, 8);
     for (int jj=0; jj<8; jj++){  // Corner rays
     // print_array(raylist[jj]->pos[t_ind].data(), 3);
@@ -116,37 +103,19 @@ void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT
         }
 
         // scalar-valued here
-        // cout << "corner w: " << raylist[jj]->w << "\n";
-        // rayout->time +=  W[jj]*(framelist[jj].time);
+
         rayout->w += W[jj]*(framelist[jj].w);
-        // cout << rayout->w/(2*PI) << " ";
+
         rayout->inp_pwr += W[jj]*(framelist[jj].inp_pwr);
         rayout->damping += W[jj]*(framelist[jj].damping);
 
         rayout->stixR += W[jj]*(framelist[jj].stixR);
         rayout->stixL += W[jj]*(framelist[jj].stixL);
         rayout->stixP += W[jj]*(framelist[jj].stixP);
-        // rayout->stixS += W[jj]*(framelist[jj].stixS);
-        // rayout->stixD += W[jj]*(framelist[jj].stixD);
+
         rayout->in_lat+= W[jj]*(framelist[jj].in_lat);
         rayout->in_lon+= W[jj]*(framelist[jj].in_lon);
-
-        // rayout->stixA += W[jj]*(framelist[jj].stixA);
-        // rayout->stixB += W[jj]*(framelist[jj].stixB);
-
-
     }
-    // cout << "inp ray lons: ";
-    // for (int i=0; i< 8; i++) {
-    //     cout << framelist[i].in_lon << " ";
-    // }
-
-
-    // cout << "in: ";
-    // cout << "f_interp: " << rayout->w/(2*PI) << "\n";
-    // cout << "lat_interp: " << rayout->in_lat << "\n";
-    // cout << "lon_interp: " << rayout->in_lon << "\n";
-    // print_array(rayout->pos, 3);
 }
 
 
@@ -475,8 +444,15 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
 
 
         // Calculate local loss cone:
+        // double alpha_lc_calc = asin(sqrt( slat_term/pow(clam,6) )*sin(alpha_eq));
+        // EA_array[i].alpha_lc = asin(sqrt( slat_term/pow(clam,6) )*sin(alpha_eq));
         EA_array[i].alpha_lc = asin(sqrt(Bomag/norm(B_iono,3)));
         
+        // printf("lat: %g alpha_lc (mine): %g alpha_lc (theirs): %g\n",
+        //     lats[ind], R2D*EA_array[i].alpha_lc, R2D*alpha_lc_calc);
+        
+
+
         // Save equatorial loss cone:
         EA_array[i].alpha_eq = alpha_eq;
 
@@ -485,7 +461,10 @@ void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2]
                                       cos(EA_array[i].alpha_lc)/
                                       EA_array[i].wh*EA_array[i].dwh_ds;
 
+        // Ratio of B-field at equator vs local: (used in mapping pitch angles to equator)
+        EA_array[i].Bo_ratio = sqrt(norm(B_eq,3)/norm(Bo,3));
 
+        cout << "ratio: " << EA_array[i].Bo_ratio << "\n";
         // // analytical (for comparison)
         // double epsm = (1/Lsh)*(R_E+H_IONO)/R_E;
         // double alpha_eq = asin(sqrt( pow(epsm,3)/sqrt(1+3*(1-epsm)) ));
@@ -765,292 +744,262 @@ void dump_EA_array(EA_segment EA_array[NUM_EA], string filename) {
 }
 
 
-void calc_resonance(cellT* cell, EA_segment* EA, double v_tot_arr[NUM_E], 
-    double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]) {
-    // Performs resonance calculation for a single ray entry, and records
-    // changes in pitch angle into da_N and da_S (for northern and southern hemis)
-    double t, f, w, pwr;
-    Vector3d n, B0;
-    double psi, mu, mu_sq, spsi, cpsi, spsi_sq, cpsi_sq;
-    double k, kx, kz;
-    double n_x, n_z;
-    double wh, alpha_lc, calph, salph, ds, dv_para_ds, dwh_ds;
-    double Y;
-    double stixS, stixD, stixA, stixB, stixX, stixR, stixL, stixP;
-    double rho1, rho2, Byw_sq;
-    double Byw, Exw, Eyw, Ezw, Bxw, Bzw;
-    double R1, R2, w1, w2, alpha1;
-    double t1, t2, t3;
-    double direction;
-    double v_para_res, v_tot_res, E_res;
-    double e_starti, e_endi;
-    double slat, clat, slat_term;
-    double alpha_eq;
-    double ftc_n, ftc_s;
+// void calc_resonance(cellT cell,  EA_segment EA, 
+//     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]) {
+//     // Performs resonance calculation for a single ray entry, and records
+//     // changes in pitch angle into da_N and da_S (for northern and southern hemis)
+//     double t, f, w, pwr;
+//     double v_tot_arr[NUM_E], E_tot_arr[NUM_E];
+//     Vector3d n, B0;
+//     double psi, mu, mu_sq, spsi, cpsi, spsi_sq, cpsi_sq;
+//     double k, kx, kz;
+//     double n_x, n_z;
+//     double wh, alpha_lc, calph, salph, ds, dv_para_ds, dwh_ds;
+//     double Y;
+//     double stixS, stixD, stixA, stixB, stixX, stixR, stixL, stixP;
+//     double rho1, rho2, Byw_sq;
+//     double Byw, Exw, Eyw, Ezw, Bxw, Bzw;
+//     double R1, R2, w1, w2, alpha1;
+//     double t1, t2, t3;
+//     double direction;
+//     double v_para_res, v_tot_res, E_res;
+//     double e_starti, e_endi;
+//     double slat, clat, slat_term;
+//     double alpha_eq;
+//     double ftc_n, ftc_s;
     
-    double v_tot, v_para, v_perp;
-    double gamma, alpha2, beta, wtau_sq, T1;
-    double eta_dot, dalpha_eq;
-    double v_para_star, v_para_star_sq;
-    double AA, BB;
-    double Farg, Farg0, Fs, Fs0, Fc, Fc0;
-    double dFs_sq, dFc_sq;
-    double dalpha, alpha_eq_p;
-    double flt_time;
+//     double v_tot, v_para, v_perp;
+//     double gamma, alpha2, beta, wtau_sq, T1;
+//     double eta_dot, dalpha_eq;
+//     double v_para_star, v_para_star_sq;
+//     double AA, BB;
+//     double Farg, Farg0, Fs, Fs0, Fc, Fc0;
+//     double dFs_sq, dFc_sq;
+//     double dalpha, alpha_eq_p;
+//     double flt_time;
 
-    Vector3d kvec, Bhat;
-    int timei;
+//     Vector3d kvec, Bhat;
+//     int timei;
+//     int e_toti;
 
-    // Parameters from the EA array (maybe we should calculate them here, for organization)
-    wh = EA->wh;
-    alpha_lc = EA->alpha_lc;
-    calph = cos(alpha_lc);
-    salph = sin(alpha_lc);
-    ds    = EA->ds;
-    dv_para_ds = EA->dv_para_ds;
-    dwh_ds     = EA->dwh_ds;
-    slat  = sin(D2R*EA->lat);
-    clat  = cos(D2R*EA->lat);
-    alpha_eq = EA->alpha_eq;
-    ftc_n = EA->ftc_n;
-    ftc_s = EA->ftc_s;
+//     // Parameters from the EA array (maybe we should calculate them here, for organization)
+//     wh = EA.wh;
+//     alpha_lc = EA.alpha_lc;
+//     calph = cos(alpha_lc);
+//     salph = sin(alpha_lc);
+//     ds    = EA.ds;
+//     dv_para_ds = EA.dv_para_ds;
+//     dwh_ds     = EA.dwh_ds;
+//     slat  = sin(D2R*EA.lat);
+//     clat  = cos(D2R*EA.lat);
+//     alpha_eq = EA.alpha_eq;
+//     ftc_n = EA.ftc_n;
+//     ftc_s = EA.ftc_s;
 
-    // ds = ray->ds /(1 + ray->num_rays);   // Try a different interaction length?
+//     printf("wh: %g dwh_ds: %g\n",wh, dwh_ds);
 
-    // printf("ds (EA): %g, ds (ray): %g\n", EA->ds, ds);
+//     slat_term = sqrt(1+3*slat*slat);
 
-    t = cell->t + TIME_STEP/2.; //ray->dt/2.;
-    f = cell->f + FREQ_STEP_SIZE/2;
+//     t = cell.t + TIME_STEP/2.; //ray->dt/2.;
+//     f = cell.f + FREQ_STEP_SIZE/2;
 
-    w = 2*PI*f;
+//     w = 2*PI*f;
     
-    // pwr = (ray->inp_pwr)*(ray->damping)/(1 + ray->num_rays)*FREQ_STEP_SIZE;
+//     pwr = cell.pwr*FREQ_STEP_SIZE/cell.num_rays;
+//     psi = D2R*cell.psi/cell.num_rays;
 
-    // pwr = (ray->inp_pwr)*(ray->damping)/(1.0 + ray->num_rays)/TIME_STEP/ds;
-    pwr = cell->pwr/cell->num_rays;
-    // n  = ray->n /(1 + ray->num_rays);
-    // B0 = ray->B0;
+//     if (pwr < WAVE_PWR_THRESH) {
+//         return;
+//     }
 
+//     //initialize the velocity and energy arrays
+//     for(int i=0; i<NUM_E; i++) {
+//         E_tot_arr[i] = pow(10, (E_EXP_BOT+ DE_EXP*i) ); // energy in eV
+//         v_tot_arr[i] = C*sqrt(1 - pow( (E_EL/(E_EL+E_tot_arr[i])) ,2) );
+//     }
 
-    if (pwr < WAVE_PWR_THRESH) {
-        return;
-    }
+//     mu = cell.mu/(cell.num_rays);
+//     mu_sq = pow(mu, 2);
+//     spsi = sin(psi);
+//     cpsi = cos(psi);
+//     spsi_sq = pow(spsi, 2);
+//     cpsi_sq = pow(cpsi, 2);
 
-    // cout << "t: " << t << " f: " << w/(2*PI) << "\n";
+//     n_x =  mu*fabs(spsi);
+//     n_z =  mu*cpsi;
+//     k = w*mu/C;
+//     kx = w*n_x/C;
+//     kz = w*n_z/C;
 
-    // For this calculation, we're working in a frame with z parallel to 
-    // the background magnetic field. 
+//     Y = wh / w;
 
-    // Angle between wavenormal and background magnetic field.
-    // ( -90 - (dot product) matches original raytracer's output... 11.1.2016)
+//     printf("t: %g f: %g pwr: %g psi: %2.3f num_rays: %g\n",t, f, pwr,psi*R2D,  cell.num_rays);
+//     printf("wh: %g dwh_ds: %g alpha_lc: %g alpha_eq: %g ds: %g dv_para_ds: %g\n",
+//             wh,    dwh_ds,    alpha_lc,    alpha_eq,    ds,    dv_para_ds);
+//     // printf("kx: %g kperp: %g kz: %g kpar: %g dkx: %g dkz: %g\n",kx, kperp, kz, kpar, kx - kperp, kz + kpar);
 
-    // psi = -90*D2R - n.dot(B0)/(n.norm()*B0.norm());
+//     stixP = cell.stixP /(cell.num_rays);
+//     stixR = cell.stixR /(cell.num_rays);
+//     stixL = cell.stixL /(cell.num_rays);
 
+//     stixS = ( stixR + stixL ) /2.0;
+//     stixD = ( stixR - stixL ) /2.0;
 
-    // kvec = n*w/C;
-    // k    = kvec.norm();
-    // Bhat = B0.array()/B0.norm();
-    // kz = -1.0*kvec.dot(Bhat); //k.array()*Bhat.array();
-    // kx = (kvec + kz*Bhat).norm();
+//     stixA = stixS*spsi_sq       + stixP*cpsi_sq;
+//     stixB = stixR*stixL*spsi_sq + stixP*stixS*(1+cpsi_sq);
 
-    // Theta is the angle between parallel and perpendicular K
-    // psi = atan2(-kx, kz);
-    psi = cell->psi/cell->num_rays;
+//     stixX = stixP/(stixP - mu_sq*spsi_sq);  // Ristic 3.2, pg 41
 
+//     // Polarization ratios
+//       rho1=((mu_sq-stixS)*mu_sq*spsi*cpsi)/(stixD*(mu_sq*spsi_sq-stixP));
+//       rho2 = (mu_sq - stixS) / stixD ;
 
-    printf("t: %g f: %g pwr: %g psi: %2.3f num_rays: %i\n",t, f, pwr,psi*R2D,  cell->num_rays);
-    // cout << "t: " << t << " f: " << w/(2*PI) << " psi: " << psi*R2D << " Num_rays: "<< ray->num_rays <<  "\n";
+//     // (bortnik 2.28)
+//     Byw_sq =  (2.0*MU0/C) * pwr * stixX*stixX * rho2*rho2 * mu*fabs(cpsi)/
+//                        sqrt(  pow((tan(psi)-rho1*rho2*stixX),2) + 
+//                               pow( (1+rho2*rho2*stixX), 2 ) );
 
-
-
-    slat_term = sqrt(1+3*slat*slat);
-
-    // cout << "wh: " << wh << "\n";
-    // cout << "t= " << t << " psi= " << R2D*psi << "\n";
-    // mu = n.norm();
-    mu = cell->mu/(cell->num_rays);
-    mu_sq = pow(mu, 2);
-    spsi = sin(psi);
-    cpsi = cos(psi);
-    spsi_sq = pow(spsi, 2);
-    cpsi_sq = pow(cpsi, 2);
-
-    n_x =  mu*fabs(spsi);
-    n_z =  mu*cpsi;
-
-    // k = w*mu/C;
-    // kx = w*n_x/C;
-    // kz = w*n_z/C;
-
-    Y = wh / w;
-
-
-    // printf("kx: %g kperp: %g kz: %g kpar: %g dkx: %g dkz: %g\n",kx, kperp, kz, kpar, kx - kperp, kz + kpar);
-
-    stixP = cell->stixP /(cell->num_rays);
-    stixR = cell->stixR /(cell->num_rays);
-    stixL = cell->stixL /(cell->num_rays);
-
-    stixS = ( stixR + stixL ) /2.0;
-    stixD = ( stixR - stixL ) /2.0;
-
-
-    stixA = stixS*spsi_sq       + stixP*cpsi_sq;
-    stixB = stixR*stixL*spsi_sq + stixP*stixS*(1+cpsi_sq);
-
-    stixX = stixP/(stixP - mu_sq*spsi_sq);  // Ristic 3.2, pg 41
-
-    // Polarization ratios
-    rho1 = ((mu_sq-stixS)*mu_sq*spsi*cpsi)/(stixD*(mu_sq*spsi_sq-stixP));
-    rho2 = (mu_sq - stixS) / stixD ;
-
-    // (bortnik 2.28)
-    Byw_sq =  (2.0*MU0/C) * pwr * stixX*stixX * rho2*rho2 * mu*fabs(cpsi)/
-                       sqrt(  pow((tan(psi)-rho1*rho2*stixX),2) + 
-                              pow( (1+rho2*rho2*stixX), 2 ) );
-
-    // RMS wave components
-    Byw = sqrt(Byw_sq);
-    Exw = fabs(C*Byw * (stixP - n_x*n_x)/(stixP*n_z)); 
-    Eyw = fabs(Exw * stixD/(stixS-mu_sq));
-    Ezw = fabs(Exw *n_x*n_z / (n_x*n_x - stixP));
-    Bxw = fabs(Exw *stixD*n_z /C/ (stixS - mu_sq));
-    Bzw = fabs((Exw *stixD *n_x) /(C*(stixX - mu_sq)));
+//     // RMS wave components
+//     Byw = sqrt(Byw_sq);
+//     Exw = fabs(C*Byw * (stixP - n_x*n_x)/(stixP*n_z)); 
+//     Eyw = fabs(Exw * stixD/(stixS-mu_sq));
+//     Ezw = fabs(Exw *n_x*n_z / (n_x*n_x - stixP));
+//     Bxw = fabs(Exw *stixD*n_z /C/ (stixS - mu_sq));
+//     Bzw = fabs((Exw *stixD *n_x) /(C*(stixX - mu_sq)));
     
-    printf("Byw: %g Exw: %g Eyw: %g Ezw: %g Bxw: %g Bzw: %g\n",
-              Byw,    Exw,    Eyw,    Ezw,    Bxw,    Bzw);
-    // cout << " Byw_sq: " << Byw_sq << " pwr: " << pwr << " damping: " << ray->damping << " inp: " << ray->inp_pwr << "\n";
-    // // printf("\nByw_sq: %g, rho1: %g, rho2: %g, \nstixS: %g, stixB: %g\n", Byw_sq, rho1, rho2, stixS, stixB);  
-    // printf("\nn_x: %g, n_z: %g, stixX: %g, stixD: %g, stixA: %g, stixB: %g, mu_sq: %g\n", n_x, n_z, stixX, stixD, stixA, stixB, mu_sq);
-      
-    // Oblique integration quantities
-    R1 = (Exw + Eyw)/(Bxw+Byw);
-    R2 = (Exw - Eyw)/(Bxw-Byw);
-    w1 = Q_EL/(2*M_EL)*(Bxw+Byw);
-    w2 = Q_EL/(2*M_EL)*(Bxw-Byw);
-    alpha1 = w2/w1;
+//     printf("Byw: %g Exw: %g Eyw: %g Ezw: %g Bxw: %g Bzw: %g\n",
+//               Byw,    Exw,    Eyw,    Ezw,    Bxw,    Bzw);
 
-    // Sum over all resonance modes
-    for (int mres=-SCATTERING_RES_MODES; mres <= SCATTERING_RES_MODES; mres++) {
-        // get parallel resonance velocity
-        t1 = w*w*kz*kz;
-        t2 = pow((mres*wh),2)-w*w;
-        t3 = kz*kz + pow((mres*wh),2)/(pow(C*cos(alpha_lc),2));
-        if(mres==0) {
-          direction = -kz/fabs(kz);
-        } else {
-          direction = kz/fabs(kz) * mres/fabs(mres) ;
-        }
+//     // Oblique integration quantities
+//     R1 = (Exw + Eyw)/(Bxw+Byw);
+//     R2 = (Exw - Eyw)/(Bxw-Byw);
+//     w1 = Q_EL/(2*M_EL)*(Bxw+Byw);
+//     w2 = Q_EL/(2*M_EL)*(Bxw-Byw);
+//     alpha1 = w2/w1;
+//     printf("R1: %g R2: %g w1: %g w2: %g alpha1: %g\n",
+//             R1,    R2,    w1,    w2,    alpha1);
+//     // cout << "alpha_eq: " << R2D*alpha_eq << " alpha_lc: " << R2D*alpha_lc << "\n";
+//     // Sum over all resonance modes
+//     for (int mres=-SCATTERING_RES_MODES; mres <= SCATTERING_RES_MODES; mres++) {
+//         // get parallel resonance velocity
+//         t1 = w*w*kz*kz;
+//         t2 = pow((mres*wh),2)-w*w;
+//         t3 = kz*kz + pow((mres*wh),2)/(pow(C*cos(alpha_lc),2));
+//         if(mres==0) {
+//           direction = -kz/fabs(kz);
+//         } else {
+//           direction = kz/fabs(kz) * mres/fabs(mres) ;
+//         }
+//         v_para_res = ( direction*sqrt(t1 + t2*t3) - w*kz ) / t3;
+//         v_tot_res = v_para_res / cos(alpha_lc); 
+//         E_res = E_EL*( 1.0/sqrt( 1.0-(v_tot_res*v_tot_res/(C*C)) ) -1.0 );
 
-        v_para_res = ( direction*sqrt(t1 + t2*t3) - w*kz ) / t3;
-        v_tot_res = v_para_res / cos(alpha_lc); 
-        E_res = E_EL*( 1.0/sqrt( 1.0-(v_tot_res*v_tot_res/(C*C)) ) -1.0 );
+//         printf("t1: %g t2: %g t3: %g v_para_res: %g v_tot_res: %g E_res: %g\n",
+//                 t1,    t2,    t3,    v_para_res,    v_tot_res,    E_res);
+//         // indexes into the energy / velocity arrays
+//         e_starti = floor((log10(E_res) - E_EXP_BOT - 0.3)/(DE_EXP));
+//         e_endi   =  ceil((log10(E_res) - E_EXP_BOT + 0.3)/(DE_EXP));
 
-        // indexes into the energy / velocity arrays
-        e_starti = floor((log10(E_res) - E_EXP_BOT - 0.3)/(DE_EXP));
-        e_endi   =  ceil((log10(E_res) - E_EXP_BOT + 0.3)/(DE_EXP));
+//         if(e_endi>NUM_E) e_endi=NUM_E;
+//         if(e_starti>NUM_E) e_starti=NUM_E;
+//         if(e_endi<0) e_endi=0;
+//         if(e_starti<0) e_starti=0;
 
-        if(e_endi>NUM_E) e_endi=NUM_E;
-        if(e_starti>NUM_E) e_starti=NUM_E;
-        if(e_endi<0) e_endi=0;
-        if(e_starti<0) e_starti=0;
+//         // printf("dir: %g t1: %g t2: %g t3: %g\n",direction, t1, t2, t3);
+//         // begin V_TOT loop here
+//         for(e_toti=e_starti; e_toti <= e_endi; e_toti++) {
 
-        // printf("dir: %g t1: %g t2: %g t3: %g\n",direction, t1, t2, t3);
-        // begin V_TOT loop here
-        for(int e_toti=e_starti; e_toti < e_endi; e_toti++) {
-            v_tot = direction*v_tot_arr[e_toti];
-            v_para = v_tot * calph;
-            v_perp = fabs(v_tot * salph);
+//           v_tot = direction*v_tot_arr[e_toti];
+//           v_para = v_tot * calph;
+//           v_perp = fabs(v_tot * salph);
+          
+//           gamma = 1.0 / sqrt(1 - pow((v_tot/C),2)); 
+//           alpha2 = Q_EL*Ezw /(M_EL*gamma*w1*v_perp);
+//           beta = kx*v_perp / wh ;
+//           wtau_sq = pow((-1),(mres-1)) * w1/gamma * 
+//             ( jn( (mres-1), beta ) - 
+//               alpha1*jn( (mres+1) , beta ) +
+//               gamma*alpha2*jn( mres , beta ) ); 
+//           T1 = -wtau_sq*(1+ ( (calph*calph) / (mres*Y-1) ) );
 
-            gamma = 1.0 / sqrt(1 - pow((v_tot/C),2));   // Relativisitc correction
-            alpha2 = Q_EL*Ezw /(M_EL*gamma*w1*v_perp);
-            beta = kx*v_perp / wh ;
-            wtau_sq = pow((-1),(mres-1)) * w1/gamma * 
-                ( jn( (mres-1), beta ) - 
-                alpha1*jn( (mres+1) , beta ) +
-                gamma*alpha2*jn( mres , beta ) ); 
-            T1 = -wtau_sq*(1+ ( (calph*calph) / (mres*Y-1) )  );
+//             // Now -- start the analytical evaluation!!
+//             if( fabs(EA.lat) < 1e-3) {
+//                 // Near the equator we can use a simplified expression:
 
-            // Now -- start the analytical evaluation!!
-            if( fabs(EA->lat) < 1e-3) {
-                // Near the equator we can use a simplified expression:
+//                 eta_dot = mres*wh/gamma - w - kz*v_para;
 
-                eta_dot = mres*wh/gamma - w - kz*v_para;
+//                 if(fabs(eta_dot)<10) {
+//                     // Bortnik A.31
+//                     dalpha_eq = fabs(T1/v_para)*ds/sqrt(2);
+//                 } else {
+//                     // Bortnik A.30
+//                     dalpha_eq = fabs(T1/eta_dot)*sqrt(1-cos(ds*eta_dot/v_para)); 
+//                 }
 
-                if(fabs(eta_dot)<10) {
-                    // Bortnik A.31
-                    dalpha_eq = fabs(T1/v_para)*ds/sqrt(2);
-                } else {
-                    // Bortnik A.30
-                    dalpha_eq = fabs(T1/eta_dot)*sqrt(1-cos(ds*eta_dot/v_para)); 
-                }
+//             } else { // Full analytical expression required:
 
-            } else { // Full analytical expression required:
+//             v_para_star = v_para - dv_para_ds*ds/2.0;    // Bortnik A.17
+//             v_para_star_sq = v_para_star * v_para_star;
 
-                v_para_star = v_para - dv_para_ds*ds/2.0;   // Bortnik A.17
-                v_para_star_sq = v_para_star * v_para_star;
+//                 // Bortnik A.18 -- part A1
+//             AA = (mres/(2.0*v_para_star*gamma))*dwh_ds* 
+//               (1 + ds/(2.0*v_para_star)*dv_para_ds) - 
+//               mres/(2.0*v_para_star_sq*gamma)*wh*dv_para_ds + 
+//               w/(2.0*v_para_star_sq)*dv_para_ds ;
 
-                // Bortnik A.18 -- part A1
-                AA = - mres/(2.0*v_para_star_sq*gamma)*wh*dv_para_ds
-                     + (mres/(2.0*v_para_star*gamma))*dwh_ds * (1 + ds/(2.0*v_para_star)*dv_para_ds) 
-                     + w/(2.0*v_para_star_sq)*dv_para_ds;
+//                 // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
+//                 BB =   mres/(gamma*v_para_star)*wh 
+//                      - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0)
+//                      - w/v_para_star - kz;
 
-                // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
-                BB =   mres/(gamma*v_para_star)*wh 
-                     - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0)
-                     - w/v_para_star - kz;
-
-                // // Bortnik A.18 -- part A0
-                // BB =   mres*wh/(gamma*v_para_star)
-                //      - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) * (w/v_para_star)*kz;
+//                 // // Bortnik A.18 -- part A0
+//                 // BB =   mres*wh/(gamma*v_para_star)
+//                 //      - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) * (w/v_para_star)*kz;
 
 
-                // Evaluate Bortnik A.26 -- integration performed thru Fresnel functions
-                Farg = (BB + 2*AA*ds) / sqrt(2*PI*fabs(AA));
-                Farg0 = BB / sqrt(2*PI*fabs(AA));  
-
-                Fresnel(Farg,  &Fs,  &Fc);
-                Fresnel(Farg0, &Fs0, &Fc0);
-
-                dFs_sq = pow((Fs - Fs0),2);
-                dFc_sq = pow((Fc - Fc0),2);
-
-                dalpha = sqrt(PI/4/fabs(AA))*fabs(T1/v_para)*sqrt(dFs_sq+dFc_sq);
-
-                // Map the local change in pitch angle to the equivalent
-                // pitch angle at the equator:  (still using dipole model here...)
-                alpha_eq_p = asin( sin(alpha_lc+dalpha)*pow(clat,3) / 
-                                   sqrt(slat_term) );
-                dalpha_eq = alpha_eq_p - alpha_eq;
-
-                // Determine where to bin the output:
-                if(direction>0) {
-                    flt_time = fabs(ftc_n/v_para);
-                } else {
-                    flt_time = fabs(ftc_s/v_para);
-                }
+//                 // Evaluate Bortnik A.26 -- integration performed thru Fresnel functions
+//                 Farg = (BB + 2*AA*ds) / sqrt(2*PI*fabs(AA));
+//                 Farg0 = BB / sqrt(2*PI*fabs(AA));  
                 
-
-                // Get time index into output array
-                timei = round((t + flt_time)/TIME_STEP);
+//                 Fresnel(Farg, &Fs, &Fc);
+//                 Fresnel(Farg0, &Fs0, &Fc0);
                 
-                // cout << "flt_time: " << flt_time << " t: " << t << " timei: " << timei << "\n";
-                // Save it!
-                if (direction > 0) {
-                    da_N[e_toti][timei] += dalpha_eq*dalpha_eq;
-                } else {
-                    da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
-                }
+//                 dFs_sq = pow((Fs - Fs0),2);
+//                 dFc_sq = pow((Fc - Fc0),2);
 
-                // cout << e_toti << ": da: " << dalpha_eq << "\n";
-                // if (e_toti > NUM_E/2) {
-                    // cout << "t= " << t << " flt_time: " << flt_time << "\n";
-                // }
-            }   
-        }   // v_tot, e_tot
-    } // Resonant modes
+//                 dalpha = sqrt(PI/4.0/fabs(AA))*fabs(T1/v_para)*sqrt(dFs_sq+dFc_sq);
 
-}
+//                 // Map the local change in pitch angle to the equivalent
+//                 // pitch angle at the equator:  (still using dipole model here...)
+//                 alpha_eq_p = asin( sin(alpha_lc+dalpha)*pow(clat,3) / 
+//                            sqrt(slat_term) );
+//                 dalpha_eq = alpha_eq_p - alpha_eq;
+
+//                 // printf("dalpha_eq: %g\n",R2D*dalpha_eq);
+//                 // Determine where to bin the output:
+//                 if(direction>0) {
+//                     flt_time = fabs(ftc_n/v_para);
+//                 } else {
+//                     flt_time = fabs(ftc_s/v_para);
+//                 }
+//                 printf("flt_time: %g dalpha_eq: %g alpha_eq_p: %g alpha_eq: %g\n",
+//                         flt_time,    dalpha_eq,    alpha_eq_p,    alpha_eq);
+
+//                 // Get time index into output array
+//                 timei = floor((t + flt_time)/TIME_STEP);
+                
+//                 // Save it!
+//                 if (direction > 0) {
+//                     da_N[e_toti][timei] += dalpha_eq*dalpha_eq;
+//                 } else {
+//                     da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
+//                 }
+
+//             }   
+//         }   // v_tot, e_tot
+//     } // Resonant modes
+
+// }
 
 
 void add_rayT(rayT* rayA, rayT* rayB) {
@@ -1305,7 +1254,7 @@ cellT new_cell(rayT ray) {
     // angle between parallel and perpendicular K
     cell.psi = R2D*atan2(-kx, kz);
 
-    cout << "psi: " << cell.psi << "\n";
+    // cout << "psi: " << cell.psi << "\n";
     cell.mu = ray.n.norm();
     cell.stixP    = ray.stixP;
     cell.stixR    = ray.stixR;
@@ -1327,3 +1276,270 @@ void add_cell(cellT* cell1, cellT* cell2) {
     cell1->num_rays  += 1; 
 }
 
+
+
+
+
+void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]) {
+
+    int i, j=0, kk, mres, noutN, noutS, ei, ti, e_toti;
+    cellT *next;
+    // char *prefN="pN", *prefS="pS", suff[64];
+    double lat, L, t, f, pwr, psi, mu, stixP, stixR, stixL, latk;
+    double Bxw, Byw, Bzw, Exw, Eyw, Ezw, stixD, stixS, stixA;
+    double stixB, stixX, n_x, n_z, k, kx, kz, rho1, rho2, Byw_sq;
+    double flt_const_N, flt_const_S, flt_time, eta_dot;
+
+    // double flt_const_N[EA_SPLIT], flt_const_S[EA_SPLIT], flt_time, eta_dot;
+    double wh, dwh_ds, gamma, alpha1, alpha2, beta, v_para, v_perp;
+    double spsi, cpsi, spsi_sq, cpsi_sq, mu_sq, w, R1, R2, w1, w2;
+    double alpha_lc, alpha_eq, epsm, slat, clat, slat_term, ds;
+    double t1, t2, t3, direction, v_para_res, v_tot, v_tot_res;
+    double salph, calph, wtau_sq, Y, dv_para_ds, AA, BB, T1;
+    double Farg, Farg0, Fs, Fc, Fs0, Fc0, dFs_sq, dFc_sq, dalpha;
+    double alpha_eq_p, dalpha_eq, E_res, e_starti, e_endi;
+    double v_tot_arr[NUM_E], E_tot_arr[NUM_E], v_para_star, v_para_star_sq;
+    float *arr_N, *arr_S;
+    time_t start, end;
+    int timei;
+    cellT cell;
+  
+    L = EA.Lsh;
+    epsm = (1/L)*(R_E+H_IONO)/R_E;
+    // alpha_eq = asin(sqrt( pow(epsm,3)/sqrt(1+3*(1-epsm)) ));
+    alpha_eq = EA.alpha_eq;
+    //initialize the velocity and energy arrays
+    for(i=0; i<NUM_E; i++) {
+        E_tot_arr[i] = pow(10, (E_EXP_BOT+ DE_EXP*i) ); // energy in eV
+        v_tot_arr[i] = C*sqrt(1 - pow( (E_EL/(E_EL+E_tot_arr[i])) ,2) );
+    }
+
+    
+    lat = EA.lat;
+    slat = sin( lat*D2R );
+    clat = cos( lat*D2R );
+    slat_term = sqrt(1+3*slat*slat);
+    // wh = 2*PI*880000/pow(L,3)*slat_term/pow(clat,6);
+    // dwh_ds = 3*wh/(L*R_E)*slat/slat_term*
+      // (1/(slat_term*slat_term) + 2/(clat*clat));
+    wh = EA.wh;
+    dwh_ds = EA.dwh_ds;
+
+
+    // getFltConst(L,lat,alpha_eq,&(flt_const_N),&(flt_const_S));
+    flt_const_N = EA.ftc_n;
+    flt_const_S = EA.ftc_s;
+
+    alpha_lc = EA.alpha_lc; 
+    // alpha_lc = asin(sqrt( slat_term/pow(clat,6) )*sin(alpha_eq));
+    salph = sin(alpha_lc);
+    calph = cos(alpha_lc);
+    ds = EA.ds;
+    dv_para_ds = EA.dv_para_ds;
+
+    printf("------------- EA at lat: %2.2f ---------------\n", lat);
+    
+    // Go through the cells in each latitude
+    for (map<pair<int,int>,cellT>::iterator iter = db.begin(); iter != db.end(); iter++) {
+        cell = iter->second;
+
+        t = cell.t + TIME_STEP/2;           // We want the time and freq to be in the 
+        f = cell.f + FREQ_STEP_SIZE/2;      // center of the cell, so add DT/2 or DF/2
+
+        pwr = cell.pwr*FREQ_STEP_SIZE/cell.num_rays;
+        psi = D2R*cell.psi/cell.num_rays;
+
+
+        if(pwr > WAVE_PWR_THRESH) {
+
+
+            mu = cell.mu/cell.num_rays;
+            stixP = cell.stixP/cell.num_rays;
+            stixR = cell.stixR/cell.num_rays;
+            stixL = cell.stixL/cell.num_rays;
+
+            spsi = sin(psi);
+            cpsi = cos(psi);
+            spsi_sq = pow(spsi,2);
+            cpsi_sq = pow(cpsi,2);
+            n_x = mu*fabs(spsi);
+            n_z = mu*cpsi;
+            mu_sq = mu*mu;
+            w = 2.0*PI*f;
+            k = w*mu/C;
+            kx = w*n_x/C;
+            kz = w*n_z/C;
+            Y = wh / w ;
+
+            // Stix parameters
+            stixS = ( stixR + stixL ) /2.0;
+            stixD = ( stixR - stixL ) /2.0;
+            stixA = stixS + (stixP-stixS)*cpsi_sq;
+            stixB = stixP*stixS+stixR*stixL+(stixP*stixS-stixR*stixL)*cpsi_sq;
+            stixX = stixP/(stixP- mu_sq*spsi_sq);
+
+            // Polarization ratios
+            rho1=((mu_sq-stixS)*mu_sq*spsi*cpsi)/(stixD*(mu_sq*spsi_sq-stixP));
+            rho2 = (mu_sq - stixS) / stixD ;
+
+            // (bortnik 2.28)
+            Byw_sq =  2.0*MU0/C*pwr*stixX*stixX*rho2*rho2*mu*fabs(cpsi)/
+               sqrt(  pow((tan(psi)-rho1*rho2*stixX),2) + 
+               pow( (1+rho2*rho2*stixX), 2 ) );
+
+
+            // RMS wave components
+            Byw = sqrt(Byw_sq);
+            Exw = fabs(C*Byw * (stixP - n_x*n_x)/(stixP*n_z)); 
+            Eyw = fabs(Exw * stixD/(stixS-mu_sq));
+            Ezw = fabs(Exw *n_x*n_z / (n_x*n_x - stixP));
+            Bxw = fabs(Exw *stixD*n_z /C/ (stixS - mu_sq));
+            Bzw = fabs((Exw *stixD *n_x) /(C*(stixX - mu_sq)));
+
+            // Oblique integration quantities
+            R1 = (Exw + Eyw)/(Bxw+Byw);
+            R2 = (Exw - Eyw)/(Bxw-Byw);
+            w1 = Q_EL/(2*M_EL)*(Bxw+Byw);
+            w2 = Q_EL/(2*M_EL)*(Bxw-Byw);
+            alpha1 = w2/w1;
+
+            if (DEBUG) {
+                printf("Byw: %g Exw: %g Eyw: %g Ezw: %g Bxw: %g Bzw: %g\n",
+                        Byw,    Exw,    Eyw,    Ezw,    Bxw,    Bzw);
+                printf("t: %g, f: %g, pwr: %g, psi: %g, Num_rays: %g\n",t,f,pwr, R2D*psi, cell.num_rays);
+                printf("wh: %g dwh_ds: %g alpha_lc: %g alpha_eq: %g ds: %g dv_para_ds: %g\n",
+                        wh,    dwh_ds,    alpha_lc,    alpha_eq,    ds,    dv_para_ds);
+                printf("R1: %g R2: %g w1: %g w2: %g alpha1: %g\n",
+                        R1,    R2,    w1,    w2,    alpha1);   
+            }
+
+
+            //begin MRES loop here
+            for(mres=-SCATTERING_RES_MODES; mres <= SCATTERING_RES_MODES; mres++) {
+                // get parallel resonance velocity
+                t1 = w*w*kz*kz;
+                t2 = pow((mres*wh),2)-w*w;
+                t3 = kz*kz + pow((mres*wh),2)/(pow(C*cos(alpha_lc),2));
+
+                if(mres==0) {
+                    direction = -kz/fabs(kz);
+                } else {
+                    direction = kz/fabs(kz) * mres/fabs(mres) ;
+                }
+
+                v_para_res = ( direction*sqrt(t1 + t2*t3) - w*kz ) / t3;
+                v_tot_res = v_para_res / cos(alpha_lc); 
+                E_res = E_EL*( 1.0/sqrt( 1.0-(v_tot_res*v_tot_res/(C*C)) ) -1.0 );
+
+                if(DEBUG) {printf("t1: %g t2: %g t3: %g v_para_res: %g v_tot_res: %g E_res: %g\n",
+                                   t1,    t2,    t3,    v_para_res,    v_tot_res,    E_res);}
+                
+                // get starting and ending indices, +-20% energy band
+                e_starti = floor((log10(E_res) - E_EXP_BOT - 0.3)/(DE_EXP));
+                e_endi   =  ceil((log10(E_res) - E_EXP_BOT + 0.3)/(DE_EXP));
+
+                if(e_endi>NUM_E) e_endi=NUM_E;
+                if(e_starti>NUM_E) e_starti=NUM_E;
+                if(e_endi<0) e_endi=0;
+                if(e_starti<0) e_starti=0;
+                
+
+                // begin V_TOT loop here
+                for(e_toti=e_starti; e_toti <= e_endi; e_toti++) {
+
+                    v_tot = direction*v_tot_arr[e_toti];
+                    v_para = v_tot * calph;
+                    v_perp = fabs(v_tot * salph);
+
+                    gamma = 1.0 / sqrt(1 - pow((v_tot/C),2)); 
+                    alpha2 = Q_EL*Ezw /(M_EL*gamma*w1*v_perp);
+                    beta = kx*v_perp / wh ;
+                    wtau_sq = pow((-1),(mres-1)) * w1/gamma * 
+                    ( jn( (mres-1), beta ) - 
+                      alpha1*jn( (mres+1) , beta ) +
+                      gamma*alpha2*jn( mres , beta ) ); 
+                    T1 = -wtau_sq*(1+ ( (calph*calph) / (mres*Y-1) ) );
+
+                    // Now - start analytical evaluation!!!
+                  
+                    if( fabs(lat)< 1e-3) {
+                        // Near the equator we can use a simplified expression:
+                        eta_dot = mres*wh/gamma - w - kz*v_para;
+
+                        if(fabs(eta_dot)<10) {
+                            // Bortnik A.31
+                            dalpha_eq = fabs(T1/v_para)*ds/sqrt(2); 
+                        } else {
+                            // Bortnik A.30
+                            dalpha_eq = fabs(T1/eta_dot)*sqrt(1-cos(ds*eta_dot/v_para)); 
+                        }
+
+                    } else {  
+                        
+                        v_para_star = v_para - dv_para_ds*ds/2.0;
+                        v_para_star_sq = v_para_star * v_para_star;
+
+                        // Bortnik A.18 -- part A1
+                        AA = (mres/(2.0*v_para_star*gamma))*dwh_ds* 
+                             (1 + ds/(2.0*v_para_star)*dv_para_ds) - 
+                              mres/(2.0*v_para_star_sq*gamma)*wh*dv_para_ds + 
+                              w/(2.0*v_para_star_sq)*dv_para_ds ;
+
+                        // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
+                        // BB = mres/(gamma*v_para_star)*wh - 
+                        //      mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) -
+                        //      w/v_para_star - kz;
+
+                        // Bortnik A.18 -- part A0
+                        BB =   mres*wh/(gamma*v_para_star)
+                             - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) * (w/v_para_star)*kz;
+
+
+                        // Evaluate Bortnik A.26 -- integration performed thru Fresnel functions
+                        Farg = (BB + 2*AA*ds) / sqrt(2*PI*fabs(AA));
+                        Farg0 = BB / sqrt(2*PI*fabs(AA));  
+                        
+                        Fresnel(Farg, &Fs, &Fc);
+                        Fresnel(Farg0, &Fs0, &Fc0);
+                        
+                        dFs_sq = pow((Fs - Fs0),2);
+                        dFc_sq = pow((Fc - Fc0),2);
+                        
+                        dalpha = sqrt(PI/4/fabs(AA))*fabs(T1/v_para)*sqrt(dFs_sq+dFc_sq);
+                        
+                        // Map the local change in pitch angle to the equivalent
+                        // pitch angle at the equator:  (still using dipole model here)
+                        // alpha_eq_p = asin( sin(alpha_lc+dalpha)*pow(clat,3) / 
+                        //            sqrt(slat_term) );
+                        alpha_eq_p = asin( sin(alpha_lc + dalpha)*EA.Bo_ratio);
+
+                        dalpha_eq = alpha_eq_p - alpha_eq;
+
+                        
+                        if (isnan(dalpha_eq)) {
+                            printf("isnans: w1: %g\n",w1);
+                        }
+                    }
+
+                    if(direction>0) {
+                        flt_time = fabs(flt_const_N/v_para);
+                    } else {
+                        flt_time = fabs(flt_const_S/v_para);
+                    }
+                     
+                    if (DEBUG) {printf("flt_time: %g dalpha_eq: %g alpha_eq_p: %g alpha_eq: %g\n",
+                                        flt_time,    dalpha_eq,    alpha_eq_p,    alpha_eq);}
+
+                    // Get time index into output array
+                    timei = round((t + flt_time)/TIME_STEP);
+                    // Save it!
+                    if (direction > 0) {
+                        da_N[e_toti][timei] += dalpha_eq*dalpha_eq;
+                    } else {
+                        da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
+                    }
+                } // v_para
+            } // mres loop
+        } // if pwr > 0.0
+    } // entries in db
+}

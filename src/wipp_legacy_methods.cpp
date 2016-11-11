@@ -426,7 +426,8 @@ void calcRes(cellT cell, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_T
     //     lat, wh, dwh_ds, flt_const_N);
     //printf("flt_const_S: %g, alpha_lc: %g, \nds: %g, dv_para_ds: %g\n", 
     //     flt_const_S, alpha_lc, ds, dv_para_ds);
-    
+        printf("wh: %g dwh_ds: %g\n",wh, dwh_ds);
+
     
     // Go through the cells in each latitude
     // while(next != NULL) {
@@ -458,8 +459,6 @@ void calcRes(cellT cell, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_T
       // stixL =   (next->stixL)/(next->num_rays);
       
       // printf("t: %g, f: %g, pwr: %g, psi: %g,\nmu: %g, stixP: %g, stixR: %g, stixL: %g \n\n", t, f, pwr, psi, mu, stixP, stixR, stixL);
-      printf("t: %g, f: %g, pwr: %g, psi: %g, Num_rays: %g\n",t,f,pwr, R2D*psi, cell.num_rays);
-      
       spsi = sin(psi);
       cpsi = cos(psi);
       spsi_sq = pow(spsi,2);
@@ -480,7 +479,9 @@ void calcRes(cellT cell, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_T
       
       // printf("t: %g f: %g\n",t, w/(2*PI));
 
-
+      printf("t: %g, f: %g, pwr: %g, psi: %g, Num_rays: %g\n",t,f,pwr, R2D*psi, cell.num_rays);
+    printf("wh: %g dwh_ds: %g alpha_lc: %g alpha_eq: %g ds: %g dv_para_ds: %g\n",
+            wh,    dwh_ds,    alpha_lc,    alpha_eq,    ds,    dv_para_ds);   
       rho1=((mu_sq-stixS)*mu_sq*spsi*cpsi)/(stixD*(mu_sq*spsi_sq-stixP));
       rho2 = (mu_sq - stixS) / stixD ;
       
@@ -514,9 +515,10 @@ void calcRes(cellT cell, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_T
       w1 = Q_EL/(2*M_EL)*(Bxw+Byw);
       w2 = Q_EL/(2*M_EL)*(Bxw-Byw);
       alpha1 = w2/w1;
-      
+          printf("R1: %g R2: %g w1: %g w2: %g alpha1: %g\n",
+            R1,    R2,    w1,    w2,    alpha1);
       // printf("R1: %g, R2: %g, w1: %g, w2: %g\n", R1, R2, w1, w2);
-      
+      // printf("alpha_eq: %g alpha_lc: %g\n",R2D*alpha_eq, R2D*alpha_lc);
       //begin MRES loop here
       for(mres=-SCATTERING_RES_MODES; mres <= SCATTERING_RES_MODES; mres++) {
         
@@ -533,8 +535,8 @@ void calcRes(cellT cell, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_T
         v_tot_res = v_para_res / cos(alpha_lc); 
         E_res = E_EL*( 1.0/sqrt( 1.0-(v_tot_res*v_tot_res/(C*C)) ) -1.0 );
 
-      //printf("v_para_res: %6.2f\n",v_para_res);
-      
+        printf("t1: %g t2: %g t3: %g v_para_res: %g v_tot_res: %g E_res: %g\n",
+                t1,    t2,    t3,    v_para_res,    v_tot_res,    E_res);
         // get starting and ending indices, +-20% energy band
         // temp = floor((log10(E_res) - E_EXP_BOT - 0.3)/(DE_EXP));
 
@@ -643,13 +645,15 @@ void calcRes(cellT cell, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_T
               printf("isnans: w1: %g\n",w1);
             }
           }
-
+          // printf("dalpha_eq: %g\n",R2D*dalpha_eq);
           if(direction>0) {
             flt_time = fabs(flt_const_N/v_para);
           } else {
             flt_time = fabs(flt_const_S/v_para);
           }
          
+         printf("flt_time: %g dalpha_eq: %g alpha_eq_p: %g alpha_eq: %g\n",
+                        flt_time,    dalpha_eq,    alpha_eq_p,    alpha_eq);
           // Get time index into output array
           timei = floor((t + flt_time)/TIME_STEP);
           // Save it!
