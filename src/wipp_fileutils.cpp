@@ -325,8 +325,8 @@ void load_TS05_params(int itime_in[2], double TS_params[10], double VG[3]) {
 
     int target_total_mins = mn + hr*60 + doy*24*60;
 
-    cout << "target total: " << target_total_mins << "\n";
-    cout << "yr: " << yr << " doy: " << doy << " hr: " << hr << " min: " << mn << "\n";
+    // cout << "target total: " << target_total_mins << "\n";
+    // cout << "yr: " << yr << " doy: " << doy << " hr: " << hr << " min: " << mn << "\n";
     if (1995 <= yr <=2015) {
         inp_filename << yr << "_OMNI_5m_with_TS05_variables.dat";
         // cout << "inp filename: " << inp_filename.str() << "\n";
@@ -357,7 +357,7 @@ void load_TS05_params(int itime_in[2], double TS_params[10], double VG[3]) {
                         dtR = total_mins - target_total_mins;
                         dt  = dtR + dtL;
                         // cout << "L: " << dtL << " R: " << dtR << " Tot: " << dt << "\n";
-                        cout << "Tilt: " << v[15] << " " << v_prev[15] << "\n";
+                        // cout << "Tilt: " << v[15] << " " << v_prev[15] << "\n";
 
                         TS_params[0] = (dtL/dt)*v[16]  +   (dtR/dt)*v_prev[16];   // Pdyn
                         TS_params[1] = 0               +   0;                     // Dst

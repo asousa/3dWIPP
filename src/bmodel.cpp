@@ -252,7 +252,7 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
     x_tmp[2] += dz*ds;
 
     ds = (norm(x_tmp, 3) <= norm(x_cur, 3) ? -ds_in : ds_in);
-    cout << "ds is: " << ds << "\n";
+    // cout << "ds is: " << ds << "\n";
     int i=0;
     while (i < TRACER_MAX) {
 

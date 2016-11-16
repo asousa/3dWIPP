@@ -32,7 +32,15 @@ iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
 isec = (ray_datenum.second + (ray_datenum.minute)*60 + ray_datenum.hour*60*60)
 
-ray_input_directory = '/shared/users/asousa/WIPP/3dWIPP/outputs/parallel_test'
+ray_input_directory = os.path.join(project_root, "outputs", "1lon_parallel")
+output_directory = os.path.join(project_root, "outputs", "test_WIPP_outs")
+
+if not os.path.exists(output_directory):
+    os.mkdir(output_directory)
+
+print "Clearing data from previous runs..."
+os.system('rm %s/*'%(output_directory))
+
 # Get closest Kp value (Or should we interpolate?)
 tvec, kvec = load_Kp()
 
@@ -64,19 +72,17 @@ print "year: ", iyr
 print "day: ", idoy
 print "sec: ", isec
 
-inp_lats = [45]
-inp_lons = [0]
+
+inp_lat = 45
+inp_lon = 0
 launch_alt = (R_E + 5)*1e3;
 
-# freqs    = np.array([23]) 
-
-# inp_w = 2.0*np.pi*freqs
-
-
-lats, lons = np.meshgrid(inp_lats, inp_lons)
-lats = lats.flatten()
-lons = lons.flatten()
-alts = launch_alt*np.ones_like(lats)
+out_lat = 50
+out_lon = 0
+# lats, lons = np.meshgrid(inp_lats, inp_lons)
+# lats = lats.flatten()
+# lons = lons.flatten()
+# alts = launch_alt*np.ones_like(lats)
 
 # # Create spacepy coordinate structures
 # inp_coords = coord.Coords(zip(alts, lats, lons), 'GEO', 'sph', units=['Re','deg','deg'])
@@ -84,14 +90,17 @@ alts = launch_alt*np.ones_like(lats)
 
 
 # Create coordinates
-inp_coords = zip(alts, lats, lons)  # Geographic
+# inp_coords = zip(launch_alt, inp_lat, inp_lon)  # Geomagnetic
+inp_coords = [launch_alt, inp_lat, inp_lon]
 
 # Coordinate transformation library
 xf = xflib.xflib(lib_path='/shared/users/asousa/WIPP/3dWIPP/python/libxformd.so')
 
-print "Inputs (geomagnetic RLL)"
-for r in inp_coords: print r
+# print "Inputs (geomagnetic RLL)"
+# for r in inp_coords: print r
 
+print "input coords (geomagnetic RLL):"
+print inp_coords
 
 
 os.chdir(project_root)
@@ -103,22 +112,11 @@ if buildstatus != 0:
     sys.exit("Build failed!")
 
 # run it
-wipp_cmd = 'bin/wipp -i %s -t %s -u %d -v %d -a %g -b %g -c %g -d 0'%(ray_input_directory, iyr, idoy, isec,
-                inp_coords[0][0], inp_coords[0][1], inp_coords[0][2])
+wipp_cmd = ['bin/wipp -i %s -o %s'%(ray_input_directory, output_directory) +
+            ' -t %s -u %d -v %d'%(iyr, idoy, isec) +
+            ' -a %g -b %g -c %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) +
+            ' -e %g -f %g -d 0'%(out_lat, out_lon)][0]
+
 print wipp_cmd
-
-
-print "geo spherical (py):"
-print inp_coords
-
-# inp_coords = [xf.s2c(r) for r in inp_coords]
-# print "geo cartesian (py):"
-# for r in inp_coords: print r
-
-
-# inp_coords = [xf.geo2sm(r, ray_datenum) for r in inp_coords]
-# print "SM (py):"
-# for r in inp_coords: print r
-# Build wipp code
 
 os.system(wipp_cmd)

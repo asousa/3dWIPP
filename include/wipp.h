@@ -138,6 +138,7 @@ typedef struct EA_segment {
     double radius;                     // Radius around field line to consider a crossing
 
     double lat;                        // Latitude (geomagnetic)
+    double lon;                        // Longitude (geomagnetic)
     double dist_to_n;                  // Distance along field line to northern iono (R_E)
     double dist_to_s;                  // Distance along field line to southern iono (R_E) 
 
@@ -193,8 +194,10 @@ void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z
 void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT* rayout);
 
 void calc_stix_parameters(rayF* ray);
-void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2], int model_number);
-void dump_EA_array(EA_segment EA_array[NUM_EA], string filename);
+// void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2], int model_number);
+vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int model_number);
+
+void dump_EA_array(vector<EA_segment> EA_array, string filename);
 
 
 // ---- Coordinate transforms ----
