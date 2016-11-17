@@ -56,7 +56,7 @@
 #define     LON_STEP_SIZE   100  // km
 
 // Maximum distance from source to consider a ray
-#define     MAX_GROUND_DISTANCE     1000 // km
+#define     MAX_GROUND_DISTANCE     500 // km
 
 // Radius around field line, in L-shells, in which to consider a crossing
 #define		L_MARGIN    0.1
@@ -72,10 +72,10 @@
 #define     WAVE_PWR_THRESH   0
 #define     DAMPING_THRESH    1e-3   
 
-#define     FREQ_VEC    {4800, 5000} //{502, 603, 725, 872, 1048, 1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000}
+#define     FREQ_VEC    {1000, 1100} //{502, 603, 725, 872, 1048, 1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000}
 
 #define     NUM_FREQS   2
 
-#define     DEBUG       false
+#define     DEBUG       true
 
 #endif

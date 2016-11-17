@@ -1310,3 +1310,5 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
     } // entries in db
 }
 
+
+

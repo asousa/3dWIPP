@@ -22,6 +22,8 @@ int main(int argc, char *argv[])
     ostringstream eaFileName;
     string crossingFileName;
 
+    string low_file, high_file;
+
     int itime_in[2];
     
     double tmp_coords[3];
@@ -56,6 +58,7 @@ int main(int argc, char *argv[])
     int t_grid, f_grid;
 
 
+
     map <int, vector<double> > start_locs;
     vector < vector<int> > adjacency_list;  // ( n x 4 ) list of adjacent ray indexes
 
@@ -76,7 +79,8 @@ int main(int argc, char *argv[])
     out_dir = "/shared/users/asousa/WIPP/3dWIPP/outputs/";
     dumpFileName= "fieldline_dump.dat";
     crossingFileName = "crossing_log.txt";
-
+    low_file  = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1000_damped.ray";
+    high_file = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1100_damped.ray";
     int model_number = 0; // Magnetic field model
     int dump_field = 0;
 
@@ -104,7 +108,7 @@ int main(int argc, char *argv[])
 
      // Parse input arguments:
     int opt = 0;
-    while ((opt = getopt(argc, argv, "i:o:t:u:v:a:b:c:d:e:f:")) != -1) {
+    while ((opt = getopt(argc, argv, "i:o:t:u:v:a:b:c:d:e:f:g:h:")) != -1) {
         switch(opt) {
             case 'i':
                 ray_inp_dir = (string) optarg;
@@ -140,6 +144,12 @@ int main(int argc, char *argv[])
             case 'f':
                 out_lon = strtod(optarg, NULL);
                 break;
+            case 'g':
+                low_file= (string) optarg;
+                break;
+            case 'h':
+                high_file= (string) optarg;
+                break; 
             case '?':
                  printf("\nUnknown option: %s\n",opt);
             break;
@@ -195,8 +205,11 @@ int main(int argc, char *argv[])
     cout << "input frequencies: "; print_array(input_freqs, 2);
 
 
-    for (int freq_ind=1; freq_ind < NUM_FREQS; ++freq_ind) {
 
+
+// --------------- Loop over ray frequencies ---------------------------
+    // #pragma omp parallel for
+    for (int freq_ind=1; freq_ind < NUM_FREQS; ++freq_ind) {
         // Load upper frequency rays ------------------------------------------:
         ostringstream inpFileName;
         inpFileName << ray_inp_dir << "/rayout_" << input_freqs[freq_ind] << "_damped.ray";
@@ -245,7 +258,7 @@ int main(int argc, char *argv[])
 
         cout << "Found " << adjacency_list.size() << " sets of adjacent guide rays\n";
     }
-
+        
         // Start with a fresh crossing db:
         for (int rr=0; rr < NUM_EA; ++rr) { crossing_db[rr].clear();}  
 
@@ -355,6 +368,7 @@ int main(int argc, char *argv[])
                     }
 
                     // Check each EA segment:
+                    // #pragma omp parallel for
                     for (int rr = 0; rr < NUM_EA; rr++) {
 
                         // Ignore anything that looks way out of range
@@ -448,8 +462,8 @@ int main(int argc, char *argv[])
 
             // Step thru to the next frequency (shallow copy)
             raylist_low = raylist_hi;
-        } // Frequency pairs
 
+        } // Frequency pairs
 
 
         // // Let's try this with the old crossings:
