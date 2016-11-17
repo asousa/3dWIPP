@@ -3,7 +3,7 @@ EIGEN_DIR=lib/eigen/
 # MATLAB_DIR=/usr/local/MATLAB/R2012a/extern/include
 CC=c++
 
-CFLAGS=-I$(IDIR) -I$(EIGEN_DIR) -pg
+CFLAGS=-I$(IDIR) -I$(EIGEN_DIR) -fopenmp
 # MATLAB_FLAGS = -L /usr/local/MATLAB/R2012a/bin/glnxa64 -leng -lm -lmx -lmex -lmat -lut -Wl,-rpath=/usr/local/MATLAB/R2012a/bin/glnxa64
 
 # compiled module directory

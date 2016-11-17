@@ -29,7 +29,7 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 raytracer_root = '/shared/users/asousa/software/foust_raytracer/'
 damping_root = '/shared/users/asousa/WIPP/3dWIPP/damping/'
 ray_bin_dir    = os.path.join(raytracer_root, 'bin')
-ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/1lon_parallel/'
+ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/1lon_igrf_modern_damping'
 
 R_E = 6371.0    # km
 
@@ -44,7 +44,7 @@ fixedstep = 0   # Don't use fixed step sizes, that's a bad idea.
 maxerr = 1e-4   # Error bound for adaptive timestepping
 maxsteps = 1e5  # Max number of timesteps (abort if reached)
 modelnum = 1    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
-use_IGRF = 0    # Magnetic field model (1 for IGRF, 0 for dipole)
+use_IGRF = 1    # Magnetic field model (1 for IGRF, 0 for dipole)
 use_tsyg = 0    # Use the Tsyganenko magnetic field model corrections
 
 minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
@@ -52,14 +52,14 @@ minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
 # ---------- Ray inputs -----------------
 
 # Geomagnetic please.
-inp_lats = np.arange(35, 45) #[40, 41, 42, 43]
+inp_lats = np.arange(10, 65) #[40, 41, 42, 43]
 inp_lons = [0, 1]
-launch_alt = (R_E + 1000.)*1e3
+launch_alt = (R_E + 2000.)*1e3
 
 # freqs    = np.array([1000, 2000]) 
 
-freqs = [200,240,289,347,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000]
-# freqs = [1000, 1100]
+# freqs = [200,240,289,347,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000]
+freqs = np.linspace(1000, 5000, 21)
 
 
 
@@ -85,7 +85,7 @@ if modelnum==4:
 ray_datenum = dt.datetime(2010, 06, 04, 03, 17, 00);
 
 # Damping parameters:
-damp_mode = 0  # 0 for old 2d damping code, 1 for modern code
+damp_mode = 1  # 0 for old 2d damping code, 1 for modern code
 
 # -------------- set up MPI -----------------------------
 comm = MPI.COMM_WORLD

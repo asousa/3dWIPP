@@ -32,7 +32,7 @@ iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
 isec = (ray_datenum.second + (ray_datenum.minute)*60 + ray_datenum.hour*60*60)
 
-ray_input_directory = os.path.join(project_root, "outputs", "1lon_parallel")
+ray_input_directory = os.path.join(project_root, "outputs", "1lon_igrf_modern_damping")
 output_directory = os.path.join(project_root, "outputs", "test_WIPP_outs")
 
 if not os.path.exists(output_directory):

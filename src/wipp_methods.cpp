@@ -981,7 +981,8 @@ cellT new_cell(rayT ray) {
     cell.pos = ray.pos;
     cell.t   = ray.time;
     cell.f   = ray.w/(2*PI);
-    cell.pwr = ray.inp_pwr*ray.damping/FREQ_STEP_SIZE/TIME_STEP/ray.ds;
+    // cell.pwr = ray.inp_pwr*ray.damping/FREQ_STEP_SIZE/TIME_STEP/ray.ds;
+    cell.pwr = ray.inp_pwr*ray.damping;
 
 
     Vector3d kvec = ray.n*ray.w/C;
@@ -1088,7 +1089,9 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
         t = cell.t + TIME_STEP/2;           // We want the time and freq to be in the 
         f = cell.f + FREQ_STEP_SIZE/2;      // center of the cell, so add DT/2 or DF/2
 
-        pwr = cell.pwr*FREQ_STEP_SIZE/cell.num_rays;
+        // pwr = cell.pwr*FREQ_STEP_SIZE/cell.num_rays;
+        pwr = cell.pwr/cell.num_rays/TIME_STEP/EA.ds;
+
         psi = D2R*cell.psi/cell.num_rays;
 
 
@@ -1290,11 +1293,16 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
 
                     // Get time index into output array
                     timei = round((t + flt_time)/TIME_STEP);
-                    // Save it!
-                    if (direction > 0) {
-                        da_N[e_toti][timei] += dalpha_eq*dalpha_eq;
+
+                    if (timei < NUM_TIMES) {
+                        // Save it!
+                        if (direction > 0) {
+                            da_N[e_toti][timei] += dalpha_eq*dalpha_eq;
+                        } else {
+                            da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
+                        }
                     } else {
-                        da_S[e_toti][timei] += dalpha_eq*dalpha_eq;
+                        // Do we want to track total scattering after TMAX?
                     }
                 } // v_para
             } // mres loop
