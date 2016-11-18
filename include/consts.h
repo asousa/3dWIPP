@@ -53,7 +53,7 @@
 // Fine-scale interpolation step sizes:
 #define     FREQ_STEP_SIZE  10   // Hz
 #define     LAT_STEP_SIZE   10   // km
-#define     LON_STEP_SIZE   100  // km
+#define     LON_STEP_SIZE   10   // km
 
 // Maximum distance from source to consider a ray
 #define     MAX_GROUND_DISTANCE     500 // km

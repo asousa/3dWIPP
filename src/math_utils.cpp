@@ -95,3 +95,21 @@ bool descending_order(double a, double b) {
     return a >= b; 
 }
 
+
+
+// double area3D_polygon(int n, double V[][3]) {
+
+//     Vector3d v1;
+//     Vector3d v2;
+
+//     Vector3d cross = {0};
+
+//     for (int x=0; x < n; ++x) {
+//         v1 = Map<Vector3d>(V[ x ],       3,1);
+//         v2 = Map<Vector3d>(V[mod(x+1,n)],3,1);
+//         cross += v1.cross(v2);
+//     }
+
+//     return cross.norm()/2.;
+// }
+

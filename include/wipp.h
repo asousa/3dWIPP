@@ -2,6 +2,10 @@
 #ifndef wipp_H
 #define wipp_H
 #include <Eigen/Core>
+#include <Eigen/Dense>  // Cross product lives here
+
+#include <algorithm>    // std::next_permutation, std::sort
+
 #include <stdio.h>
 #include <math.h>
 #include <unistd.h>
@@ -329,4 +333,13 @@ void getFltConst(double L, double lat, double alpha_eq,
 
 cellT new_cell(rayT ray);
 void add_cell(cellT* cell1, cellT* cell2);
+
+double total_input_power(double flash_pos_sm[3], double i0,
+                         double latmin, double latmax, 
+                         double lonmin, double lonmax, 
+                         double wmin, double wmax, int itime_in[2]);
+
+double polygon_frame_area(rayT frame[8]);
+
+
 #endif

@@ -31,7 +31,7 @@ _OBJ = wipp_main.o \
 	   wipp_methods.o \
 	   wipp_legacy_methods.o \
 	   bmodel.o \
-	   coord_transforms.o
+	   coord_transforms.o \
 
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 

@@ -6,7 +6,7 @@ using namespace Eigen;
 
 double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, double w, double i0) {
     // Returns ray power at the top of the ionosphere
-    // per unit in space and frequency.
+    // per unit in area and frequency.
 
     double theta;        // angle between two vectors
     double gc_distance; // great circle distance between two points
@@ -47,7 +47,51 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
     // printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
     
     return S_vert;
-} 
+}
+
+
+double total_input_power(double flash_pos_sm[3], double i0, 
+                        double latmin, double latmax, double lonmin, double lonmax, double wmin, double wmax, int itime_in[2]) {
+    // Determine the total input power tracked by the set of guide rays:
+
+    double tot_pwr = 0;
+    double pwr = 0;
+    // Integration step sizes
+    double dlat = 0.01; 
+    double dlon = 0.01;
+    double dw   = 2*PI;
+    double tmp_coords[3] = {0,0,0};
+    double x_sm[3];
+
+    for (double w = wmin + dw/2; w < wmax; w+=dw) {
+        for (double lat = latmin + dlat/2; lat < latmax; lat+=dlat) {
+            for (double lon=lonmin; lon < lonmax; lon+=dlon) {
+                // cout << "(" << lat << ", " << lon << ")\n";
+                tmp_coords = {1 + H_IONO/R_E, lat, lon};
+                degcar(tmp_coords);
+                mag_to_sm_d_(itime_in, tmp_coords, x_sm);
+
+                pwr = input_power_scaling(flash_pos_sm, x_sm, lat, w, i0);
+
+                double dist_lat = (R_E + H_IONO)*dlat*D2R;
+                double dist_lon = (R_E + H_IONO)*dlon*sin(D2R*lat)*D2R;
+                                // Latitude distance      longitude distance       freq dist
+                // cout << "dist_lat: " << dist_lat << ", dist_lon: " << dist_lon << "\n";
+                tot_pwr += pwr * dist_lat * dist_lon * dw;
+            }
+        }
+    }
+
+    return tot_pwr;
+}
+
+
+
+
+
+
+
+
 
 void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z, rayT* rayout) {
     // Fine-scale interpolation (positions only)
@@ -982,8 +1026,8 @@ cellT new_cell(rayT ray) {
     cell.t   = ray.time;
     cell.f   = ray.w/(2*PI);
     // cell.pwr = ray.inp_pwr*ray.damping/FREQ_STEP_SIZE/TIME_STEP/ray.ds;
-    cell.pwr = ray.inp_pwr*ray.damping;
-
+    // cell.pwr = ray.inp_pwr*ray.damping;
+    // cell.pwr = ray.inp_pwr;
 
     Vector3d kvec = ray.n*ray.w/C;
     double k      = kvec.norm();
@@ -1090,7 +1134,8 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
         f = cell.f + FREQ_STEP_SIZE/2;      // center of the cell, so add DT/2 or DF/2
 
         // pwr = cell.pwr*FREQ_STEP_SIZE/cell.num_rays;
-        pwr = cell.pwr/cell.num_rays/TIME_STEP/EA.ds;
+        // pwr = cell.pwr/cell.num_rays/TIME_STEP/EA.ds;
+        pwr = sqrt(cell.pwr)/EA.ds;  
 
         psi = D2R*cell.psi/cell.num_rays;
 
@@ -1308,6 +1353,39 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
             } // mres loop
         } // if pwr > 0.0
     } // entries in db
+}
+
+
+
+
+
+double polygon_frame_area(rayT frame[8]) {
+    // Calculates the area enclosed by the set of guide rays.
+    // 
+
+    Vector3d cp(0,0,0);
+    int inds[4] = {0,1,2,3};
+    int n=4;
+    
+    double max_area = 0;
+    double area;
+
+    do {
+        area = 0;
+        Vector3d cp(0,0,0);
+
+        for (int i=0; i<n; ++i) {
+            Vector3d v1 = frame[inds[i]].pos;
+            Vector3d v2 = frame[inds[(i+1)%n]].pos;
+            cp += v1.cross(v2);
+        }
+
+        area = pow(R_E*1e-3, 2)*cp.norm()/2.;
+
+        if (area > max_area) { max_area = area;}
+    } while ( next_permutation(inds,inds + 2) );
+
+    return max_area;
 }
 
 

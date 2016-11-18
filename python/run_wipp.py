@@ -32,7 +32,7 @@ iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
 isec = (ray_datenum.second + (ray_datenum.minute)*60 + ray_datenum.hour*60*60)
 
-ray_input_directory = os.path.join(project_root, "outputs", "four_adjacent")
+ray_input_directory = os.path.join(project_root, "outputs", "raytest2")
 output_directory = os.path.join(project_root, "outputs", "test_WIPP_outs")
 
 if not os.path.exists(output_directory):
@@ -77,31 +77,23 @@ inp_lat = 45
 inp_lon = 0
 launch_alt = (R_E + 5)*1e3;
 
+freqs = [1048, 1259];
+
 out_lat = 50
 out_lon = 0
-# lats, lons = np.meshgrid(inp_lats, inp_lons)
-# lats = lats.flatten()
-# lons = lons.flatten()
-# alts = launch_alt*np.ones_like(lats)
-
-# # Create spacepy coordinate structures
-# inp_coords = coord.Coords(zip(alts, lats, lons), 'GEO', 'sph', units=['Re','deg','deg'])
-# inp_coords.ticks = Ticktock(np.tile(ray_datenum.isoformat(), len(inp_coords)),'ISO') # add ticks
-
 
 # Create coordinates
-# inp_coords = zip(launch_alt, inp_lat, inp_lon)  # Geomagnetic
 inp_coords = [launch_alt, inp_lat, inp_lon]
+
+# Select ray files:
+rayfile1 = os.path.join(ray_input_directory,"rayout_%d_damped.ray"%freqs[0])
+rayfile2 = os.path.join(ray_input_directory,"rayout_%d_damped.ray"%freqs[1])
 
 # Coordinate transformation library
 xf = xflib.xflib(lib_path='/shared/users/asousa/WIPP/3dWIPP/python/libxformd.so')
 
-# print "Inputs (geomagnetic RLL)"
-# for r in inp_coords: print r
-
 print "input coords (geomagnetic RLL):"
 print inp_coords
-
 
 os.chdir(project_root)
 
@@ -111,11 +103,13 @@ buildstatus = os.system('make')
 if buildstatus != 0:
     sys.exit("Build failed!")
 
+
 # run it
 wipp_cmd = ['bin/wipp -i %s -o %s'%(ray_input_directory, output_directory) +
             ' -t %s -u %d -v %d'%(iyr, idoy, isec) +
             ' -a %g -b %g -c %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) +
-            ' -e %g -f %g -d 0'%(out_lat, out_lon)][0]
+            ' -e %g -f %g -d 0'%(out_lat, out_lon) +
+            ' -g %s -h %s'%(rayfile1, rayfile2)][0]
 
 print wipp_cmd
 
