@@ -14,6 +14,8 @@ int main(int argc, char *argv[])
     double x_in[3];
     double x_out[3];
 
+    double flash_I0;
+
     string ray_inp_dir;
     string out_dir;
 
@@ -49,7 +51,6 @@ int main(int argc, char *argv[])
     rayF* ray;
     
     // // Output arrays (change in pitch angle, north and south hemispheres)
-    // // vector < vector<double> > da_N(NUM_E, vector<double>(NUM_TIMES));
     double da_N[NUM_E][NUM_TIMES] = {0};
     double da_S[NUM_E][NUM_TIMES] = {0};
 
@@ -57,13 +58,10 @@ int main(int argc, char *argv[])
     pair<int, int> grid_ind;
     int t_grid, f_grid;
 
-
-
     map <int, vector<double> > start_locs;
     vector < vector<int> > adjacency_list;  // ( n x 4 ) list of adjacent ray indexes
 
     // Array of pointers to current rays of interest
-    // (does this copy or just point? I hope it points.)
     rayF* cur_rays[8];
 
     // Array of pointers to single-timestep frames
@@ -72,84 +70,95 @@ int main(int argc, char *argv[])
 
     time_t run_tstart, run_tend;
 
-    double frame_area, initial_area, cell_area;
+    double frame_area, initial_area, cell_area, geometric_factor;
 
-    // Default parameters:
-    ray_inp_dir = "/shared/users/asousa/WIPP/3dWIPP/outputs/";
-    out_dir = "/shared/users/asousa/WIPP/3dWIPP/outputs/";
-    dumpFileName= "fieldline_dump.dat";
-    crossingFileName = "crossing_log.txt";
-    low_file  = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1000_damped.ray";
-    high_file = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1100_damped.ray";
     int model_number = 0; // Magnetic field model
     int dump_field = 0;
 
     FILE* crossing_log;
 
-    int iyr;     // Year
+    int iyr;       // Year
     int idoy;      // Day of year
-    double isec; // Seconds into day (UTC)
+    double isec;   // Seconds into day (UTC)
 
     // Fine-scale interpolation steps:
     int num_lats_fine;
     int num_lons_fine;   
     int num_freqs_fine; 
    
-    // EA_segment EA_array[NUM_EA];
     vector<EA_segment> EA_array(NUM_EA);
-
-    // map< pair<double,double>, vector<EA_segment> > EA_map;
-    // vector< vector<EA_segment> > EA_map;
 
     // Location to determine output at (geomagnetic)
     double out_lat = 50;
     double out_lon = 0;
 
-
-     // Parse input arguments:
     int opt = 0;
-    while ((opt = getopt(argc, argv, "i:o:t:u:v:a:b:c:d:e:f:g:h:")) != -1) {
+    int opt_index = 0;
+
+    // Default parameters:
+    out_dir = "/shared/users/asousa/WIPP/3dWIPP/outputs/";
+    dumpFileName= "fieldline_dump.dat";
+    crossingFileName = "crossing_log.txt";
+    flash_pos = {1, 0, 0};
+    flash_I0 = -100e3;
+    out_lat = 45;
+    out_lon = 0;
+    iyr = 2010; idoy = 1; isec = 0;
+    low_file  = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1000_damped.ray";
+    high_file = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1100_damped.ray";
+
+
+
+    // Parse input arguments:
+    static struct option long_options[] =
+    {
+        {"out_dir",     required_argument,    0, 'a'},
+        {"iyr",         required_argument,    0, 'b'},
+        {"idoy",        required_argument,    0, 'c'},
+        {"isec",        required_argument,    0, 'd'},
+        {"f_alt",       required_argument,    0, 'e'},
+        {"f_lat",       required_argument,    0, 'f'},
+        {"f_lon",       required_argument,    0, 'g'},
+        {"out_lat",     required_argument,    0, 'h'},
+        {"out_lon",     required_argument,    0, 'i'},
+        {"I0",          required_argument,    0, 'j'},
+        {"low_file",    required_argument,    0, 'k'},
+        {"hi_file" ,    required_argument,    0, 'l'},
+        // These options set a flag:
+        {"dump_field",  no_argument,    &dump_field, 1},
+        {0, 0, 0, 0}
+    };
+
+    while (opt != -1) {
+        opt = getopt_long (argc, argv, "a:b:c:d:e:f:g:h:i:j:k:", long_options, &opt_index);
+        // cout << "opt is " << opt << "\n";
         switch(opt) {
-            case 'i':
-                ray_inp_dir = (string) optarg;
-                break;
-            case 'o':
-                out_dir = (string) optarg;
-                break;
-            case 't':
-                iyr = atoi(optarg);
-                break;
-            case 'u':
-                idoy= atoi(optarg);
-                break;
-            case 'v':
-                // isec= strtod(optarg, NULL);
-                isec= atoi(optarg);
-                break;
-            case 'd':
-                dump_field = atoi(optarg);
-                break;
-            case 'a':
-                flash_pos[0] = strtod(optarg, NULL);
-                break;
-            case 'b':
-                flash_pos[1] = strtod(optarg, NULL);
-                break;
-            case 'c':
-                flash_pos[2] = strtod(optarg, NULL);
-                break;
-            case 'e':
-                out_lat = strtod(optarg, NULL);
-                break;
-            case 'f':
-                out_lon = strtod(optarg, NULL);
-                break;
-            case 'g':
-                low_file= (string) optarg;
-                break;
-            case 'h':
-                high_file= (string) optarg;
-                break; 
+            case 0:
+            if (long_options[opt_index].flag != 0)      break;
+            case 'a':   // out_dir
+                out_dir = (string) optarg;              break;
+            case 'b':   // iyr
+                iyr = atoi(optarg);                     break;
+            case 'c':   // idoy
+                idoy= atoi(optarg);                     break;
+            case 'd':   // isec
+                isec= atoi(optarg);                     break;
+            case 'e':   // flash altitude
+                flash_pos[0] = strtod(optarg, NULL);    break;
+            case 'f':   // flash latitude
+                flash_pos[1] = strtod(optarg, NULL);    break;
+            case 'g':   // flash longitude
+                flash_pos[2] = strtod(optarg, NULL);    break;
+            case 'h':   // out latitude
+                out_lat = strtod(optarg, NULL);         break;
+            case 'i':   // out longitude
+                out_lon = strtod(optarg, NULL);         break;
+            case 'j':
+                flash_I0 = strtod(optarg, NULL);        break;
+            case 'k':   // lower rayfile
+                low_file= (string) optarg;              break;
+            case 'l':   // upper rayfile
+                high_file= (string) optarg;             break; 
             case '?':
                  printf("\nUnknown option: %s\n",opt);
             break;
@@ -165,9 +174,10 @@ int main(int argc, char *argv[])
     cout << "day: " << idoy << "\n";
     cout << "sec of day: " << isec << "\n";
     cout << "flash location: " << flash_pos[1] << ", " << flash_pos[2] << "\n";
+    cout << "flash peak current: " << flash_I0*1e-3 << " kA\n";
     cout << "output location: " << out_lat << ", " << out_lon << "\n";
-    cout << "---- 3D WIPP ----\n";
 
+    cout << "---- 3D WIPP ----\n";
 
     int yearday = iyr*1000 + idoy;
     itime_in[0] = yearday;
@@ -189,9 +199,7 @@ int main(int argc, char *argv[])
         dump_fieldlines(itime_in, n_lats, n_lons, model_number, dumpFileName);
     }
 
-// --------------- Get flash input coordinates -----------------------
-    double flash_I0 = -100e3;
-    
+// --------------- Get flash input coordinates -----------------------    
     lat0 = D2R*flash_pos[1];
     lon0 = D2R*flash_pos[2];
     rad0 = flash_pos[0];
@@ -200,15 +208,8 @@ int main(int argc, char *argv[])
     pol_to_cart_d_(&lat0, &lon0, &rad0, tmp_coords);
     mag_to_sm_d_(itime_in, tmp_coords, flash_pos_sm);
 
-    double input_freqs[] = FREQ_VEC;  // Currently set in const.h
 
-    cout << "input frequencies: "; print_array(input_freqs, 2);
-
-
-
-
-// --------------- Loop over ray frequencies ---------------------------
-    // Load upper frequency rays ------------------------------------------:
+// Load upper frequency rays ------------------------------------------:
     raylist_hi  = read_rayfile(high_file);
     for(map<int,rayF>::iterator iter = raylist_hi.begin(); iter != raylist_hi.end(); ++iter){
         ray = &(iter->second);
@@ -241,14 +242,14 @@ int main(int argc, char *argv[])
         calc_stix_parameters(ray);
     }
 
-    // Find all sets of adjacent rays to iterate over ----------------------:
+// Find all sets of adjacent rays to iterate over ----------------------:
     // (should be consistent between all frequency files... hmm... hmm...)
     adjacency_list = find_adjacent_rays(start_locs);
     cout << "Found " << adjacency_list.size() << " sets of adjacent guide rays\n";
 
     
-    // // Start with a fresh crossing db:
-    // for (int rr=0; rr < NUM_EA; ++rr) { crossing_db[rr].clear();}  
+    // Start with a fresh crossing db:
+    for (int rr=0; rr < NUM_EA; ++rr) { crossing_db[rr].clear();}  
 
     // Iterate over each set of adjacent guide rays:
     for (int adj_row =0; adj_row < adjacency_list.size(); adj_row++) {
@@ -289,7 +290,6 @@ int main(int argc, char *argv[])
         avg_distance_from_flash /= 8000.0;  // Average dist of the 8 corner rays, in km 
 
 
-
         // starting separation in lat, lon directions (meters)
         dlat = D2R*(R_E + H_IONO)*(latmax - latmin);
         dlon = D2R*(R_E + H_IONO)*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
@@ -307,7 +307,6 @@ int main(int argc, char *argv[])
 
             // Scale the input power by dlat, dlon, dw:
             // (ray spacing may not be consistent)
-
             double inp_pwr = 0;
 
             for (int i=1; i < 8; i++) {
@@ -317,7 +316,7 @@ int main(int argc, char *argv[])
                 // cout << "inp_pwr: " << cur_rays[i]->inp_pwr << "\n";
                 inp_pwr += cur_rays[i]->inp_pwr;
 
-                // This matches Jacob's power scaling (but I disagree with it)
+                // This matches Jacob's power scaling
                 // cur_rays[i]->inp_pwr *= (dlat)*(dw/(2*PI)*0.877);      
                 // cout << "in pwr (post scale): " << cur_rays[i]->inp_pwr << "\n";
             }
@@ -391,11 +390,10 @@ int main(int argc, char *argv[])
                         hit_counter ++;
 
                         // Calculate the geometric factor (spreading of guide rays)
-                        // frame_area = polygon_frame_area(cur_frames); 
-                        // cell_area  = frame_area/(num_lons_fine*num_lats_fine*num_freqs_fine);
+                        frame_area = polygon_frame_area(cur_frames);
+                        geometric_factor = initial_area/frame_area;  
                         cell_area = FREQ_STEP_SIZE*1.0/(num_lons_fine*num_lats_fine*num_freqs_fine);
                         
-
 
                         // Interpolate on fine-scale grid:
                         // #pragma omp parallel for
@@ -419,7 +417,7 @@ int main(int argc, char *argv[])
                                         interp_ray_data(cur_frames, ii, jj, kk, &r_cur);
                                         interp_ray_data(prev_frames,ii, jj, kk, &r_prev);
 
-                                        // cout << "f_int: " << r_cur.w/(2*PI) << "\n";
+                                        // Write crossing to log (for plotting)
                                         fprintf(crossing_log, "%g %g %g %g %g %g\n",
                                             r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
                                             r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
@@ -429,7 +427,6 @@ int main(int argc, char *argv[])
                                         r_cur.dlat = dlat;
                                         r_cur.dlon = dlon;
                                         // r_cur.ds   = (r_cur.pos - r_prev.pos).norm()*R_E;   // Jacob uses ds between the EA segments... hm
-                                        // r_cur.ds = EA_array[rr].ds;
 
                                         t_grid = floor(r_cur.time/(TIME_STEP));
                                         f_grid = floor(kk*num_freqs_fine); 
@@ -441,15 +438,14 @@ int main(int argc, char *argv[])
                                         cell_cur.Lsh = EA_array[rr].Lsh;
                                         cell_cur.lat = EA_array[rr].lat;
 
-                                        // Total power within this cell: (add damping here, yo)
-                                        cell_cur.pwr = pow((r_cur.inp_pwr)*cell_area, 2);
+                                        // Total power within this cell
+                                        cell_cur.pwr = pow(inp_pwr * cell_area * geometric_factor * r_cur.damping, 2);
 
                                         if (crossing_db[rr].count(grid_ind)==0) {
                                             // If we haven't hit this same (time, freq, EA) combo yet, add it:
                                             crossing_db[rr].insert(make_pair(grid_ind, cell_cur));
                                         } else {
                                             // Else, sum the current frame with previous frames, so we can average:
-                                            // add_rayT(&(crossing_db[rr].at(grid_ind)), &r_cur);
                                             add_cell(&(crossing_db[rr].at(grid_ind)), &cell_cur);
                                         }
                                     }   // Crossings
@@ -458,6 +454,7 @@ int main(int argc, char *argv[])
                         }   // ii
                     }   // Coarse mask
                 }   // EA array (single fieldline)
+
                 // Step forward one frame:
                 for (int zz=0; zz<8; zz++) { prev_frames[zz] = cur_frames[zz]; }
 
@@ -476,49 +473,23 @@ int main(int argc, char *argv[])
 
         // Calculate scattering at crossings:
         for (int rr=NUM_EA-1; rr>=0; rr--) {
-            // Mine
             calc_resonance(crossing_db[rr], EA_array[rr], da_N, da_S);
-
-            // Jacob's
-            // for (map<pair<int,int>, cellT>::iterator iter=crossing_db[rr].begin(); iter!=crossing_db[rr].end(); ++iter) {
-            //     calcRes(iter->second, da_N, da_S);
-            // }
         }
 
         // // Step thru to the next frequency (shallow copy)
         // raylist_low = raylist_hi;
 
+        // Write pN, pS files:
+        cout << "Saving pN, pS files\n";
 
+        ostringstream pN_name, pS_name;
 
-        // // Let's try this with the old crossings:
-        // vector<cellT> listy = load_crossings(itime_in, "/shared/users/asousa/WIPP/WIPPv4/crossing_log.txt");
-        // for (vector<cellT>::iterator cell = listy.begin(); cell!=listy.end(); cell++) {
-        //     calcRes(*cell, da_N, da_S);
-        // }
-
-
-        // for (int i=0; i < NUM_TIMES; i++) {
-        //     for (int j=0; j < NUM_E; j++) {
-        //         if (da_N[j][i] > 0) {
-        //             cout << i << " " << j << " " << sqrt(da_N[j][i]) << "\n";
-        //         }  
-        //     }  
-        // }
-
-
-    // Write pN, pS files:
-    cout << "Saving pN, pS files\n";
-
-    ostringstream pN_name, pS_name;
-
-    pN_name << out_dir << "/pN_" << out_lat << "_" << out_lon << ".dat";
-    pS_name << out_dir << "/pS_" << out_lat << "_" << out_lon << ".dat";
-    cout << pN_name.str() << "\n";
-    cout << pS_name.str() << "\n";
-    write_p_array(da_N, pN_name.str());
-    write_p_array(da_S, pS_name.str());
-
-
+        pN_name << out_dir << "/pN_" << out_lat << "_" << out_lon << "_" << round(wmin/(2*PI)) << ".dat";
+        pS_name << out_dir << "/pS_" << out_lat << "_" << out_lon << "_" << round(wmin/(2*PI)) << ".dat";
+        cout << pN_name.str() << "\n";
+        cout << pS_name.str() << "\n";
+        write_p_array(da_N, pN_name.str());
+        write_p_array(da_S, pS_name.str());
 
 
     return 0; // Return statement.

@@ -209,7 +209,7 @@ map <int, rayF> read_rayfile(string fileName)
 
     } else {   // Couldn't open the file
 
-        cout << "Something's Fucky\n";
+        cout << "Failed to open file at " << fileName << "\n";
     }
 
 

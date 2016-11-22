@@ -52,7 +52,7 @@
 
 // Fine-scale interpolation step sizes:
 #define     FREQ_STEP_SIZE  10   // Hz
-#define     LAT_STEP_SIZE   10   // km
+#define     LAT_STEP_SIZE   1   // km
 #define     LON_STEP_SIZE   10   // km
 
 // Maximum distance from source to consider a ray
@@ -72,10 +72,10 @@
 #define     WAVE_PWR_THRESH   0
 #define     DAMPING_THRESH    1e-3   
 
-#define     FREQ_VEC    {1000, 1100} //{502, 603, 725, 872, 1048, 1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000}
+// #define     FREQ_VEC    {1000, 1100} //{502, 603, 725, 872, 1048, 1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000}
 
-#define     NUM_FREQS   2
+// #define     NUM_FREQS   2
 
-#define     DEBUG       true
+#define     DEBUG       false
 
 #endif

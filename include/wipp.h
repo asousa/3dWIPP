@@ -18,6 +18,7 @@
 #include <vector>
 #include <map>
 // #include <ctime>
+#include <getopt.h>
 
 #include <consts.h>
 #include <bmodel.h>
@@ -31,12 +32,11 @@ using namespace Eigen;
 
 // Structure for holding an entire rayfile (yuge)
 typedef struct rayF {
-    int size;
-    double w;                          // frequency (angular)
-    double stopcond;                   // Stop condition
-    double nspec;                      // Number of species in plasmasphere model
-    // double ray_num;                 // Ray index number
-    vector <double> time;            // Group time
+    int size;                         // Number of timesteps
+    double w;                         // frequency (angular)
+    double stopcond;                  // Stop condition
+    double nspec;                     // Number of species in plasmasphere model
+    vector <double> time;             // Group time
 
     vector <vector <double> > pos;
     vector <vector <double> > vprel;
@@ -53,30 +53,28 @@ typedef struct rayF {
     double in_radius, in_lat, in_lon, in_w;
 
     // Variable-length stuff (depending on number of constituents in model)
-    vector <double> qs;    // species charge
-    vector <double> ms;    // species mass
+    vector <double> qs;              // species charge
+    vector <double> ms;              // species mass
     vector <vector <double> > Ns;    // number density of species (m^-3)
     vector <vector <double> > nus;   // collision frequencies
     vector <double> damping;         // Damping vector (normalized to 1)
-
     double inp_pwr;                  // input power of ray
-
 
     // Stix parameters
     vector <double> stixP;
     vector <double> stixR;
     vector <double> stixL;
-    vector <double> stixS;
-    vector <double> stixD;
-    vector <double> stixA;
-    vector <double> stixB;    
+    // vector <double> stixS;
+    // vector <double> stixD;
+    // vector <double> stixA;
+    // vector <double> stixB;    
 
 } rayF;
 
 // Structure for holding a single timestep of a ray (smol)
 typedef struct rayT {
-    double w;                          // frequency (angular)
-    double nspec;                      // Number of species in plasmasphere model
+    double w;               // frequency (angular)
+    double nspec;           // Number of species in plasmasphere model
 
     double time;            // Group time
 
@@ -113,12 +111,13 @@ typedef struct rayT {
 
 // Store each cell in the spectrogram in cellT
 typedef struct cellT {
-  double        Lsh;
-  double        lat;
-  double        t;
-  double        f;
-  double        pwr;
-  double        psi;
+  double        Lsh;        // L shell (Earth radii)
+  double        lat;        // Latitude (degrees)
+  double        t;          // Time (sec)
+  double        f;          // Frequency (hz)
+  double        pwr;        // Total power within cell
+  double        damping;    // Attenuation (relative to 1)
+  double        psi;        
   double        mu;
   double        stixP;
   double        stixR;
@@ -164,13 +163,6 @@ typedef struct EA_segment {
 } EA_segment;
 
 
-
-// rayfile loader
-// map<int, rayF> read_rayfile(string fileName);
-
-// Landau damping
-// void damping_ngo(rayF &rayfile);
-
 // Math functions
 double l2_norm(vector<double> u);
 double norm(double u[], int size);
@@ -192,27 +184,16 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 double ionoAbsorp(float lat, long f);
 float interpPt(float *xI, float *yI, int n, float xO);
 
-// void interp_ray_positions(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
-// void interp_ray_data(rayF** raylist, double n_x, double n_y, double n_z, int t_ind, rayT* rayout);
 void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z, rayT* rayout);
 void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT* rayout);
 
 void calc_stix_parameters(rayF* ray);
-// void init_EA_array(EA_segment* EA_array, double lat, double lon, int itime_in[2], int model_number);
 vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int model_number);
 
 void dump_EA_array(vector<EA_segment> EA_array, string filename);
 
 
 // ---- Coordinate transforms ----
-// lib_onera_desp (the Cospar IRBEM library, which is the internal support for SpacePy):
-
-// extern "C" void coord_trans_vec1_(long* ntime, long* sysaxesIN, long* sysaxesOUT, long* iyr,long* idoy, double* secs, double* xIN, double* xOUT);
-// // extern "C" void coord_trans1__(long* sysaxesIN, long* sysaxesOUT, long* iyr,long* idoy, long* secs, double* xIN, double* xOUT);
-
-// extern "C" void sm2geo1_(long* iyr,long* idoy, double* secs, double* xSM, double* xGEO);
-// extern "C" void geo2sm1_(long* iyr,long* idoy, double* secs, double* xGEO, double* xSM);
-
 extern "C" void geo2mag1_(int* iyr, double* xGEO, double* xMAG);
 
 // // cartesian - spherical (trig terms in degrees!)
@@ -304,7 +285,7 @@ bool coarse_mask(rayT cur_rays[8], rayT prev_rays[8], EA_segment EA);
 // bool coarse_mask();
 bool crosses_EA(Vector3d l0, Vector3d l1, EA_segment EA_seg);
 
-double longitude_interval(double ra, double r0);
+double longitude_interval(double ra, double r0, double width_deg);
 // void calc_resonance(cellT* cell, EA_segment* EA, double v_tot_arr[NUM_E], 
 //     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
 // void calc_resonance(cellT cell, EA_segment EA, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);

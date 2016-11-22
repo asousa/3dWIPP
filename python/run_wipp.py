@@ -32,7 +32,7 @@ iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
 isec = (ray_datenum.second + (ray_datenum.minute)*60 + ray_datenum.hour*60*60)
 
-ray_input_directory = os.path.join(project_root, "outputs", "raytest2")
+ray_input_directory = os.path.join(project_root, "outputs", "four_adjacent")
 output_directory = os.path.join(project_root, "outputs", "test_WIPP_outs")
 
 if not os.path.exists(output_directory):
@@ -75,9 +75,11 @@ print "sec: ", isec
 
 inp_lat = 45
 inp_lon = 0
-launch_alt = (R_E + 5)*1e3;
+launch_alt = ((R_E + 5)*1e3)/R_E;
 
-freqs = [1048, 1259];
+flash_I0 = -10e3
+
+freqs = [1000, 1100];
 
 out_lat = 50
 out_lon = 0
@@ -105,11 +107,19 @@ if buildstatus != 0:
 
 
 # run it
-wipp_cmd = ['bin/wipp -i %s -o %s'%(ray_input_directory, output_directory) +
-            ' -t %s -u %d -v %d'%(iyr, idoy, isec) +
-            ' -a %g -b %g -c %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) +
-            ' -e %g -f %g -d 0'%(out_lat, out_lon) +
-            ' -g %s -h %s'%(rayfile1, rayfile2)][0]
+# wipp_cmd = ['bin/wipp -i %s -o %s'%(ray_input_directory, output_directory) +
+#             ' -t %s -u %d -v %d'%(iyr, idoy, isec) +
+#             ' -a %g -b %g -c %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) +
+#             ' -e %g -f %g -d 0'%(out_lat, out_lon) +
+#             ' -g %s -h %s'%(rayfile1, rayfile2)][0]
+
+wipp_cmd = ['bin/wipp --out_dir %s'%(output_directory) +
+            ' --iyr %s --idoy %d --isec %d --I0 %d'%(iyr, idoy, isec, flash_I0) +
+            ' --f_alt %g --f_lat %g --f_lon %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) +
+            ' --out_lat %g --out_lon %g'%(out_lat, out_lon) +
+            ' --low_file %s --hi_file %s'%(rayfile1, rayfile2)][0]
+
+
 
 print wipp_cmd
 

@@ -134,9 +134,8 @@ void interp_ray_data(rayT framelist[8], double n_x, double n_y, double n_z, rayT
     W[6] = n_y*(1. - n_x)*n_z;
     W[7] = n_x*n_y*n_z*1.;
 
-    // print_array(W, 8);
     for (int jj=0; jj<8; jj++){  // Corner rays
-    // print_array(raylist[jj]->pos[t_ind].data(), 3);
+
         // Vector-valued
         for (int ii=0; ii<3; ii++){  // X, Y, Z
             // (rayout->pos)[ii]   += W[jj]*((raylist[jj]->pos[t_ind]).data()[ii]);
@@ -214,36 +213,11 @@ void calc_stix_parameters(rayF* ray) {
         S = (R + L)/2.;
         D = (R - L)/2.;
 
-
-        // k = n_vec*w/C;
-        // kmag = k.norm();
-        // Bhat = B0.array()/B0.norm();
-        // kpar = k.dot(Bhat); //k.array()*Bhat.array();
-        // kperp = (k - kpar*Bhat).norm();
-
-        // // Theta is the angle between parallel and perpendicular K
-        // theta = atan2(-kperp, -kpar);   // negation on both sides matches the original raytracer
-        //                                 // (Probably means the magnitude of the b-field is backwards
-        //                                 // between forrest or jacob)
-        // // Some trig.
-        // sin_th = sin(theta);
-        // cos_th = cos(theta);
-        // sin_th_sq = pow(sin_th,2);
-        // cos_th_sq = pow(cos_th,2);
-
-        // A = S*sin_th_sq + P*cos_th_sq;
-        // B = R*L*sin_th_sq + P*S*(1+cos_th_sq);
-
-
-
         ray->stixR.push_back(R);
         ray->stixL.push_back(L);
         ray->stixP.push_back(P);
-        ray->stixS.push_back(S);
-        ray->stixD.push_back(D); 
-        // ray->stixA.push_back(A);
-        // ray->stixB.push_back(B);
-
+        // ray->stixS.push_back(S);
+        // ray->stixD.push_back(D); 
         // --------------------------------------------
 
     } // ii (timestep)
@@ -650,8 +624,10 @@ bool coarse_mask(rayT cur_frames[8], rayT prev_frames[8], EA_segment EA) {
     bool lonflag  = false;
 
     carsph(EA.ea_pos.data(), EAr);
-
     
+    double lon_width = ((EA.radius)/EAr[0]);
+    // cout << "width: " << R2D*lon_width << "\n";
+
     // cout << EAr[0] << ", " << EAr[1]*R2D << ", " << EAr[2]*R2D << "\n";
 
     for (int rr=0; rr < 8; rr++) {
@@ -695,11 +671,12 @@ bool coarse_mask(rayT cur_frames[8], rayT prev_frames[8], EA_segment EA) {
 
 
         // Check if longitudes are all on the same side of the EA:
+
         if (rr==0) {
-            lside = longitude_interval(r1[2], EAr[2]);
+            lside = longitude_interval(r1[2], EAr[2], lon_width);
         }
-        sl1 = longitude_interval(r1[2], EAr[2]);
-        sl2 = longitude_interval(r2[2], EAr[2]);
+        sl1 = longitude_interval(r1[2], EAr[2], lon_width);
+        sl2 = longitude_interval(r2[2], EAr[2], lon_width);
 
         if ( (sl1 != lside) || (sl2 != lside) ) {
             lonflag = true;
@@ -720,17 +697,17 @@ bool coarse_mask(rayT cur_frames[8], rayT prev_frames[8], EA_segment EA) {
 }
 
 
-double longitude_interval(double ra, double r0) {
+double longitude_interval(double ra, double r0, double width) {
     // Pretty sure this won't wrap around happily, but it works for now.
     // (10.28.16)
 
     // cout << "ra: " << ra*R2D << " r0: " << r0*R2D << " diff: " << R2D*(ra - r0) << "\n";
 
-    const double width = 5;
+    // const double width = 5;
 
-    if ( R2D*(ra - r0) < - width) {
+    if ( (ra - r0) < - width) {
         return -1;
-    } else if ( R2D*(ra - r0) > width) {
+    } else if ( (ra - r0) > width) {
         return 1;
     } else {
         return 0;
@@ -856,15 +833,11 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target) {
         frame->n[k] =   ( rayfile->n[iMid+1][k]  -rayfile->n[iMid][k]   )*M + rayfile->n[iMid][k];
         frame->B0[k] =  ( rayfile->B0[iMid+1][k] -rayfile->B0[iMid][k]  )*M + rayfile->B0[iMid][k];
     }
-    // cout << "Scalars\n";
     // Scalar-valued
     frame->damping = ( rayfile->damping[iMid+1]-rayfile->damping[iMid] )*M + rayfile->damping[iMid];
     frame->stixP = ( rayfile->stixP[iMid+1]-rayfile->stixP[iMid] )*M + rayfile->stixP[iMid];
     frame->stixR = ( rayfile->stixR[iMid+1]-rayfile->stixR[iMid] )*M + rayfile->stixR[iMid];
     frame->stixL = ( rayfile->stixL[iMid+1]-rayfile->stixL[iMid] )*M + rayfile->stixL[iMid];
-    // frame->stixS = ( rayfile->stixS[iMid+1]-rayfile->stixS[iMid] )*M + rayfile->stixS[iMid]; 
-    // frame->stixD = ( rayfile->stixD[iMid+1]-rayfile->stixD[iMid] )*M + rayfile->stixD[iMid];
-    
     
     // Stuff that doesn't need interpolation:
     frame->w    = rayfile->w;
@@ -872,8 +845,6 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target) {
     frame->in_lon = rayfile->in_lon;
     frame->time = t_target;
     frame->inp_pwr = rayfile->inp_pwr;
-    // cout << t_target << " " << frame->damping <<"\n";
-
 }
 
 
@@ -1275,14 +1246,14 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
                               mres/(2.0*v_para_star_sq*gamma)*wh*dv_para_ds + 
                               w/(2.0*v_para_star_sq)*dv_para_ds ;
 
-                        // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
-                        BB = mres/(gamma*v_para_star)*wh - 
-                             mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) -
-                             w/v_para_star - kz;
+                        // // Bortnik A.18 -- part A0   -- THIS DOES NOT MATCH THE THESIS
+                        // BB = mres/(gamma*v_para_star)*wh - 
+                        //      mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) -
+                        //      w/v_para_star - kz;
 
                         // Bortnik A.18 -- part A0
-                        // BB =   mres*wh/(gamma*v_para_star)
-                        //      - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) * (w/v_para_star)*kz;
+                        BB =   mres*wh/(gamma*v_para_star)
+                             - mres/(gamma*v_para_star)*dwh_ds*(ds/2.0) * (w/v_para_star)*kz;
 
 
                         // Evaluate Bortnik A.26 -- integration performed thru Fresnel functions

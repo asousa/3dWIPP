@@ -59,13 +59,11 @@ launch_alt = (R_E + 2000.)*1e3
 # freqs    = np.array([1000, 2000]) 
 
 # freqs = [200,240,289,347,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000]
-freqs = [500]
-# freqs = np.linspace(1000, 5000, 21)
 
-
-
-
-
+f1 = 200; f2 = 30000;
+num_freqs = 32
+flogs = np.linspace(np.log10(f1), np.log10(f2), num_freqs)
+freqs = np.round(pow(10, flogs)/10.)*10
 
 
 # GCPM grid to use (plasmasphere model)
