@@ -166,7 +166,8 @@ int main(int argc, char *argv[])
     }
 
 
-
+    cout << "---- 3D WIPP ----\n\n";
+    cout << "   Crossing Detection + pitch-angle deflection\n";
     cout << "---- Input Parameters ----\n";
     cout << "ray input directory: " << ray_inp_dir << "\n";
     cout << "output directory: " << out_dir << "\n";
@@ -176,9 +177,7 @@ int main(int argc, char *argv[])
     cout << "flash location: " << flash_pos[1] << ", " << flash_pos[2] << "\n";
     cout << "flash peak current: " << flash_I0*1e-3 << " kA\n";
     cout << "output location: " << out_lat << ", " << out_lon << "\n";
-
-    cout << "---- 3D WIPP ----\n";
-
+    cout << "\n";
     int yearday = iyr*1000 + idoy;
     itime_in[0] = yearday;
     itime_in[1] = isec*1e3;

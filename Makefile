@@ -35,6 +35,11 @@ _OBJ = wipp_main.o \
 
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
+_FLUX_OBJ = flux_main.o \
+			math_utils.o \
+			wipp_fileutils.o \
+			coord_transforms.o
+FLUX_OBJ = $(patsubst %,$(ODIR)/%,$(_FLUX_OBJ))
 
 XFORM = $(LDIR)/xform_double
 IRBEM = $(LDIR)/irbem-code
@@ -45,8 +50,10 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
 
 # Rule to link everything together + generate executable
 wipp: $(OBJ) $(LDIR)/libxformd.a $(LDIR)/libgeopackd.a $(LDIR)/libfoust.a
-
 	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) $(LIBS) -o $(BDIR)/$@
+
+flux: $(FLUX_OBJ)
+	$(CC) $(CFLAGS) $(FLUX_OBJ) -L $(LDIR) $(LIBS) -o $(BDIR)/$@
 
 # $(ODIR)/sm2geo.o: $(SRC_DIR)/sm2geo.c
 

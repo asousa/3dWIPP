@@ -422,6 +422,37 @@ void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
     fclose(file);
 }
 
+void read_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
+    ifstream file;
+    vector <double> v;
+    istringstream iss;
+    string line;
+
+    file.open(filename.c_str());
+    if (file.is_open()) {
+        while (getline(file, line)) {
+
+            v.clear();
+            iss.clear();
+            iss.str(line);
+
+            copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
+
+            if (v.size() != NUM_E*NUM_TIMES) {
+                cout << "size mismatch!\n";
+            } else {
+                for (int row=0; row < NUM_E; ++row) {
+                    for (int col=0; col < NUM_TIMES; ++col){
+                        arr[row][col] = v[row*NUM_TIMES + col];
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
 
 vector<cellT> load_crossings(int itime_in[2], string filename) {
     ifstream file;

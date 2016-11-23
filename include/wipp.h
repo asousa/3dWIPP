@@ -298,6 +298,8 @@ void calc_resonance(map<pair<int,int>,cellT> db, EA_segment EA,
 void Fresnel(double x0, double *FS, double *FC);
 
 void write_p_array(double arr[NUM_E][NUM_TIMES], string filename);
+void read_p_array(double arr[NUM_E][NUM_TIMES], string filename);
+
 void add_rayT(rayT* rayA, rayT* rayB);
 
 void interp_rayF(rayF* rayfile, rayT* frame, double t_target);
@@ -321,6 +323,12 @@ double total_input_power(double flash_pos_sm[3], double i0,
                          double wmin, double wmax, int itime_in[2]);
 
 double polygon_frame_area(rayT frame[8]);
+
+
+
+
+
+// flux.h
 
 
 #endif

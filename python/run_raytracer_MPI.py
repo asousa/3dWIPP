@@ -29,16 +29,17 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 raytracer_root = '/shared/users/asousa/software/foust_raytracer/'
 damping_root = '/shared/users/asousa/WIPP/3dWIPP/damping/'
 ray_bin_dir    = os.path.join(raytracer_root, 'bin')
-ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/raytest4'
+ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/1lon_ngo_10_65'
 
 R_E = 6371.0    # km
 
 # ----------- Simulation params ----------------
 t_max = 10.     # Maximum duration in seconds
 
-dt0 = 0.1      # Initial timestep in seconds
-dtmax = 0.01    # Maximum allowable timestep in seconds
+dt0 = 1e-4      # Initial timestep in seconds
+dtmax = 1e-1    # Maximum allowable timestep in seconds
 root = 2        # Which root of the Appleton-Hartree equation
+                # (1 = negative, 2 = positive)
                 # (2=whistler in magnetosphere)
 fixedstep = 0   # Don't use fixed step sizes, that's a bad idea.
 maxerr = 1e-5   # Error bound for adaptive timestepping
@@ -52,9 +53,9 @@ minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
 # ---------- Ray inputs -----------------
 
 # Geomagnetic please.
-inp_lats = np.arange(10, 65, 2) #[40, 41, 42, 43]
+inp_lats = np.arange(10, 65, 1) #[40, 41, 42, 43]
 inp_lons = [0, 1]
-launch_alt = (R_E + 2000.)*1e3
+launch_alt = (R_E + 1000.)*1e3
 
 # freqs    = np.array([1000, 2000]) 
 
@@ -140,6 +141,9 @@ if (rank < len(chunks)):
         ws   = ws.flatten()
         alts = launch_alt*np.ones_like(lats)
 
+        # VERY UNSCIENTIFIC BAND-AID:
+        # Launch rays below 600 hz at 4000 km instead of 1000.
+        alts[ws < 600*2*np.pi] += 3000e3
 
 
 
@@ -155,8 +159,8 @@ if (rank < len(chunks)):
 
         working_path = os.path.join(os.path.expanduser("~"),"rayTmp_%d"%(freq))
         ray_inpfile = os.path.join(working_path,'ray_inputs.txt')
-        ray_outfile = os.path.join(ray_out_dir, 'rayout_%d.ray'%(freq))
-        damp_outfile = os.path.join(ray_out_dir,'rayout_%d_damped.ray'%(freq))
+        ray_outfile = os.path.join(ray_out_dir, 'ray_%d.ray'%(freq))
+        damp_outfile = os.path.join(ray_out_dir,'damp_%d.ray'%(freq))
         # dumpfile    = os.path.join(project_root,'output','dumpout.txt')
         
 
@@ -170,7 +174,8 @@ if (rank < len(chunks)):
             os.remove(ray_inpfile)
         if os.path.exists(ray_outfile):
             os.remove(ray_outfile)
-        
+        if os.path.exists(damp_outfile):
+            os.remove(damp_outfile)
 
         # Rotate from geomagnetic to SM cartesian coordinates
         inp_coords = [xf.rllmag2sm(r, ray_datenum) for r in inp_coords]
@@ -248,5 +253,5 @@ if (rank < len(chunks)):
         file.write(damplog)
         file.close()
 
-        # remove undamped file
-        os.remove(ray_outfile)
+        # # remove undamped file
+        # os.remove(ray_outfile)
