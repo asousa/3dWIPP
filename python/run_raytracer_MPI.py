@@ -13,6 +13,8 @@ from index_helpers import load_Dst
 from index_helpers import load_Kp
 from index_helpers import load_ae
 
+from distutils.dir_util import mkpath
+
 import xflib  # Fortran xform-double library (coordinate transforms)
 
 # from spacepy import coordinates as coord
@@ -29,7 +31,7 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 raytracer_root = '/shared/users/asousa/software/foust_raytracer/'
 damping_root = '/shared/users/asousa/WIPP/3dWIPP/damping/'
 ray_bin_dir    = os.path.join(raytracer_root, 'bin')
-ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/1lon_ngo_10_65'
+ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/rays'
 
 R_E = 6371.0    # km
 
@@ -54,9 +56,9 @@ minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
 
 # Geomagnetic please.
 inp_lats = np.arange(10, 65, 1) #[40, 41, 42, 43]
-inp_lons = [0, 1]
-launch_alt = (R_E + 1000.)*1e3
-
+inp_lons = np.arange(-5, 5, 1)
+# freqs    = [200, 2000]
+launch_alt = (R_E + 1000)*1e3
 # freqs    = np.array([1000, 2000]) 
 
 # freqs = [200,240,289,347,418,502,603,725,872,1048,1259,1514,1819,2187,2629,3160,3798,4565,5487,6596,7928,9530,11455,13769,16550,19893,23912,28742,34549,41528,49916,60000]
@@ -65,6 +67,16 @@ f1 = 200; f2 = 30000;
 num_freqs = 32
 flogs = np.linspace(np.log10(f1), np.log10(f2), num_freqs)
 freqs = np.round(pow(10, flogs)/10.)*10
+
+lats, lons, fs = np.meshgrid(inp_lats, inp_lons, freqs)
+lats = lats.flatten()
+lons = lons.flatten()
+fs   = fs.flatten()
+
+alts = launch_alt*np.ones_like(lats)
+alts[fs < 600] += 3000e3
+
+inps = zip(alts, lats, lons, fs)
 
 
 # GCPM grid to use (plasmasphere model)
@@ -95,14 +107,14 @@ host = commands.getoutput("hostname")
 
 # Split frequency vector into smaller chunks, pass each chunk to a process
 nProcs = 1.0*comm.Get_size()
-nFreqs = 1.0*np.shape(freqs)[0]
-nSteps = np.ceil(nFreqs/nProcs).astype(int)
+nInps  = 1.0*np.shape(inps)[0]
+nSteps = np.ceil(nInps/nProcs).astype(int)
 
 
 # Shuffle the frequency vector (adjacent frequencies take about as long to run)
 # np.random.shuffle(freqs)
 
-chunks = [freqs[i:i+nSteps] for i in range(0, len(freqs), nSteps)]
+chunks = [inps[i:i+nSteps] for i in range(0, len(inps), nSteps)]
 
 if rank==0:
     print "We have %d processes available"%(nProcs)
@@ -127,46 +139,47 @@ xf = xflib.xflib(lib_path='/shared/users/asousa/WIPP/3dWIPP/python/libxformd.so'
 
 # # Each subprocess does a subset of frequencies
 if (rank < len(chunks)):
-    for freq in chunks[rank]:
-        print "Subprocess %s on %s: doing frequency %g"%(rank, host, freq) 
+    for inp in chunks[rank]:
+        print "Subprocess %s on %s: doing ray from (%d, %d) at %d hz"%(rank, host, inp[1], inp[2], inp[3]) 
 
 
 
-        inp_w = 2.0*np.pi*freq
+        # inp_w = 2.0*np.pi*freq
 
 
-        lats, lons, ws = np.meshgrid(inp_lats, inp_lons, inp_w)
-        lats = lats.flatten()
-        lons = lons.flatten()
-        ws   = ws.flatten()
-        alts = launch_alt*np.ones_like(lats)
+        # lats, lons, ws = np.meshgrid(inp_lats, inp_lons, inp_w)
+        # lats = lats.flatten()
+        # lons = lons.flatten()
+        # ws   = ws.flatten()
+        # alts = launch_alt*np.ones_like(lats)
 
-        # VERY UNSCIENTIFIC BAND-AID:
-        # Launch rays below 600 hz at 4000 km instead of 1000.
-        alts[ws < 600*2*np.pi] += 3000e3
-
-
-
-        # Create coordinates
-        inp_coords = zip(alts, lats, lons)  # Geomagnetic pls.
-
-        print "Frequency = ", ws/(2.*np.pi)
-        print "Inputs (geomagnetic RLL)"
-        for r in inp_coords: print r
+        # # VERY UNSCIENTIFIC BAND-AID:
+        # # Launch rays below 600 hz at 4000 km instead of 1000.
+        # alts[ws < 600*2*np.pi] += 3000e3
 
 
 
+        # # Create coordinates
+        # inp_coords = zip(alts, lats, lons)  # Geomagnetic pls.
 
-        working_path = os.path.join(os.path.expanduser("~"),"rayTmp_%d"%(freq))
-        ray_inpfile = os.path.join(working_path,'ray_inputs.txt')
-        ray_outfile = os.path.join(ray_out_dir, 'ray_%d.ray'%(freq))
-        damp_outfile = os.path.join(ray_out_dir,'damp_%d.ray'%(freq))
+        # print "Frequency = ", ws/(2.*np.pi)
+        # print "Inputs (geomagnetic RLL)"
+        # for r in inp_coords: print r
+        ray_out_subdir = os.path.join(ray_out_dir, "f_%d"%inp[3], "lon_%d"%(inp[2]))
+        if (not os.path.exists(ray_out_subdir)):
+            mkpath(ray_out_subdir);
+
+
+        working_path = os.path.join(os.path.expanduser("~"),"rayTmp_%d"%(rank))
+        ray_inpfile = os.path.join(working_path,'ray_inputs_process_%d.txt'%(rank))
+        ray_outfile = os.path.join(ray_out_subdir, 'ray_%d_%d_%d.ray'%(inp[3], inp[1], inp[2]))
+        damp_outfile = os.path.join(ray_out_subdir,'damp_%d_%d_%d.ray'%(inp[3], inp[1], inp[2]))
         # dumpfile    = os.path.join(project_root,'output','dumpout.txt')
         
 
 
         if (not os.path.exists(working_path)):
-           os.mkdir(working_path)
+           mkpath(working_path)
 
 
         print "Cleaning previous runs..."
@@ -178,16 +191,18 @@ if (rank < len(chunks)):
             os.remove(damp_outfile)
 
         # Rotate from geomagnetic to SM cartesian coordinates
-        inp_coords = [xf.rllmag2sm(r, ray_datenum) for r in inp_coords]
+        print "inp: ", inp
+        inp_coords = xf.rllmag2sm(inp, ray_datenum)
+        print "inp_coords (sm): ", inp_coords
 
-        # inp_coords = inp_coords.convert('SM','car')
-        N = len(inp_coords)
-
-        # Write rays to the input file (used by the raytracer):
+        # Write ray to the input file (used by the raytracer):
         f = open(ray_inpfile,'w+')
-        for pos0, w0 in zip(inp_coords, ws):        
-            dir0 = pos0/np.linalg.norm(pos0)    # radial outward
-            f.write('%1.15e %1.15e %1.15e %1.15e %1.15e %1.15e %1.15e\n'%(pos0[0], pos0[1], pos0[2], dir0[0], dir0[1], dir0[2], w0))
+        # for pos0, w0 in zip(inp_coords, ws):        
+        pos0 = inp_coords
+        print "pos0: ", pos0
+        dir0 = pos0/np.linalg.norm(pos0)    # radial outward
+        w0   = inp[3]*2.0*np.pi
+        f.write('%1.15e %1.15e %1.15e %1.15e %1.15e %1.15e %1.15e\n'%(pos0[0], pos0[1], pos0[2], dir0[0], dir0[1], dir0[2], w0))
         f.close()
 
 
@@ -221,7 +236,7 @@ if (rank < len(chunks)):
         # Start the raytracer
         # os.system(cmd)
         runlog = subprocess.check_output(cmd, shell=True)
-        file = open(os.path.join(ray_out_dir, 'logs', "ray%g.log"%(freq)),'w+')
+        file = open(os.path.join(ray_out_dir, 'logs', "ray_%g_%g_%g.log"%(inp[3], inp[1], inp[2])),'w+')
         file.write(runlog)
         file.close()
 
@@ -249,7 +264,7 @@ if (rank < len(chunks)):
         # Start the damping code
         # os.system(damp_cmd)
         damplog = subprocess.check_output(damp_cmd, shell=True)
-        file = open(os.path.join(ray_out_dir, "logs", "damp%g.log"%(freq)),'w+')
+        file = open(os.path.join(ray_out_dir, "logs", "damp_%g_%g_%g.log"%(inp[3], inp[1], inp[2])),'w+')
         file.write(damplog)
         file.close()
 
