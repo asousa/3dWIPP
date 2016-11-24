@@ -17,20 +17,24 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
     double attn_factor;
     double w_sq, f;
 
-    Vector3d v1;
-    Vector3d v2;
-
+    // Vector3d v1;
+    // Vector3d v2;
+    double v1[3];
+    double v2[3];
 
     f = w/(2.0*PI);
-   
-    v1 = Map<VectorXd>(flash_loc,3,1);
-    v2 = Map<VectorXd>(ray_loc,  3,1);
+    
+    cardeg(flash_loc, v1);
+    cardeg(ray_loc,   v2);
+    gc_distance = haversine_distance(v1[1], v1[2], v2[1], v2[2]);
+    // v1 = Map<VectorXd>(flash_loc,3,1);
+    // v2 = Map<VectorXd>(ray_loc,  3,1);
 
-    theta = acos(v1.dot(v2)/(v1.norm()*v2.norm()));
-    
-    // Arc length (~great-circle distance) between vI0ectors
-    gc_distance = (R_E)*theta;
-    
+    // theta = acos(v1.dot(v2)/(v1.norm()*v2.norm()));
+    // // Arc length (~great-circle distance) between vI0ectors
+    // gc_distance = (R_E)*theta;
+
+    // cout << "gc_distance: " << gc_distance << "\n";
     // total distance up to ionosphere:
     dist_tot = hypot(gc_distance, H_IONO);
     xi = atan2(gc_distance, H_IONO);  // Incident angle
@@ -310,6 +314,7 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
                         + dist_n[i - 1];
         }
         // cout << "d[" << i << "] " << dist_n[i] << "\n";
+
     }
 
     // cout << "total distance: " << dist_n[Nsteps] << "\n";
@@ -747,7 +752,6 @@ void dump_EA_array(vector<EA_segment> EA_array, string filename) {
         // Save it
     cout << "saving EA segments to file " << filename << "\n";
     file = fopen(filename.c_str(), "w");
-
     if (file != NULL) {
         
         for (int i=0; i < NUM_EA; i++) {
@@ -756,6 +760,7 @@ void dump_EA_array(vector<EA_segment> EA_array, string filename) {
                 EA_array[i].ea_norm[0],EA_array[i].ea_norm[1], EA_array[i].ea_norm[2],
                 EA_array[i].radius);
         }
+    fclose(file);
     } else {
         cout << "Could not open file " << filename.c_str() << "\n";
     }
@@ -848,146 +853,206 @@ void interp_rayF(rayF* rayfile, rayT* frame, double t_target) {
 }
 
 
-vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs) {
-    // Given a set of input starting coordinates, determine
-    // a list of adjacent rays to iterate over.
-    // (this is kind of overkill)
+// vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs) {
+//     // Given a set of input starting coordinates, determine
+//     // a list of adjacent rays to iterate over.
+//     // (this is kind of overkill)
 
-    // map <int, int> closest_up;
-    map <int, int> closest_down;
-    map <int, int> closest_right;
+//     // map <int, int> closest_up;
+//     map <int, int> closest_down;
+//     map <int, int> closest_right;
 
-    double lat1, lat2, lon1, lon2;
-    double dist_down, dist_right, dist;
-    int cur_ind, check_ind;
-    double lat3, lon3, lat4, lon4;
-    double d1, d2;
+//     double lat1, lat2, lon1, lon2;
+//     double dist_down, dist_right, dist;
+//     int cur_ind, check_ind;
+//     double lat3, lon3, lat4, lon4;
+//     double d1, d2;
     
-    vector <vector <int> > adjacency_list;
+//     vector <vector <int> > adjacency_list;
 
 
-    cout << "Finding adjacent rays...\n";
-    for(map<int, vector<double> >::iterator iter = start_locs.begin(); iter != start_locs.end(); ++iter){
-        // cout << "searching around ";  print_vector(iter->second);
-        cur_ind = iter->first;
+//     cout << "Finding adjacent rays...\n";
+//     for(map<int, vector<double> >::iterator iter = start_locs.begin(); iter != start_locs.end(); ++iter){
+//         // cout << "searching around ";  print_vector(iter->second);
+//         cur_ind = iter->first;
 
-        lat1 = iter->second[1];
-        lon1 = iter->second[2];
-        dist_down = 1e12;
-        dist_right= 1e12;
+//         lat1 = iter->second[1];
+//         lon1 = iter->second[2];
+//         dist_down = 1e12;
+//         dist_right= 1e12;
 
-        for(map<int, vector<double> >::iterator other = start_locs.begin(); other != start_locs.end(); ++other){
-            if (iter->first != other->first) {
-                lat2 = other->second[1];
-                lon2 = other->second[2];
-                check_ind = other->first;
+//         for(map<int, vector<double> >::iterator other = start_locs.begin(); other != start_locs.end(); ++other){
+//             if (iter->first != other->first) {
+//                 lat2 = other->second[1];
+//                 lon2 = other->second[2];
+//                 check_ind = other->first;
 
-                dist = haversine_distance(lat1, lon1, lat2, lon2);
+//                 dist = haversine_distance(lat1, lon1, lat2, lon2);
 
-                // find closest entry below current latitude
-                if ( lat1 - lat2 > 0.001) {
-                    // Distance in latitude:
-                    // printf("dist from (%2.1f, %2.1f) to (%2.1f, %2.1f): %g\n",lat1, lon1, lat2, lon2, dist);
-                    if (dist < dist_down) {
-                        closest_down[iter->first] = other->first;
-                        dist_down = dist;
-                        // cout << "dist_down = " << dist_down << " ";
-                        // cout << "iter: " << iter->first << " other: " << other->first << "\n";
-                    }
-                }
-                // find closest entry to right of current longitude
-                if (lon2 - lon1 > 0.001) {
-                    if (dist < dist_right) {
-                        closest_right[iter->first] = other->first;
-                        dist_right = dist;
-                    }
-                }
-            }   // not checking against itself
-        }   // Loop over each entry
+//                 // find closest entry below current latitude
+//                 if ( lat1 - lat2 > 0.001) {
+//                     // Distance in latitude:
+//                     // printf("dist from (%2.1f, %2.1f) to (%2.1f, %2.1f): %g\n",lat1, lon1, lat2, lon2, dist);
+//                     if (dist < dist_down) {
+//                         closest_down[iter->first] = other->first;
+//                         dist_down = dist;
+//                         // cout << "dist_down = " << dist_down << " ";
+//                         // cout << "iter: " << iter->first << " other: " << other->first << "\n";
+//                     }
+//                 }
+//                 // find closest entry to right of current longitude
+//                 if (lon2 - lon1 > 0.001) {
+//                     if (dist < dist_right) {
+//                         closest_right[iter->first] = other->first;
+//                         dist_right = dist;
+//                     }
+//                 }
+//             }   // not checking against itself
+//         }   // Loop over each entry
+//     }
+
+
+
+//     // Next, select entries which have both a ray down and a ray right:
+//     for(map<int, vector<double> >::iterator iter = start_locs.begin(); iter != start_locs.end(); ++iter){
+//         vector <int> cur_inds;
+
+//         // cout << iter->first << " ";
+//         if ( (closest_down.count(iter->first) != 0) && (closest_right.count(iter->first) != 0) ) {
+//             lat1 = iter->second[1];
+//             lon1 = iter->second[2];
+//             lat2 = start_locs.at(closest_down[iter->first])[1];
+//             lon2 = start_locs.at(closest_down[iter->first])[2];
+//             lat3 = start_locs.at(closest_right[iter->first])[1];
+//             lon3 = start_locs.at(closest_right[iter->first])[2];
+        
+//             // Select the fourth value -- is it right and down, or down and right?
+//             d1 = 1e12;
+//             d2 = 1e12;
+
+//             if (closest_down.count(closest_right[iter->first]) != 0) {
+//                 lat4 = start_locs[closest_down[closest_right[iter->first]]][1];
+//                 lon4 = start_locs[closest_down[closest_right[iter->first]]][2];
+//                 d1 = haversine_distance(lat1, lon1, lat4, lon4);
+//             }
+//                 // cout << "down and right: " << closest_down[closest_right[iter->first]] << "\n";
+//             if (closest_right.count(closest_down[iter->first]) != 0) {
+//                 lat4 = start_locs[closest_right[closest_down[iter->first]]][1];
+//                 lon4 = start_locs[closest_right[closest_down[iter->first]]][2];
+//                 d2 = haversine_distance(lat1, lon1, lat4, lon4);
+
+//                 // cout << "right and down: " << closest_right[closest_down[iter->first]] << "\n";
+//             }
+
+//             if ( (d1 != 1e12) || (d2 != 1e12) ) {
+//                 cur_inds.push_back(iter->first);
+//                 cur_inds.push_back(closest_right[iter->first]);
+//                 cur_inds.push_back(closest_down[iter->first]);
+//                 if (d1 <= d2) {
+//                     cur_inds.push_back(closest_down[closest_right[iter->first]]);
+//                 } else {
+//                     cur_inds.push_back(closest_right[closest_down[iter->first]]);
+//                 }
+//                 adjacency_list.push_back(cur_inds);
+//             }
+//             // printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f), (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2, lat3, lon3);
+//         }
+//     }
+
+//     // cout << "Found " << adjacency_list.size() << " sets of adjacent guide rays\n";
+//     // for (int i=0; i < adjacency_list.size(); i++ ){
+
+//     //     cout << adjacency_list[i][0] << ", ";
+//     //     cout << adjacency_list[i][1] << ", ";
+//     //     cout << adjacency_list[i][2] << ", ";
+//     //     cout << adjacency_list[i][3] << "\n";
+//     // }
+
+//     // // Print out some results:
+//     // cout << "closest down: \n";
+//     // for(map<int, int>::iterator iter = closest_down.begin(); iter != closest_down.end(); ++iter){
+//     //     lat1 = start_locs.at(iter->first)[1];
+//     //     lon1 = start_locs.at(iter->first)[2];
+//     //     lat2 = start_locs.at(iter->second)[1];
+//     //     lon2 = start_locs.at(iter->second)[2];
+//     //     cout << iter->first << " " << iter->second << " ";
+//     //     printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2);
+
+//     // }
+//     // cout << "closest right: \n";
+//     // for(map<int, int>::iterator iter = closest_right.begin(); iter != closest_right.end(); ++iter){
+//     //     lat1 = start_locs.at(iter->first)[1];
+//     //     lon1 = start_locs.at(iter->first)[2];
+//     //     lat2 = start_locs.at(iter->second)[1];
+//     //     lon2 = start_locs.at(iter->second)[2];
+//     //     cout << iter->first << " " << iter->second << " ";
+//     //     printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2);
+
+//     // }
+
+// return adjacency_list;
+
+// }
+
+
+vector< vector<double> > find_adjacent_rays(vector< vector<double> > available_rays) {
+    // Returns a list of four (lat, lon) pairs, corresponding to adjacent rays
+    vector< vector<double> > adjacent_rays;
+    vector<double>::iterator it;
+    vector<double> uLats, uLons;
+    double row[8];
+
+    for (vector< vector<double> >::iterator itt=available_rays.begin(); itt!=available_rays.end(); ++itt) {
+        // print_vector(*itt);
+        uLats.push_back((*itt)[1]);
+        uLons.push_back((*itt)[2]);
     }
 
+    // Sorted list of unique latitudes
+    // copy(start_lats.begin(), start_lats.end(), back_inserter(uLats));
+    sort(uLats.begin(), uLats.end());
+    it = unique(uLats.begin(), uLats.end());
+    uLats.resize(distance(uLats.begin(), it));
+    
+    print_vector(uLats);
+    // Sorted list of unique longitudes
+    // copy(start_lons.begin(), start_lons.end(), back_inserter(uLons));
+    sort(uLons.begin(), uLons.end());
+    it = unique(uLons.begin(), uLons.end());
+    uLons.resize(distance(uLons.begin(), it));
 
+    print_vector(uLons);
 
-    // Next, select entries which have both a ray down and a ray right:
-    for(map<int, vector<double> >::iterator iter = start_locs.begin(); iter != start_locs.end(); ++iter){
-        vector <int> cur_inds;
+    for (int la = 0; la < uLats.size()-1; ++la) {
+        for (int lo = 0; lo < uLons.size()-1; ++lo) {
+              
+            row = {uLats[la],   uLons[lo],   
+                   uLats[la+1], uLons[lo],   
+                   uLats[la],   uLons[lo+1], 
+                   uLats[la+1], uLons[lo+1]};
 
-        // cout << iter->first << " ";
-        if ( (closest_down.count(iter->first) != 0) && (closest_right.count(iter->first) != 0) ) {
-            lat1 = iter->second[1];
-            lon1 = iter->second[2];
-            lat2 = start_locs.at(closest_down[iter->first])[1];
-            lon2 = start_locs.at(closest_down[iter->first])[2];
-            lat3 = start_locs.at(closest_right[iter->first])[1];
-            lon3 = start_locs.at(closest_right[iter->first])[2];
-        
-            // Select the fourth value -- is it right and down, or down and right?
-            d1 = 1e12;
-            d2 = 1e12;
-
-            if (closest_down.count(closest_right[iter->first]) != 0) {
-                lat4 = start_locs[closest_down[closest_right[iter->first]]][1];
-                lon4 = start_locs[closest_down[closest_right[iter->first]]][2];
-                d1 = haversine_distance(lat1, lon1, lat4, lon4);
-            }
-                // cout << "down and right: " << closest_down[closest_right[iter->first]] << "\n";
-            if (closest_right.count(closest_down[iter->first]) != 0) {
-                lat4 = start_locs[closest_right[closest_down[iter->first]]][1];
-                lon4 = start_locs[closest_right[closest_down[iter->first]]][2];
-                d2 = haversine_distance(lat1, lon1, lat4, lon4);
-
-                // cout << "right and down: " << closest_right[closest_down[iter->first]] << "\n";
-            }
-
-            if ( (d1 != 1e12) || (d2 != 1e12) ) {
-                cur_inds.push_back(iter->first);
-                cur_inds.push_back(closest_right[iter->first]);
-                cur_inds.push_back(closest_down[iter->first]);
-                if (d1 <= d2) {
-                    cur_inds.push_back(closest_down[closest_right[iter->first]]);
-                } else {
-                    cur_inds.push_back(closest_right[closest_down[iter->first]]);
-                }
-                adjacency_list.push_back(cur_inds);
-            }
-            // printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f), (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2, lat3, lon3);
+            adjacent_rays.push_back(vector<double>(row, row+8));
         }
     }
 
-    // cout << "Found " << adjacency_list.size() << " sets of adjacent guide rays\n";
-    // for (int i=0; i < adjacency_list.size(); i++ ){
-
-    //     cout << adjacency_list[i][0] << ", ";
-    //     cout << adjacency_list[i][1] << ", ";
-    //     cout << adjacency_list[i][2] << ", ";
-    //     cout << adjacency_list[i][3] << "\n";
-    // }
-
-    // // Print out some results:
-    // cout << "closest down: \n";
-    // for(map<int, int>::iterator iter = closest_down.begin(); iter != closest_down.end(); ++iter){
-    //     lat1 = start_locs.at(iter->first)[1];
-    //     lon1 = start_locs.at(iter->first)[2];
-    //     lat2 = start_locs.at(iter->second)[1];
-    //     lon2 = start_locs.at(iter->second)[2];
-    //     cout << iter->first << " " << iter->second << " ";
-    //     printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2);
-
-    // }
-    // cout << "closest right: \n";
-    // for(map<int, int>::iterator iter = closest_right.begin(); iter != closest_right.end(); ++iter){
-    //     lat1 = start_locs.at(iter->first)[1];
-    //     lon1 = start_locs.at(iter->first)[2];
-    //     lat2 = start_locs.at(iter->second)[1];
-    //     lon2 = start_locs.at(iter->second)[2];
-    //     cout << iter->first << " " << iter->second << " ";
-    //     printf("ray at (%2.1f, %2.1f)  -> (%2.1f, %2.1f)\n",lat1, lon1, lat2, lon2);
-
-    // }
-
-return adjacency_list;
-
+    return adjacent_rays;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 cellT new_cell(rayT ray) {

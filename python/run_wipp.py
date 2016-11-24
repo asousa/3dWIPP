@@ -25,15 +25,38 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 
 R_E = 6371.0    # km
 
+# ------------------ Simulation params ---------------------
+
 # Simulation time
-ray_datenum = dt.datetime(2010, 06, 04, 03, 17, 00);
+ray_datenum = dt.datetime(2010, 06, 04, 07, 00, 00);
+
+# Flash location
+inp_lat = 45
+inp_lon = 0
+launch_alt = ((R_E + 5)*1e3)/R_E;
+flash_I0 = -10e3
+
+freqs = [1010, 1180];
+
+# Output coordinates (geomagnetic)
+out_lat = 50
+out_lon = 0
+
+model_number = 1        # b-field model (0 = dipole, 1 = IGRF)
+
+ray_input_directory = os.path.join(project_root, "outputs", "rays2")
+output_directory    = os.path.join(project_root, "outputs", "test_WIPP_outs")
+
+# ----------------------------------------------------------
+
+
+
+
 
 iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
 isec = (ray_datenum.second + (ray_datenum.minute)*60 + ray_datenum.hour*60*60)
 
-ray_input_directory = os.path.join(project_root, "outputs", "four_adjacent")
-output_directory = os.path.join(project_root, "outputs", "test_WIPP_outs")
 
 if not os.path.exists(output_directory):
     os.mkdir(output_directory)
@@ -72,24 +95,8 @@ print "year: ", iyr
 print "day: ", idoy
 print "sec: ", isec
 
-
-inp_lat = 45
-inp_lon = 0
-launch_alt = ((R_E + 5)*1e3)/R_E;
-
-flash_I0 = -10e3
-
-freqs = [1000, 1100];
-
-out_lat = 50
-out_lon = 0
-
 # Create coordinates
 inp_coords = [launch_alt, inp_lat, inp_lon]
-
-# Select ray files:
-rayfile1 = os.path.join(ray_input_directory,"rayout_%d_damped.ray"%freqs[0])
-rayfile2 = os.path.join(ray_input_directory,"rayout_%d_damped.ray"%freqs[1])
 
 # Coordinate transformation library
 xf = xflib.xflib(lib_path='/shared/users/asousa/WIPP/3dWIPP/python/libxformd.so')
@@ -116,8 +123,9 @@ if buildstatus != 0:
 wipp_cmd = ['bin/wipp --out_dir %s'%(output_directory) +
             ' --iyr %s --idoy %d --isec %d --I0 %d'%(iyr, idoy, isec, flash_I0) +
             ' --f_alt %g --f_lat %g --f_lon %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) +
-            ' --out_lat %g --out_lon %g'%(out_lat, out_lon) +
-            ' --low_file %s --hi_file %s'%(rayfile1, rayfile2)][0]
+            ' --out_lat %g --out_lon %g --b_model %d'%(out_lat, out_lon, model_number) +
+            ' --f1 %g --f2 %g --ray_dir %s'%(freqs[0], freqs[1], ray_input_directory)][0]
+            # ' --low_file %s --hi_file %s'%(rayfile1, rayfile2)][0]
 
 
 

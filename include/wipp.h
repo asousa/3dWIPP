@@ -23,6 +23,10 @@
 #include <consts.h>
 #include <bmodel.h>
 
+#include <sys/types.h>
+#include <dirent.h>
+#include <ftw.h>
+
 // #include <integrand.h>
 // #include <psd_model.h>
 // #include <mat.h>
@@ -178,6 +182,7 @@ void print_vector(vector<double> u);
 void print_array(double* arr, double len);
 
 map<int, rayF> read_rayfile(string fileName);
+map <int, rayF> read_dampfile(string fileName);
 
 // Science!
 double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, double w, double i0);
@@ -197,8 +202,8 @@ void dump_EA_array(vector<EA_segment> EA_array, string filename);
 extern "C" void geo2mag1_(int* iyr, double* xGEO, double* xMAG);
 
 // // cartesian - spherical (trig terms in degrees!)
-extern "C" void car_sph_(double* xCAR, double* r, double* lat, double* loni);
-extern "C" void sph_car_(double* r, double* lat, double* loni, double* xCAR);
+// extern "C" void car_sph_(double* xCAR, double* r, double* lat, double* loni);
+// extern "C" void sph_car_(double* r, double* lat, double* loni, double* xCAR);
 
 
 // ----- libxformd (Coordinate transform library used in the raytracer) -----
@@ -227,7 +232,8 @@ void degcar(double x[3]);
 
 void carsph(double x[3], double x_out[3]); 
 void sphcar(double x[3], double x_out[3]); 
-
+void cardeg(double x[3], double x_out[3]); 
+void degcar(double x[3], double x_out[3]); 
 
 // In-place mapping of a data field between cartesian / polar frames.
 void transform_data_sph2car(double lat, double lon, double d_in[3], double d_out[3]);
@@ -305,7 +311,7 @@ void add_rayT(rayT* rayA, rayT* rayB);
 void interp_rayF(rayF* rayfile, rayT* frame, double t_target);
 
 
-vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs);
+// vector <vector <int> > find_adjacent_rays(map <int, vector<double> > start_locs);
 double haversine_distance(double latitude1, double longitude1, double latitude2, double longitude2);
 
 vector<cellT> load_crossings(int itime_in[2], string filename);
@@ -324,9 +330,12 @@ double total_input_power(double flash_pos_sm[3], double i0,
 
 double polygon_frame_area(rayT frame[8]);
 
+void get_available_rays(string raypath, vector <vector<double> > *data);
+// static int ftw_callback(const char *fpath, const struct stat *sb, int typeflag); 
+vector < vector<double> > find_adjacent_rays(vector < vector<double> > start_locs);
 
 
-
+int check_memory_usage();
 
 // flux.h
 

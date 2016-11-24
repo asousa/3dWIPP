@@ -81,7 +81,6 @@ int main(int argc, char *argv[])
     alpha_S_name << out_dir << "/alpha_" << out_lat << "_" << out_lon << "S.dat";
 
     // Load all p-files and sum them:
-    
     for (int k=0; k<1; ++k) {
         string NS = (k==0 ? "N" : "S");
         for ( int f_ind=0; f_ind < freqs.size(); ++f_ind) {
@@ -91,7 +90,7 @@ int main(int argc, char *argv[])
             double ptmp[NUM_E][NUM_TIMES];
 
             read_p_array(ptmp, pname.str());
-            
+
             for (int row=0; row < NUM_E; ++row) {
                 for (int col=0; col < NUM_TIMES; ++col){        
                     if (k==0) {
@@ -103,4 +102,7 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    // Call the flux calculation:
+
 }

@@ -11,6 +11,12 @@ void cardeg(double x[3]) {
     x[2] = R2D*x[2];
 }
 
+void cardeg(double x_in[3], double x_out[3]) {
+    carsph(x_in, x_out);
+    x_out[1]*= R2D;
+    x_out[2]*= R2D;
+}
+
 void degcar(double x[3]) {
 // Polar to Cartesian (degrees)
     x[1] = D2R*x[1];
@@ -18,6 +24,11 @@ void degcar(double x[3]) {
     sphcar(x);
 }
 
+void degcar(double x[3], double x_out[3]) {
+    x_out[0] = x[0]*cos(x[1]*D2R)*cos(x[2]*D2R);
+    x_out[1] = x[0]*cos(x[1]*D2R)*sin(x[2]*D2R);
+    x_out[2] = x[0]*sin(x[1]*D2R);
+}
 void carsph(double x[3]) {
     // in-place rotation from Cartesian to Spherical (radians)
     // output is R, Theta, Phi

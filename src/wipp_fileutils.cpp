@@ -60,12 +60,12 @@ map <int, rayF> read_rayfile(string fileName)
 
 
     // Say hi
-    cout << "reading " << fileName << "...\n";
+    if (DEBUG) {cout << "reading " << fileName << "...\n";}
 
     file.open(fileName.c_str());
 
     if (file.is_open()) {
-        cout << "Successfully opened " << fileName << "\n";
+        if (DEBUG) {cout << "Successfully opened " << fileName << "\n";}
                 
         while (getline(file, line)) {
             vector <double> v;
@@ -76,136 +76,94 @@ map <int, rayF> read_rayfile(string fileName)
             vector <double> Nsv;
             vector <double> nuv;
             vector <double> B0, n, pos, vprel, vgrel;
-            // int a, b, c, d, e, f, g, h;
-            // char hh[100];
-            // if (line[0] == 'H') {
 
-            //     sscanf(line.c_str(), "%*s %u %u %u %u %u %u %u %u", &ray_num,&iyr,&idoy,&isec,&in_radius,&in_lat,&in_lon, &in_w);
-            //     // ray_num = double(a);
+            // // Build an istream that holds the input string
+            iss.str(line);
 
-            //     printf("Found header for ray %u\n",ray_num);
-            //     raylist.insert(make_pair(ray_num, rf));
+            // // Iterate over the istream, using >> to grab doubles
+            // // and push_back to store them in the vector
+            copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
 
-            //     raylist[ray_num].iyr  = iyr;
-            //     raylist[ray_num].idoy = idoy;
-            //     raylist[ray_num].isec = isec;
-            //     raylist[ray_num].in_radius = in_radius;
-            //     raylist[ray_num].in_lat = in_lat;
-            //     raylist[ray_num].in_lon = in_lon;
-            //     raylist[ray_num].in_w = in_w;
+            // for (vector<double>::iterator it = v.begin(); it != v.end(); ++it)
+            //     printf("%g ",*it);
+            // cout << "\n";
 
-            //     printf("in coords: %u, %u, %u\n",in_radius, in_lat, in_lon);
+            // single-valued parameters
+            ray_num = int(v[0]);
+            stopcond = v[1];
+            w = v[18];
+            nspec = v[19];
 
 
-            //     // printf("read vals: %i %i %i\n",ray_num, iyr, idoy);
-            //     // print_vector(v);
-            //     // ray_num = v[0];
-            //     // iyr  = v[1];
-            //     // idoy = v[2];
-            //     // isec = v[3];
-            //     // in_radius= v[4];
-            //     // in_lat = v[5];
-            //     // in_lon = v[6];
-            //     // in_w   = v[7];
+            // Start a new entry if not in the dictionary already:
+            if (raylist.count(ray_num) == 0) {
+                // printf("Adding new entry for ray number %u\n",ray_num);
+                raylist.insert(make_pair(ray_num, rf));
+                // Set single-value elements
+                raylist[ray_num].w = w;
+                raylist[ray_num].nspec = nspec;
+                raylist[ray_num].stopcond = stopcond;
+            }
 
-            //     // cout << "ray_num: " << ray_num << "\n";
+            raylist[ray_num].time.push_back(v[2]);
+            // Position (convert to earth radii)
+            pos.push_back(v[3]/R_E);
+            pos.push_back(v[4]/R_E);
+            pos.push_back(v[5]/R_E);
+            raylist[ray_num].pos.push_back(pos);
 
-            // } else {
-                // // Build an istream that holds the input string
-                iss.str(line);
+            vprel.push_back(v[6]);
+            vprel.push_back(v[7]);
+            vprel.push_back(v[8]);
+            raylist[ray_num].vprel.push_back(vprel);
+            
+            vgrel.push_back(v[9]);
+            vgrel.push_back(v[10]);
+            vgrel.push_back(v[11]);
+            raylist[ray_num].vgrel.push_back(vgrel);
 
-                // // Iterate over the istream, using >> to grab doubles
-                // // and push_back to store them in the vector
-                copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
+            n.push_back(v[12]);
+            n.push_back(v[13]);
+            n.push_back(v[14]);
+            raylist[ray_num].n.push_back(n);
 
-                // for (vector<double>::iterator it = v.begin(); it != v.end(); ++it)
-                //     printf("%g ",*it);
-                // cout << "\n";
+            B0.push_back(v[15]);
+            B0.push_back(v[16]);
+            B0.push_back(v[17]);
+            raylist[ray_num].B0.push_back(B0);
 
-                // single-valued parameters
-                ray_num = int(v[0]);
-                stopcond = v[1];
-                w = v[18];
-                nspec = v[19];
+            for (int i = 0; i < nspec; i++) {
+                // cout << i << ' ';
+                // qsv.push_back(v[20 + 0*nspec + i]);
+                // msv.push_back(v[20 + 1*nspec + i]);
+                Nsv.push_back(v[20 + 2*nspec + i]);
+                nuv.push_back(v[20 + 3*nspec + i]);
 
+                // cout << Nsv[i] << ' ';
+            }
+            raylist[ray_num].Ns.push_back(Nsv);
+            raylist[ray_num].nus.push_back(nuv);
 
-                // Start a new entry if not in the dictionary already:
-                if (raylist.count(ray_num) == 0) {
-                    // printf("Adding new entry for ray number %u\n",ray_num);
-                    raylist.insert(make_pair(ray_num, rf));
-                    // Set single-value elements
-                    raylist[ray_num].w = w;
-                    raylist[ray_num].nspec = nspec;
-                    raylist[ray_num].stopcond = stopcond;
-                }
-
-                // if (raylist.count(ray_num) == 1) {
-                //     raylist[ray_num].w = w;
-                //     raylist[ray_num].nspec = nspec;
-                //     raylist[ray_num].stopcond = stopcond;
-                // }
-
-                raylist[ray_num].time.push_back(v[2]);
-                // Position (convert to earth radii)
-                pos.push_back(v[3]/R_E);
-                pos.push_back(v[4]/R_E);
-                pos.push_back(v[5]/R_E);
-                raylist[ray_num].pos.push_back(pos);
-
-                vprel.push_back(v[6]);
-                vprel.push_back(v[7]);
-                vprel.push_back(v[8]);
-                raylist[ray_num].vprel.push_back(vprel);
-                
-                vgrel.push_back(v[9]);
-                vgrel.push_back(v[10]);
-                vgrel.push_back(v[11]);
-                raylist[ray_num].vgrel.push_back(vgrel);
-
-                n.push_back(v[12]);
-                n.push_back(v[13]);
-                n.push_back(v[14]);
-                raylist[ray_num].n.push_back(n);
-
-                B0.push_back(v[15]);
-                B0.push_back(v[16]);
-                B0.push_back(v[17]);
-                raylist[ray_num].B0.push_back(B0);
-
+            // Qs, Ms are constants for the whole ray. 
+            // I mean why wouldn't they be, right, right
+            if (raylist[ray_num].qs.size() == 0) {
                 for (int i = 0; i < nspec; i++) {
-                    // cout << i << ' ';
-                    // qsv.push_back(v[20 + 0*nspec + i]);
-                    // msv.push_back(v[20 + 1*nspec + i]);
-                    Nsv.push_back(v[20 + 2*nspec + i]);
-                    nuv.push_back(v[20 + 3*nspec + i]);
-
-                    // cout << Nsv[i] << ' ';
+                    raylist[ray_num].qs.push_back(v[20 + 0*nspec + i]);
+                    raylist[ray_num].ms.push_back(v[20 + 1*nspec + i]);
                 }
-                raylist[ray_num].Ns.push_back(Nsv);
-                raylist[ray_num].nus.push_back(nuv);
+            }
 
-                // Qs, Ms are constants for the whole ray. 
-                // I mean why wouldn't they be, right, right
-                if (raylist[ray_num].qs.size() == 0) {
-                    for (int i = 0; i < nspec; i++) {
-                        raylist[ray_num].qs.push_back(v[20 + 0*nspec + i]);
-                        raylist[ray_num].ms.push_back(v[20 + 1*nspec + i]);
-                    }
-                }
-
-                // Do we have damping data? if so load it too.
-                if (v.size() > (20 + 4*nspec) ) {
-                    // cout <<"damping " << v[20+4*nspec] <<"\n";
-                    raylist[ray_num].damping.push_back(v[20+4*nspec]);
-                }
-                
-                linecounter++;
-
-            // }   // Header check
+            // Do we have damping data? if so load it too.
+            if (v.size() > (20 + 4*nspec) ) {
+                // cout <<"damping " << v[20+4*nspec] <<"\n";
+                raylist[ray_num].damping.push_back(v[20+4*nspec]);
+            }
+            
+            linecounter++;
 
         }  // Parse loop
     
-        cout << "Total lines: " << linecounter << "\n";
+        if (DEBUG) {cout << "Total lines: " << linecounter << "\n";}
 
     } else {   // Couldn't open the file
 
@@ -243,6 +201,95 @@ map <int, rayF> read_rayfile(string fileName)
 
     return raylist;
 } // Closing Main.
+
+map <int, rayF> read_dampfile(string fileName)
+/* Read data from a ray file. Returns a map of structs;
+   1 key per individual ray in the file.
+    Each structure contains:
+
+    Coordinates:
+    ray.pos   (n x 3 double)   Position in SM cartesian coordinates
+    ray.vprel (n x 3 double)   Phase velocity (relative to c)
+    ray.vgrel (n x 3 double)   Group velocity (relative to c)
+    ray.n     (n x 3 double)   Refractive index vector
+    ray.B0    (n x 3 double)   Background magnetic field vector
+
+    Constants:
+    ray.w         double                    Wave angular frequency (radians)
+    ray.stopcond  double                    Reason for raytracing termination (see docs)
+    ray.nspec     double                    number of species used in plasmasphere model
+    
+    Plasma parameters:
+    ray.qs    (nspec x 1 double)            Species charge in coulombs
+    ray.ms    (nspec x 1 double)            Species mass in kg
+    ray.Ns    (n x nspec double)            Species number density in m^-3
+    ray.nus   (n x nspec double)            Species collision frequencies in s^-1
+
+*/
+
+{ 
+    FILE * filePtr;
+    ifstream file;
+    string token;
+    string line;
+    rayF rf;
+    int linecounter = 0;
+    // int vec_length = 100;
+
+    // Temp doubles for fscanf:
+    double stopcond, time;
+    int ray_num;
+    double w, nspec;
+    int iyr, idoy, isec;
+    int in_radius, in_lat, in_lon, in_w;
+    
+    map <int, rayF > raylist;
+
+    // Say hi
+    if (DEBUG) {cout << "reading " << fileName << "...\n";}
+
+    file.open(fileName.c_str());
+
+    if (file.is_open()) {
+        if (DEBUG) {cout << "Successfully opened " << fileName << "\n";}
+                
+        while (getline(file, line)) {
+            vector <double> v;
+            istringstream iss;
+
+            // // Build an istream that holds the input string
+            iss.str(line);
+
+            // // Iterate over the istream, using >> to grab doubles
+            // // and push_back to store them in the vector
+            copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
+
+            ray_num = int(v[0]);
+
+            // Start a new entry if not in the dictionary already:
+            if (raylist.count(ray_num) == 0) {
+                raylist.insert(make_pair(ray_num, rf));
+            }
+
+            raylist[ray_num].time.push_back(v[1]);        
+            raylist[ray_num].damping.push_back(v[2]);
+                
+            linecounter++;
+
+        }  // Parse loop
+    
+        if (DEBUG)  {cout << "Total lines: " << linecounter << "\n";}
+
+    } else {   // Couldn't open the file
+
+        cout << "Failed to open file at " << fileName << "\n";
+    }
+
+    return raylist;
+} // Closing Main.
+
+
+
 
 
 void write_rayfile(string fileName, map <int, rayF> raylist) {
@@ -510,3 +557,71 @@ vector<cellT> load_crossings(int itime_in[2], string filename) {
     }
     return outs;
 }
+
+
+void get_available_rays(string raypath, vector <vector<double> > *data) {
+// Recursively search through a file tree, and pull out all frequencies, latitudes, and longitudes.
+    ostringstream curpath;
+    float freq, lat, lon;
+    DIR *dp;
+    struct dirent *ep;    
+
+    dp = opendir (raypath.c_str());
+
+    if (dp != NULL) {
+        while (ep = readdir(dp)) {
+            if (strcmp(ep->d_name,".") && strcmp(ep->d_name, "..")) {   /* ignore up directories */
+                curpath.str(""); curpath.clear();
+                curpath << raypath << "/" <<ep->d_name;
+                // Try to recurse
+                get_available_rays(curpath.str(), data);
+            }
+            if (sscanf(ep->d_name, "ray_%g_%g_%g.ray",&freq, &lat, &lon)) {
+                vector<double> row;
+                row.push_back(freq); row.push_back(lat); row.push_back(lon);
+                data->push_back(row);
+            }
+        }
+    }
+}
+
+
+
+
+int check_memory_usage() {
+    int tSize = 0, resident = 0, share = 0;
+    ifstream buffer("/proc/self/statm");
+    buffer >> tSize >> resident >> share;
+    buffer.close();
+
+    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
+    double rss = resident * page_size_kb;
+    cout << "RSS - " << rss << " kB\n";
+
+    double shared_mem = share * page_size_kb;
+    cout << "Shared Memory - " << shared_mem << " kB\n";
+
+    cout << "Private Memory - " << rss - shared_mem << "kB\n";
+    return 0;
+}
+
+
+// static int ftw_callback(const char *fpath, const struct stat *sb, int typeflag) {
+//     float freq, lat, lon;
+//     const char* ms;
+//     if (typeflag == FTW_F) {
+
+//         ms = strstr(fpath, "ray_");
+//         if (ms != NULL) {
+//             // cout << fpath <<"\n";
+//             // cout << ms ;
+//             sscanf(ms, "ray_%g_%g_%g.ray", &freq, &lat, &lon);
+
+        
+//         // // sscanf(fpath, "%sray_%g_%g_%g.ray",&str, &freq, &lat, &lon);
+//             cout << " " << freq << " " << lat << " " << lon << "\n";
+// }        
+//         // cout << fpath << "\n";
+//     }
+//     return 0;
+// }

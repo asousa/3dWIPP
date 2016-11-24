@@ -6,8 +6,9 @@ using namespace Eigen;
 #pragma omp 
 int main(int argc, char *argv[]) 
 {
-    map <int, rayF> raylist_hi;
-    map <int, rayF> raylist_low;
+    // map <int, rayF> raylist_hi;
+    // map <int, rayF> raylist_low;
+    map <int, rayF> raylist;
 
     double flash_pos[3];  // Flash position, geographic spherical coords (r, lat, lon)
     double flash_pos_sm[3];
@@ -15,6 +16,7 @@ int main(int argc, char *argv[])
     double x_out[3];
 
     double flash_I0;
+    double f1, f2;
 
     string ray_inp_dir;
     string out_dir;
@@ -24,16 +26,19 @@ int main(int argc, char *argv[])
     ostringstream eaFileName;
     string crossingFileName;
 
-    string low_file, high_file;
+    // string low_file, high_file;
 
     int itime_in[2];
     
     double tmp_coords[3];
     double tmp_coords2[3];
 
+    double in_lat, in_lon;
+    double avg_distance_from_flash;
+
     double x[3];
     double lat0, lon0, rad0;
-    double maglat0, maglon0, magrad0;
+    // double maglat0, maglon0, magrad0;
 
     double dd;
 
@@ -48,8 +53,9 @@ int main(int argc, char *argv[])
     // Vector3d l0, l1;
     double* start_pos;
 
-    rayF* ray;
-    
+    // rayF* ray;
+    rayF ray;
+
     // // Output arrays (change in pitch angle, north and south hemispheres)
     double da_N[NUM_E][NUM_TIMES] = {0};
     double da_S[NUM_E][NUM_TIMES] = {0};
@@ -59,11 +65,11 @@ int main(int argc, char *argv[])
     int t_grid, f_grid;
 
     map <int, vector<double> > start_locs;
-    vector < vector<int> > adjacency_list;  // ( n x 4 ) list of adjacent ray indexes
-
+    // vector < vector<int> > adjacency_list;  // ( n x 4 ) list of adjacent ray indexes
+    vector < vector<double> > adjacent_rays;
     // Array of pointers to current rays of interest
-    rayF* cur_rays[8];
-
+    // rayF* cur_rays[8];
+    rayF cur_rays[8];
     // Array of pointers to single-timestep frames
     rayT cur_frames[8];
     rayT prev_frames[8];
@@ -104,9 +110,9 @@ int main(int argc, char *argv[])
     out_lat = 45;
     out_lon = 0;
     iyr = 2010; idoy = 1; isec = 0;
-    low_file  = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1000_damped.ray";
-    high_file = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1100_damped.ray";
-
+    // low_file  = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1000_damped.ray";
+    // high_file = "/shared/users/asousa/WIPP/3dWIPP/outputs/four_adjacent/rayout_1100_damped.ray";
+    ray_inp_dir = "/shared/users/asousa/WIPP/3dWIPP/outputs/rays/";
 
 
     // Parse input arguments:
@@ -122,8 +128,10 @@ int main(int argc, char *argv[])
         {"out_lat",     required_argument,    0, 'h'},
         {"out_lon",     required_argument,    0, 'i'},
         {"I0",          required_argument,    0, 'j'},
-        {"low_file",    required_argument,    0, 'k'},
-        {"hi_file" ,    required_argument,    0, 'l'},
+        {"f1",          required_argument,    0, 'k'},
+        {"f2" ,         required_argument,    0, 'l'},
+        {"ray_dir",     required_argument,    0, 'm'},
+        {"b_model",     required_argument,    0, 'n'},
         // These options set a flag:
         {"dump_field",  no_argument,    &dump_field, 1},
         {0, 0, 0, 0}
@@ -156,12 +164,15 @@ int main(int argc, char *argv[])
             case 'j':
                 flash_I0 = strtod(optarg, NULL);        break;
             case 'k':   // lower rayfile
-                low_file= (string) optarg;              break;
+                f1 = strtod(optarg, NULL);              break;
             case 'l':   // upper rayfile
-                high_file= (string) optarg;             break; 
+                f2 = strtod(optarg, NULL);              break; 
+            case 'm':
+                ray_inp_dir = (string) optarg;          break;
+            case 'n':
+                model_number = atoi(optarg);            break;
             case '?':
-                 printf("\nUnknown option: %s\n",opt);
-            break;
+                 printf("\nUnknown option: %s\n",opt);  break;
         }
     }
 
@@ -177,7 +188,10 @@ int main(int argc, char *argv[])
     cout << "flash location: " << flash_pos[1] << ", " << flash_pos[2] << "\n";
     cout << "flash peak current: " << flash_I0*1e-3 << " kA\n";
     cout << "output location: " << out_lat << ", " << out_lon << "\n";
+    cout << "B-field model: " << model_number << "\n";
+
     cout << "\n";
+
     int yearday = iyr*1000 + idoy;
     itime_in[0] = yearday;
     itime_in[1] = isec*1e3;
@@ -202,157 +216,152 @@ int main(int argc, char *argv[])
     lat0 = D2R*flash_pos[1];
     lon0 = D2R*flash_pos[2];
     rad0 = flash_pos[0];
-
+    // tmp_coords = {rad0, lat0, lon0};
+    // sphcar(flash_pos, tmp_coords);
     // Get flash position in SM coords:
     pol_to_cart_d_(&lat0, &lon0, &rad0, tmp_coords);
     mag_to_sm_d_(itime_in, tmp_coords, flash_pos_sm);
 
 
-// Load upper frequency rays ------------------------------------------:
-    raylist_hi  = read_rayfile(high_file);
-    for(map<int,rayF>::iterator iter = raylist_hi.begin(); iter != raylist_hi.end(); ++iter){
-        ray = &(iter->second);
-        start_pos = &(ray->pos[0].data()[0]);
+// ---------------- Find all available rays --------------------------
+    ostringstream tmp;
+    tmp << ray_inp_dir << "/f_" << f1;
+    vector <vector<double> > available_rays;
+    get_available_rays(tmp.str(), &available_rays);
 
-        // Get starting coordinates in geomagnetic:
-        sm_to_mag_d_(itime_in, start_pos, tmp_coords2);
-        cardeg(tmp_coords2);
+    // cout << "found " << available_rays.size() << " entries\n";
 
-        start_locs.insert(make_pair(iter->first, vector<double>(tmp_coords2, tmp_coords2 + 3)));
-        ray->in_radius = tmp_coords2[0]; ray->in_lat = tmp_coords2[1]; ray->in_lon = tmp_coords2[2];
+    adjacent_rays = find_adjacent_rays(available_rays);
+    cout << "found " << adjacent_rays.size() << " sets of adjacent rays\n";
 
-        // Calculate Stix parameters:
-        calc_stix_parameters(ray);
-    }
 
-// Load lower frequency rays -------------------------------------------:
-    raylist_low  = read_rayfile(low_file);
-    for(map<int,rayF>::iterator iter = raylist_low.begin(); iter != raylist_low.end(); ++iter){
-        ray = &(iter->second);
-        start_pos = &(ray->pos[0].data()[0]);
-
-        // Get starting coordinates in geomagnetic:
-        sm_to_mag_d_(itime_in, start_pos, tmp_coords2);
-        cardeg(tmp_coords2);
-
-        ray->in_radius = tmp_coords2[0]; ray->in_lat = tmp_coords2[1]; ray->in_lon = tmp_coords2[2];
-
-        // Calculate Stix parameters:
-        calc_stix_parameters(ray);
-    }
-
-// Find all sets of adjacent rays to iterate over ----------------------:
-    // (should be consistent between all frequency files... hmm... hmm...)
-    adjacency_list = find_adjacent_rays(start_locs);
-    cout << "Found " << adjacency_list.size() << " sets of adjacent guide rays\n";
-
-    
     // Start with a fresh crossing db:
-    for (int rr=0; rr < NUM_EA; ++rr) { crossing_db[rr].clear();}  
+    for (int rr=0; rr < NUM_EA; ++rr) { crossing_db[rr].clear();} 
 
-    // Iterate over each set of adjacent guide rays:
-    for (int adj_row =0; adj_row < adjacency_list.size(); adj_row++) {
-        // Choose the 8 corner rays to work with
-        cur_rays[0] = &(raylist_low.at(adjacency_list[adj_row][0]));
-        cur_rays[1] = &(raylist_low.at(adjacency_list[adj_row][1]));
-        cur_rays[2] = &(raylist_low.at(adjacency_list[adj_row][2]));
-        cur_rays[3] = &(raylist_low.at(adjacency_list[adj_row][3]));
-        cur_rays[4] = &(raylist_hi.at( adjacency_list[adj_row][0]));
-        cur_rays[5] = &(raylist_hi.at( adjacency_list[adj_row][1]));
-        cur_rays[6] = &(raylist_hi.at( adjacency_list[adj_row][2]));
-        cur_rays[7] = &(raylist_hi.at( adjacency_list[adj_row][3]));
-        
-        // Find minimum and maximum frequencies, start lats, and start lons:
-        wmin   = cur_rays[0]->w;         wmax = cur_rays[0]->w;
-        latmin = cur_rays[0]->in_lat;  latmax = cur_rays[0]->in_lat;
-        lonmin = cur_rays[0]->in_lon;  lonmax = cur_rays[0]->in_lon;
-        tmax   = cur_rays[0]->time.back();
-        double in_lat, in_lon;
-        double avg_distance_from_flash = 0;
 
-        for (int i=1; i < 8; i++) {
-            in_lon = cur_rays[i]->in_lon;
-            in_lat = cur_rays[i]->in_lat;
+    // -------------- Iterate through adjacent ray sets: -----------------
 
+    for (vector < vector<double> >::iterator adj_row=adjacent_rays.begin(); adj_row!=adjacent_rays.end(); ++adj_row) {
+        avg_distance_from_flash = 0;
+
+        for (int i=0; i<4; ++i) {
+            in_lat = (*adj_row)[2*i  ];
+            in_lon = (*adj_row)[2*i+1];
             avg_distance_from_flash += haversine_distance(in_lat, in_lon, flash_pos[1], flash_pos[2]);
-            
-            if (in_lon >= 360)                  { in_lon -= 360; }
-            if (cur_rays[i]->w < wmin)          { wmin = cur_rays[i]->w; } 
-            if (cur_rays[i]->w > wmax )         { wmax = cur_rays[i]->w; }
-            if (cur_rays[i]->in_lat < latmin )  { latmin = cur_rays[i]->in_lat; }
-            if (cur_rays[i]->in_lat > latmax )  { latmax = cur_rays[i]->in_lat; }
-            if (in_lon < lonmin )               { lonmin = in_lon; }
-            if (in_lon > lonmax )               { lonmax = in_lon; }
-            if (cur_rays[i]->time.back() < tmax){ tmax = cur_rays[i]->time.back(); }
         }
+        avg_distance_from_flash /= 4000.0;  // Average dist of the 4 corner rays, in km
+                                            // (Assuming both frequencies have same ray spacing) 
 
-        avg_distance_from_flash /= 8000.0;  // Average dist of the 8 corner rays, in km 
-
-
-        // starting separation in lat, lon directions (meters)
-        dlat = D2R*(R_E + H_IONO)*(latmax - latmin);
-        dlon = D2R*(R_E + H_IONO)*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
-        dw   = wmax - wmin;
-
-        // Only examine sets which are within our region of interest:
         if (avg_distance_from_flash <= MAX_GROUND_DISTANCE) {
 
+            // -------------- Load current rays ----------------------------------:
+            for (int jj=0; jj<8; ++jj) {
+                ostringstream cur_file;
+
+                double f   = (jj < 4 ? f1 : f2);
+                double lat = (jj < 4 ? (*adj_row)[2*jj]   : (*adj_row)[2*(jj - 4)]);
+                double lon = (jj < 4 ? (*adj_row)[2*jj+1] : (*adj_row)[2*(jj - 4) + 1]);
+                cur_file << ray_inp_dir   << "/f_" << f   << "/lon_"    << lon
+                         << "/ray_" << f  << "_"   << lat << "_" << lon << ".ray";
+
+                raylist = read_rayfile(cur_file.str());
+                cur_rays[jj] = raylist.at(1); // First ray should have ray number "1"
+         
+                cur_rays[jj].in_lat = lat; cur_rays[jj].in_lon = lon;
+                calc_stix_parameters(&(cur_rays[jj]));
+
+                // Also load the damping file: 
+                cur_file.str(""); cur_file.clear();
+                cur_file << ray_inp_dir   << "/f_" << f   << "/lon_"    << lon
+                         << "/damp_" << f  << "_"   << lat << "_" << lon << ".ray";
+                raylist = read_dampfile(cur_file.str());
+                cur_rays[jj].damping = raylist.at(1).damping;
+
+            }
+
+            check_memory_usage();
+        
+            // Find minimum and maximum frequencies, start lats, and start lons:
+            wmin   = cur_rays[0].w;         wmax = cur_rays[0].w;
+            latmin = cur_rays[0].in_lat;  latmax = cur_rays[0].in_lat;
+            lonmin = cur_rays[0].in_lon;  lonmax = cur_rays[0].in_lon;
+            tmax   = cur_rays[0].time.back();
+            double in_lat, in_lon;
+
+            for (int i=1; i < 8; i++) {
+                in_lon = cur_rays[i].in_lon;
+                in_lat = cur_rays[i].in_lat;
+                
+                if (in_lon >= 360)                  { in_lon -= 360; }
+                if (cur_rays[i].w < wmin)          { wmin = cur_rays[i].w; } 
+                if (cur_rays[i].w > wmax )         { wmax = cur_rays[i].w; }
+                if (cur_rays[i].in_lat < latmin )  { latmin = cur_rays[i].in_lat; }
+                if (cur_rays[i].in_lat > latmax )  { latmax = cur_rays[i].in_lat; }
+                if (in_lon < lonmin )               { lonmin = in_lon; }
+                if (in_lon > lonmax )               { lonmax = in_lon; }
+                if (cur_rays[i].time.back() < tmax){ tmax = cur_rays[i].time.back(); }
+            }
+
+            // starting separation in lat, lon directions (meters)
+            dlat = D2R*(R_E + H_IONO)*(latmax - latmin);
+            dlon = D2R*(R_E + H_IONO)*(lonmax - lonmin)*cos(D2R*(latmax + latmin)/2.);
+            dw   = wmax - wmin;
+
             cout << "\n----- current rays: -----\n";
-            cout << "lon: " << lonmax << ", " << lonmin << "\n";
-            cout << "lat: " << latmax << ", " << latmin << "\n";
-            cout << "f: " << wmax/(2*PI) << ", " << wmin/(2*PI) << "\n"; 
-            cout << "Avg distance from flash: " << avg_distance_from_flash << "\n";
+            cout << "lon: " << lonmax << ", " << lonmin << " deg\n";
+            cout << "lat: " << latmax << ", " << latmin << " deg\n";
+            cout << "f: " << wmax/(2*PI) << ", " << wmin/(2*PI) << " Hz\n"; 
+            cout << "Avg distance from flash: " << avg_distance_from_flash << " km\n";
 
 
             // Scale the input power by dlat, dlon, dw:
             // (ray spacing may not be consistent)
             double inp_pwr = 0;
 
-            for (int i=1; i < 8; i++) {
-                cur_rays[i]->inp_pwr = input_power_scaling(flash_pos_sm, cur_rays[i]->pos[0].data(),
-                                       cur_rays[i]->in_lat, cur_rays[i]->w, flash_I0);
+            // for (int i=1; i < 8; i++) {
+            //     cur_rays[i].inp_pwr = input_power_scaling(flash_pos_sm, cur_rays[i].pos[0].data(),
+            //                            cur_rays[i].in_lat, cur_rays[i].w, flash_I0);
 
-                // cout << "inp_pwr: " << cur_rays[i]->inp_pwr << "\n";
-                inp_pwr += cur_rays[i]->inp_pwr;
+            //     // cout << "inp_pwr: " << cur_rays[i]->inp_pwr << "\n";
+            //     // inp_pwr += cur_rays[i].inp_pwr;
 
-                // This matches Jacob's power scaling
-                // cur_rays[i]->inp_pwr *= (dlat)*(dw/(2*PI)*0.877);      
-                // cout << "in pwr (post scale): " << cur_rays[i]->inp_pwr << "\n";
-            }
+            //     // This matches Jacob's power scaling
+            //     // cur_rays[i]->inp_pwr *= (dlat)*(dw/(2*PI)*0.877);      
+            //     // cout << "in pwr (post scale): " << cur_rays[i]->inp_pwr << "\n";
+            // }
 
-            // double tot_pwr = total_input_power(flash_pos_sm, flash_I0, 
-            //                             latmin, latmax, lonmin, lonmax, wmin, wmax, itime_in);
-            // cout << "tot_pwr: " << tot_pwr << "\n";
+            inp_pwr = total_input_power(flash_pos_sm, flash_I0, 
+                                        latmin, latmax, lonmin, lonmax, wmin, wmax, itime_in);
+            cout << "input power: " << inp_pwr << " Watts\n";
 
             // Or, try averaging first and integrating over a uniform patch:
             // (This matches the integration to 2 decimal places! At least for my single test. 11.17.16)            
-            inp_pwr *= dlat * dlon * dw/8.;
-            cout << "input power: " << inp_pwr << "\n";
+            // inp_pwr *= dlat * dlon * dw/8.;
+            // cout << "input power: " << inp_pwr << "\n";
 
 
-            // Always do at least 2 steps in each axis (corner rays)
-            num_freqs_fine = max(2, (int)floor( (wmax - wmin)/(2*PI*FREQ_STEP_SIZE )));
-            num_lats_fine  = max(2, (int)floor( (dlat*1e-3)/(LAT_STEP_SIZE) ));
-            num_lons_fine  = max(2, (int)floor( (dlon*1e-3)/(LON_STEP_SIZE) ));
+            // Always do at least 1 step in each axis:
+            num_freqs_fine = max(1, (int)floor( (wmax - wmin)/(2*PI*FREQ_STEP_SIZE )));
+            num_lats_fine  = max(1, (int)floor( (dlat*1e-3)/(LAT_STEP_SIZE) ));
+            num_lons_fine  = max(1, (int)floor( (dlon*1e-3)/(LON_STEP_SIZE) ));
 
             cout << "num steps: " << num_freqs_fine << ", " << num_lats_fine << ", " << num_lons_fine << "\n";
 
             crossing_log = fopen(crossingFileName.c_str(), "w");
             // FILE* area_log = fopen("/shared/users/asousa/WIPP/3dWIPP/area_log.txt","w");
 
-            // cout << "T_STEP: " << TIME_STEP << "\n";
             double hit_counter = 0;
             double crossing_counter = 0;
 
-
+          
             // --------------------- Interpolate + look for crossings ------------------
             //                            ( The main event)            
             // -------------------------------------------------------------------------
             cout << "checking for crossings...\n";
             time(&run_tstart);
-
+  
             // Interpolate the first frames:
-            for (int zz=0; zz<8; zz++) { interp_rayF(cur_rays[zz], &(prev_frames[zz]), 0); }
+            for (int zz=0; zz<8; zz++) { interp_rayF(&cur_rays[zz], &(prev_frames[zz]), 0); }
 
             // Get input area at top of ionosphere:
             initial_area = polygon_frame_area(prev_frames);
@@ -362,7 +371,7 @@ int main(int argc, char *argv[])
             for (double tt=TIME_STEP; tt < tmax; tt+=TIME_STEP) {
 
                 // interpolate current frames:
-                for (int zz=0; zz<8; zz++) { interp_rayF(cur_rays[zz], &(cur_frames[zz]), tt); }
+                for (int zz=0; zz<8; zz++) { interp_rayF(&cur_rays[zz], &(cur_frames[zz]), tt); }
 
                     // double fa = polygon_frame_area(cur_frames);
                     // printf("t= %g, Area= %2.2f\n",tt, fa);
@@ -461,34 +470,31 @@ int main(int argc, char *argv[])
 
             cout << "hit counter: " << hit_counter << "\n";
             cout << "crossing counter: " << crossing_counter << "\n";
+     
+        }   // Distance from flash     
 
+        time(&run_tend);
+           
+    } // Cur_rays
 
-            }   // Distance from flash     
+    cout << "crossing detection took " << (run_tend - run_tstart) << " sec\n";
 
-            time(&run_tend);
-        } // Cur_rays
+    // Calculate scattering at crossings:
+    for (int rr=NUM_EA-1; rr>=0; rr--) {
+        calc_resonance(crossing_db[rr], EA_array[rr], da_N, da_S);
+    }
 
-        cout << "crossing detection took " << (run_tend - run_tstart) << " sec\n";
+    // Write pN, pS files:
+    cout << "Saving pN, pS files\n";
 
-        // Calculate scattering at crossings:
-        for (int rr=NUM_EA-1; rr>=0; rr--) {
-            calc_resonance(crossing_db[rr], EA_array[rr], da_N, da_S);
-        }
+    ostringstream pN_name, pS_name;
 
-        // // Step thru to the next frequency (shallow copy)
-        // raylist_low = raylist_hi;
-
-        // Write pN, pS files:
-        cout << "Saving pN, pS files\n";
-
-        ostringstream pN_name, pS_name;
-
-        pN_name << out_dir << "/pN_" << out_lat << "_" << out_lon << "_" << round(wmin/(2*PI)) << ".dat";
-        pS_name << out_dir << "/pS_" << out_lat << "_" << out_lon << "_" << round(wmin/(2*PI)) << ".dat";
-        cout << pN_name.str() << "\n";
-        cout << pS_name.str() << "\n";
-        write_p_array(da_N, pN_name.str());
-        write_p_array(da_S, pS_name.str());
+    pN_name << out_dir << "/pN_" << out_lat << "_" << out_lon << "_" << round(wmin/(2*PI)) << ".dat";
+    pS_name << out_dir << "/pS_" << out_lat << "_" << out_lon << "_" << round(wmin/(2*PI)) << ".dat";
+    cout << pN_name.str() << "\n";
+    cout << pS_name.str() << "\n";
+    write_p_array(da_N, pN_name.str());
+    write_p_array(da_S, pS_name.str());
 
 
     return 0; // Return statement.

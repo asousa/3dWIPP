@@ -1,7 +1,29 @@
 import numpy as np
 import pandas as pd
+import os
 # from spacepy import coordinates as coord
 # from spacepy.time import Ticktock
+
+
+
+def read_rayfiles(directory, freq, latmin, latmax, lonmin, lonmax):
+    '''read rayfiles from a directory '''
+
+    out = []
+    for root, dirs, files in os.walk(os.path.join(directory, "f_%d"%freq)):
+        for f in files:
+            if f.startswith('ray') and f.endswith('.ray'):
+                row = (f.split(".")[0]).split("_")
+                cfreq = float(row[1])
+                clat  = float(row[2])
+                clon  = float(row[3])
+                
+                if ( (cfreq == freq) and (clat >= latmin) and (clat <= latmax) and
+                (clon >= lonmin) and (clon <= lonmax) ):
+                    out.extend(read_rayfile(os.path.join(root,f)))
+
+    return out
+
 
 
 
