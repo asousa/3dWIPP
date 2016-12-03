@@ -1,5 +1,6 @@
 import ctypes as ct
 import datetime
+import numpy as np
 
 class xflib(object):
     ''' A wrapper class for the xform-double coordinate transformation library.
@@ -163,10 +164,37 @@ class xflib(object):
         xtmp = self.geo2mag(xtmp, time_in)
         return self.c2s(xtmp)
     
+    def mag2sm(self, x_in, time_in):
+        ''' magnetic dipole (cartesian) to Solar Magnetic (cartesian) '''
+        xtmp = self.mag2geo(x_in, time_in)
+        return self.geo2sm(xtmp, time_in)
 
+    def sm2mag(self, x_in, time_in):
+        ''' Solar Magnetic (cartesian) to magnetic dipole (cartesian) '''
+        xtmp = self.sm2geo(x_in, time_in)
+        return self.geo2mag(xtmp, time_in)
 
+    def transform_data_sph2car(self, lat, lon, d_in):
+        D2R = np.pi/180.
 
+        M = np.zeros([3,3])
+        d_out = np.zeros(3)
 
+        theta = D2R*(90. - lat)
+        phi   = D2R*lon
+
+        st = np.sin(theta)
+        sp = np.sin(phi)
+        ct = np.cos(theta)
+        cp = np.cos(phi)
+
+        M[0,0] = st*cp;    M[0,1] = ct*cp;   M[0,2] = -sp;
+        M[1,0] = st*sp;    M[1,1] = ct*sp;   M[1,2] = cp;
+        M[2,0] = ct;       M[2,1] = -st;     M[2,2] = 0;
+
+        d_out = np.dot(M, d_in)
+
+        return d_out
 
 # xf = xflib(lib_path='/shared/users/asousa/WIPP/3dWIPP/python/libxformd.so')
 

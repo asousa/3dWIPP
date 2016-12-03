@@ -18,7 +18,7 @@ from index_helpers import load_ae
 
 import xflib  # Fortran xform-double library (coordinate transforms)
 import bisect   # fast searching of sorted lists
-
+from bmodel_dipole import bmodel_dipole
 # ------------ Start MPI -------------------------------
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -31,18 +31,18 @@ R_E = 6371
 
 
 # -------------- Simulation params ---------------------
-t_max = 10.     # Maximum duration in seconds
+t_max = 20.     # Maximum duration in seconds
 
-dt0 = 1e-4      # Initial timestep in seconds
+dt0 = 1e-2      # Initial timestep in seconds
 dtmax = 1e-1    # Maximum allowable timestep in seconds
 root = 2        # Which root of the Appleton-Hartree equation
                 # (1 = negative, 2 = positive)
                 # (2=whistler in magnetosphere)
 fixedstep = 0   # Don't use fixed step sizes, that's a bad idea.
-maxerr = 1e-5   # Error bound for adaptive timestepping
+maxerr = 1e-4    # Error bound for adaptive timestepping
 maxsteps = 1e5  # Max number of timesteps (abort if reached)
 modelnum = 1    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
-use_IGRF = 1    # Magnetic field model (1 for IGRF, 0 for dipole)
+use_IGRF = 0    # Magnetic field model (1 for IGRF, 0 for dipole)
 use_tsyg = 0    # Use the Tsyganenko magnetic field model corrections
 
 minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
@@ -50,15 +50,16 @@ minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
 # ---------------- Input parameters --------------------
 
 inp_lats = np.arange(10, 60, 1) #[40, 41, 42, 43]
-inp_lons = np.arange(-5, 6, 1)
+inp_lons = [0] # np.arange(-5, 6, 1)
 
 launch_alt = (R_E + 1000)*1e3
 
-f1 = 200; f2 = 30000;
-num_freqs = 32
+f1 = 600; f2 = 30000;
+num_freqs = 33
 flogs = np.linspace(np.log10(f1), np.log10(f2), num_freqs)
 freqs = np.round(pow(10, flogs)/10.)*10
 
+# freqs = [200, 600]
 # Simulation time
 ray_datenum = dt.datetime(2010, 06, 04, 07, 00, 00);
 
@@ -69,7 +70,7 @@ project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 raytracer_root = '/shared/users/asousa/software/foust_raytracer/'
 damping_root = '/shared/users/asousa/WIPP/3dWIPP/damping/'
 ray_bin_dir    = os.path.join(raytracer_root, 'bin')
-ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/rays_IGRF_florida'
+ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/fl_dipole_nolows'
 
 # GCPM grid to use (plasmasphere model)
 if modelnum==1:
@@ -94,7 +95,7 @@ if rank == 0:
     fs   = fs.flatten()
 
     alts = launch_alt*np.ones_like(lats)
-    alts[fs < 600] += 3000e3
+    # alts[fs < 600] += 3000e3
 
     tasklist = zip(alts, lats, lons, fs)
 
@@ -124,6 +125,9 @@ if rank==0:
     if (not os.path.exists(os.path.join(ray_out_dir, "logs"))):
         os.mkdir(os.path.join(ray_out_dir,"logs"))
 
+    # clean any existing logs
+    os.system("rm %s/*.log"%(os.path.join(ray_out_dir,"logs")))
+
     for f in freqs:
         ray_out_subdir = os.path.join(ray_out_dir,'f_%d'%f)
         if (not os.path.exists(ray_out_subdir)):
@@ -134,6 +138,10 @@ if rank==0:
             ray_out_subdir = os.path.join(ray_out_dir, 'f_%d'%f, 'lon_%d'%lo)
             if (not os.path.exists(ray_out_subdir)):
                 os.mkdir(ray_out_subdir)
+
+            # clean any existing files
+            os.system("rm %s/*"%ray_out_subdir)
+
 
 
 
@@ -172,7 +180,7 @@ if rank == 0:
 
 
 # Sync up:
-time.sleep(30)
+time.sleep(5)
 comm.Barrier()
 
 working_path = "/tmp";
@@ -205,11 +213,24 @@ if (rank < len(chunks)):
 
         # Rotate from geomagnetic to SM cartesian coordinates
         inp_coords = xf.rllmag2sm(inp, ray_datenum)
+        # inp_coords = xf.s2c(inp)
 
         # Write ray to the input file (used by the raytracer):
         f = open(ray_inpfile,'w')
         pos0 = inp_coords
-        dir0 = pos0/np.linalg.norm(pos0)    # radial outward
+        # dir0 = pos0/np.linalg.norm(pos0)    # radial outward
+
+        Bo   = bmodel_dipole(inp)
+        Bo_t = xf.transform_data_sph2car(inp[1], inp[2], Bo)
+        Bo_c = xf.mag2sm(Bo_t, ray_datenum)
+        dir0 = Bo_c/(-1.0*np.linalg.norm(Bo_c))  # Parallel to B (dipole model)
+
+        # print pos0/np.linalg.norm(pos0)
+        # print dir0
+        # dir0 = -1.0*Bo_c/np.linalg.norm(Bo_c)
+        # print dir0
+
+        # dir0 = [0, 0, 1] # [pos0[0], pos0[1], 0]/(np.sqrt(pos0[0]**2 + pos0[1]**2))
         w0   = inp[3]*2.0*np.pi
         f.write('%1.15e %1.15e %1.15e %1.15e %1.15e %1.15e %1.15e\n'%(pos0[0], pos0[1], pos0[2], dir0[0], dir0[1], dir0[2], w0))
         f.close()
@@ -241,12 +262,21 @@ if (rank < len(chunks)):
 
 
         # Run the raytracer
-        runlog = subprocess.check_output(cmd, shell=True)
+
+        print "%s/%d: %s"%(host, rank, cmd)
+        # runlog = subprocess.check_output(cmd, shell=True)
 
 
-        with open(ray_templog,"w") as file:
-            file.write(runlog)
-            file.close()
+        # use this syntax to write logfiles as we go
+        file = open(ray_templog, "w+")
+        subprocess.call(cmd, shell=True, stdout=file)
+        file.close()
+
+
+
+        # with open(ray_templog,"w") as file:
+        #     file.write(runlog)
+        #     file.close()
 
         # ------- Run Damping Code ------------
 
@@ -254,22 +284,34 @@ if (rank < len(chunks)):
                     '--Kp %g --AE %g --mode %d'%(Kp, AE, damp_mode) + \
                     ' --yearday %s --msec %d'%(yearday, milliseconds_day)
 
+        print "%s/%d: %s"%(host, rank, damp_cmd)
+        file = open(damp_templog, "w+")
+        subprocess.call(damp_cmd, shell=True, stdout=file)
+        file.close()
+
         damplog = subprocess.check_output(damp_cmd, shell=True)
  
-        with open(damp_templog,"w") as file:
-            file.write(damplog)
-            file.close()
+        # with open(damp_templog,"w") as file:
+        #     file.write(damplog)
+        #     file.close()
 
 
         # Move completed files to the output directory
         if (not os.path.exists(ray_out_subdir)):
             print "Process %d on %s can't find the path at %s"%(rank, host, ray_out_subdir)
         else:
-            shutil.move(ray_tempfile,  ray_outfile)     # ray
-            shutil.move(damp_tempfile, damp_outfile)    # damp
+            # shutil.move(ray_tempfile,  ray_outfile)     # ray
+            # shutil.move(damp_tempfile, damp_outfile)    # damp
+            os.system('mv %s %s'%(ray_tempfile,  ray_outfile))
+            os.system('mv %s %s'%(damp_tempfile, damp_outfile))
             shutil.move(ray_templog,   ray_logfile)     # ray log
             shutil.move(damp_templog,  damp_logfile)    # damp log
 
-
         os.remove(ray_inpfile)
+
+comm.Barrier()
+
+if rank==0:
+    print "-------- Finished with raytracing ---------"
+
 

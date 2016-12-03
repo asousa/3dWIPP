@@ -20,11 +20,39 @@ def read_rayfiles(directory, freq, latmin, latmax, lonmin, lonmax):
                 
                 if ( (cfreq == freq) and (clat >= latmin) and (clat <= latmax) and
                 (clon >= lonmin) and (clon <= lonmax) ):
-                    out.extend(read_rayfile(os.path.join(root,f)))
+                    tmp = read_rayfile(os.path.join(root, f))
+
+                    # check damping:
+                    dpath = os.path.join(root, 'damp_%d_%d_%d.ray'%(cfreq, clat, clon))
+
+                    dtmp = read_damp(dpath)
+
+                    for ind in range(len(tmp)):
+                        tmp[ind]['damping'] = dtmp[ind]['damping']
+                    out.extend(tmp)
+                    # out.extend(read_rayfile(os.path.join(root,f)))
 
     return out
 
 
+def read_damp(dampfile):
+    x = pd.read_csv(dampfile, delim_whitespace=True, header=None)
+
+    raynums = np.unique(x[0])
+    numrays = len(raynums)
+
+    out = []
+
+    for ii in range(numrays):
+        tmp = x[x[0]==raynums[ii]]
+        tmp.reset_index(drop=True)
+        data = dict()
+        data['time'] = tmp[1]
+        data['damping'] = tmp[2]
+
+        out.append(data)
+
+    return out
 
 
 
