@@ -450,24 +450,41 @@ void load_TS05_params(int itime_in[2], double TS_params[10], double VG[3]) {
     }
 }
 
-
+// This version for ascii files:
 void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
     FILE* file;
-    int x, y;
+    
+    int writecount;
+    
     cout << "file shape: " << NUM_E << ", " << NUM_TIMES << "\n";
     file = fopen(filename.c_str(),"wb");
 
+    cout << "sizeof (arr): " << sizeof(arr) << "\n";
     if (file == NULL) {
         cout << "Failed to open file " << filename << "\n";
     } else {
-        for (x=0; x < NUM_E; x++) {
-            for (y=0; y < NUM_TIMES; y++) {
-               fprintf(file, "%g ",arr[x][y]);
-            }    
-        }
+
+        // // ASCII-formatted:
+        // for (int x=0; x < NUM_E; x++) {
+        //     for (int y=0; y < NUM_TIMES; y++) {
+        //        fprintf(file, "%g ",arr[x][y]);
+        //     }    
+        // }
+
+        // // Binary-formatted:
+        // // setbuf(file, NULL);
+        // for(int ei=0; ei<NUM_E; ei++) {
+        //     for(int ti=0; ti<NUM_TIMES; ti++) {
+        //         fwrite(&arr[ei][ti], sizeof(float), 1, file);
+        //     }
+        // }
+        fwrite(arr, NUM_E*NUM_TIMES*sizeof(arr), 1, file);
+
     }
     fclose(file);
 }
+
+
 
 void read_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
     ifstream file;
@@ -565,9 +582,8 @@ void get_available_rays(string raypath, vector <vector<double> > *data) {
     float freq, lat, lon;
     DIR *dp;
     struct dirent *ep;    
-
+    cout << raypath << "\n";
     dp = opendir (raypath.c_str());
-
     if (dp != NULL) {
         while (ep = readdir(dp)) {
             if (strcmp(ep->d_name,".") && strcmp(ep->d_name, "..")) {   /* ignore up directories */

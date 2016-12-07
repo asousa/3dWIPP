@@ -33,26 +33,26 @@ R_E = 6371.0    # km
 ray_datenum = dt.datetime(2010, 06, 04, 07, 00, 00);
 
 # Flash location
-inp_lat = 45
+inp_lat = 30
 inp_lon = 0
 launch_alt = ((R_E + 5)*1e3)/R_E;
 flash_I0 = -10e3
 
 # Frequencies
 f1 = 200; f2 = 30000;
-num_freqs = 32
+num_freqs = 33
 flogs = np.linspace(np.log10(f1), np.log10(f2), num_freqs)
 freqs = np.round(pow(10, flogs)/10.)*10
 freq_pairs = zip(freqs[0:], freqs[1:])
 
 # Output coordinates (geomagnetic)
-out_lat = [20, 30, 40, 50]
+out_lat = [25, 30, 35, 40, 45, 50, 55]
 out_lon = [0]
 
-model_number = 1        # b-field model (0 = dipole, 1 = IGRF)
+model_number = 0        # b-field model (0 = dipole, 1 = IGRF)
 
-ray_input_directory = os.path.join(project_root, "outputs", "rays_IGRF_florida")
-output_directory    = os.path.join(project_root, "outputs", "test_WIPP_outs_IGRF")
+ray_input_directory = os.path.join(project_root, "outputs", "fl_ngo_dipole")
+output_directory    = os.path.join(project_root, "outputs", "wipp_test")
 log_directory       = os.path.join(output_directory, "logs")
 
 # ----------------------------------------------------------
@@ -157,9 +157,20 @@ if (rank < len(chunks)):
 
         print wipp_cmd
 
-        # # os.system(wipp_cmd)
-        wipp_log = subprocess.check_output(wipp_cmd, shell=True)
-        file = open(os.path.join(log_directory, "wipp_%g_%g_%g.log"%(olat, olon, flo)),'w+')
-        file.write(wipp_log)
+        logfile = os.path.join(log_directory, "wipp_%g_%g_%g.log"%(olat, olon, flo));
+        # os.system(wipp_cmd)
+        file = open(logfile, "w+")
+        subprocess.call(wipp_cmd, shell=True, stdout=file)
         file.close()
 
+
+        # wipp_log = subprocess.check_output(wipp_cmd, shell=True)
+        # file = open(os.path.join(log_directory, "wipp_%g_%g_%g.log"%(olat, olon, flo)),'w+')
+        # file.write(wipp_log)
+        # file.close()
+
+
+comm.Barrier()
+
+if rank == 0:
+    print "-------- Finished WIPP --------"

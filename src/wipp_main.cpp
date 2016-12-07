@@ -222,14 +222,14 @@ int main(int argc, char *argv[])
     pol_to_cart_d_(&lat0, &lon0, &rad0, tmp_coords);
     mag_to_sm_d_(itime_in, tmp_coords, flash_pos_sm);
 
-
 // ---------------- Find all available rays --------------------------
     ostringstream tmp;
     tmp << ray_inp_dir << "/f_" << f1;
     vector <vector<double> > available_rays;
+
     get_available_rays(tmp.str(), &available_rays);
 
-    // cout << "found " << available_rays.size() << " entries\n";
+    cout << "found " << available_rays.size() << " available rays\n";
 
     adjacent_rays = find_adjacent_rays(available_rays);
     cout << "found " << adjacent_rays.size() << " sets of adjacent rays\n";
@@ -278,8 +278,8 @@ int main(int argc, char *argv[])
                 cur_rays[jj].damping = raylist.at(1).damping;
 
             }
-
-            check_memory_usage();
+            
+            if (DEBUG) {check_memory_usage();}
         
             // Find minimum and maximum frequencies, start lats, and start lons:
             wmin   = cur_rays[0].w;         wmax = cur_rays[0].w;
@@ -347,7 +347,7 @@ int main(int argc, char *argv[])
 
             cout << "num steps: " << num_freqs_fine << ", " << num_lats_fine << ", " << num_lons_fine << "\n";
 
-            crossing_log = fopen(crossingFileName.c_str(), "w");
+            // crossing_log = fopen(crossingFileName.c_str(), "w");
             // FILE* area_log = fopen("/shared/users/asousa/WIPP/3dWIPP/area_log.txt","w");
 
             double hit_counter = 0;
@@ -369,7 +369,7 @@ int main(int argc, char *argv[])
 
             // Step forward in time:
             for (double tt=TIME_STEP; tt < tmax; tt+=TIME_STEP) {
-
+                // cout << "t: " << tt << "\n";
                 // interpolate current frames:
                 for (int zz=0; zz<8; zz++) { interp_rayF(&cur_rays[zz], &(cur_frames[zz]), tt); }
 
@@ -399,12 +399,10 @@ int main(int argc, char *argv[])
 
                         // Calculate the geometric factor (spreading of guide rays)
                         frame_area = polygon_frame_area(cur_frames);
-                        geometric_factor = initial_area/frame_area;  
-                        cell_area = FREQ_STEP_SIZE*1.0/(num_lons_fine*num_lats_fine*num_freqs_fine);
-                        
+                        // geometric_factor = initial_area/frame_area;
+                        // cell_area = FREQ_STEP_SIZE*1.0/(num_lons_fine*num_lats_fine*num_freqs_fine);
 
                         // Interpolate on fine-scale grid:
-                        // #pragma omp parallel for
                         for (double ii=0; ii < 1; ii+=1./num_lons_fine) {         
                             for (double jj=0; jj < 1; jj+= 1./num_lats_fine) {     
                                 for (double kk=0; kk < 1; kk+= 1./num_freqs_fine) { 
@@ -419,35 +417,48 @@ int main(int argc, char *argv[])
 
                                     // Bam -- we finally have some little rays to check for crossings.
                                     if (crosses_EA(r_cur.pos, r_prev.pos, EA_array[rr])) {
-
                                         crossing_counter++;
 
                                         interp_ray_data(cur_frames, ii, jj, kk, &r_cur);
                                         interp_ray_data(prev_frames,ii, jj, kk, &r_prev);
 
-                                        // Write crossing to log (for plotting)
-                                        fprintf(crossing_log, "%g %g %g %g %g %g\n",
-                                            r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
-                                            r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
+                                        // // Write crossing to log (for plotting)
+                                        // crossing_log = fopen(crossingFileName.c_str(), "a");
+                                        // fprintf(crossing_log, "%g %g %g %g %g %g\n",
+                                        //     r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
+                                        //     r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
+                                        // fclose(crossing_log);
 
                                         // store time and frequency for the middle of this interpolation
-                                        r_cur.dt = (r_cur.time - r_prev.time);
+                                        // r_cur.dt = (r_cur.time - r_prev.time);
                                         r_cur.dlat = dlat;
                                         r_cur.dlon = dlon;
                                         // r_cur.ds   = (r_cur.pos - r_prev.pos).norm()*R_E;   // Jacob uses ds between the EA segments... hm
 
-                                        t_grid = floor(r_cur.time/(TIME_STEP));
-                                        f_grid = floor(kk*num_freqs_fine); 
-                                                                           
-                                        grid_ind = make_pair(t_grid, f_grid);
+                                        // t_grid = floor(r_cur.time/(TIME_STEP));
+                                        // f_grid = floor(kk*num_freqs_fine); 
 
+                                        t_grid = floor(tt/TIME_STEP); //floor(r_cur.time/(TIME_STEP));
+                                        f_grid = floor(r_cur.w); //floor(kk*num_freqs_fine); 
+
+                                                                               
+                                        grid_ind = make_pair(t_grid, f_grid);
+                                        // cout << "grid inds: " << t_grid << ", " << f_grid << "\n";
                                         cellT cell_cur = new_cell(r_cur);
 
-                                        cell_cur.Lsh = EA_array[rr].Lsh;
-                                        cell_cur.lat = EA_array[rr].lat;
+                                        // cell_cur.Lsh = EA_array[rr].Lsh;
+                                        // cell_cur.lat = EA_array[rr].lat;
 
                                         // Total power within this cell
-                                        cell_cur.pwr = pow(inp_pwr * cell_area * geometric_factor * r_cur.damping, 2);
+                                        // cell_cur.pwr = pow(inp_pwr * geometric_factor * cell_area
+                                        //      * r_cur.damping, 2);
+
+                                        // (total power / frame area)
+                                        //      * (damping losses @ this cell)
+                                        //      * (cell size in frequency axis)
+                                        //      (squared so we can RMS average multiple hits)            
+                                        cell_cur.pwr = pow(inp_pwr * r_cur.damping * 
+                                                            (FREQ_STEP_SIZE/num_freqs_fine) / frame_area, 2);
 
                                         if (crossing_db[rr].count(grid_ind)==0) {
                                             // If we haven't hit this same (time, freq, EA) combo yet, add it:

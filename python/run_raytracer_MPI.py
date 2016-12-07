@@ -33,13 +33,13 @@ R_E = 6371
 # -------------- Simulation params ---------------------
 t_max = 20.     # Maximum duration in seconds
 
-dt0 = 1e-2      # Initial timestep in seconds
+dt0 = 1e-3      # Initial timestep in seconds
 dtmax = 1e-1    # Maximum allowable timestep in seconds
 root = 2        # Which root of the Appleton-Hartree equation
                 # (1 = negative, 2 = positive)
                 # (2=whistler in magnetosphere)
 fixedstep = 0   # Don't use fixed step sizes, that's a bad idea.
-maxerr = 1e-4    # Error bound for adaptive timestepping
+maxerr = 5e-3   # Error bound for adaptive timestepping
 maxsteps = 1e5  # Max number of timesteps (abort if reached)
 modelnum = 1    # Which model to use (1 = ngo, 2=GCPM, 3=GCPM interp, 4=GCPM rand interp)
 use_IGRF = 0    # Magnetic field model (1 for IGRF, 0 for dipole)
@@ -47,19 +47,24 @@ use_tsyg = 0    # Use the Tsyganenko magnetic field model corrections
 
 minalt   = (R_E + 100)*1e3 # cutoff threshold in meters
 
+# # Band-aid parameters to use for lower frequencies:
+# maxerr_lowf = 1e-3
+# dt0_lowf = 1e-2
+
 # ---------------- Input parameters --------------------
 
 inp_lats = np.arange(10, 60, 1) #[40, 41, 42, 43]
-inp_lons = [0] # np.arange(-5, 6, 1)
+inp_lons = np.arange(-5, 6, 1) 
 
 launch_alt = (R_E + 1000)*1e3
 
-f1 = 600; f2 = 30000;
+f1 = 200; f2 = 30000;
 num_freqs = 33
 flogs = np.linspace(np.log10(f1), np.log10(f2), num_freqs)
 freqs = np.round(pow(10, flogs)/10.)*10
 
-# freqs = [200, 600]
+# freqs = freqs[freqs<1000]
+# freqs = [200, 300, 400, 500, 600, 1000, 30000]
 # Simulation time
 ray_datenum = dt.datetime(2010, 06, 04, 07, 00, 00);
 
@@ -67,10 +72,10 @@ ray_datenum = dt.datetime(2010, 06, 04, 07, 00, 00);
 damp_mode = 1  # 0 for old 2d damping code, 1 for modern code
 
 project_root = '/shared/users/asousa/WIPP/3dWIPP/'
-raytracer_root = '/shared/users/asousa/software/foust_raytracer/'
+raytracer_root = '/shared/users/asousa/software/raytracer_v1.17/'
 damping_root = '/shared/users/asousa/WIPP/3dWIPP/damping/'
 ray_bin_dir    = os.path.join(raytracer_root, 'bin')
-ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/fl_dipole_nolows'
+ray_out_dir = '/shared/users/asousa/WIPP/3dWIPP/outputs/fl_ngo_dipole2'
 
 # GCPM grid to use (plasmasphere model)
 if modelnum==1:
@@ -126,7 +131,7 @@ if rank==0:
         os.mkdir(os.path.join(ray_out_dir,"logs"))
 
     # clean any existing logs
-    os.system("rm %s/*.log"%(os.path.join(ray_out_dir,"logs")))
+    # os.system("rm %s/*.log"%(os.path.join(ray_out_dir,"logs")))
 
     for f in freqs:
         ray_out_subdir = os.path.join(ray_out_dir,'f_%d'%f)
@@ -236,6 +241,13 @@ if (rank < len(chunks)):
         f.close()
 
         # --------- Run raytracer --------
+
+        # if inp[3] < 550:
+        #     maxerr_cur = maxerr_lowf
+        #     dt0_cur    = dt0_lowf
+        # else:
+        #     maxerr_cur = maxerr
+        #     dt0_cur    = dt0
 
         cmd= '%s/raytracer --outputper=%d --dt0=%g --dtmax=%g'%(ray_bin_dir, 1, dt0, dtmax) + \
              ' --tmax=%g --root=%d --fixedstep=%d --maxerr=%g'%(t_max, root, fixedstep, maxerr) + \

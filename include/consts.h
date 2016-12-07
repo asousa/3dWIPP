@@ -52,14 +52,14 @@
 
 // Fine-scale interpolation step sizes:
 #define     FREQ_STEP_SIZE  10   // Hz
-#define     LAT_STEP_SIZE   5   // km
-#define     LON_STEP_SIZE   5   // km
+#define     LAT_STEP_SIZE   20   // km
+#define     LON_STEP_SIZE   100 // km
 
 // Maximum distance from source to consider a ray
 #define     MAX_GROUND_DISTANCE     500 // km
 
 // Radius around field line, in L-shells, in which to consider a crossing
-#define		L_MARGIN    0.005 //6e-4 //0.1     // 6e-4 is approx 1km at the surface at 40 deg...
+#define		L_MARGIN    0.01 //6e-4 //0.1     // 6e-4 is approx 1km at the surface at 40 deg...
 
 // Output time axis:
 #define     TIME_MAX    10.0      // Seconds
@@ -72,6 +72,6 @@
 #define     WAVE_PWR_THRESH   0
 #define     DAMPING_THRESH    1e-3   
 
-#define     DEBUG       false
+#define     DEBUG       true
 
 #endif

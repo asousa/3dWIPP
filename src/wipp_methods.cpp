@@ -61,9 +61,9 @@ double total_input_power(double flash_pos_sm[3], double i0,
     double tot_pwr = 0;
     double pwr = 0;
     // Integration step sizes
-    double dlat = 0.01; 
-    double dlon = 0.01;
-    double dw   = 2*PI;
+    double dlat = 0.05; 
+    double dlon = 0.05;
+    double dw   = 5*2*PI;
     double tmp_coords[3] = {0,0,0};
     double x_sm[3];
 
@@ -478,6 +478,10 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
 
         // Ratio of B-field at equator vs local: (used in mapping pitch angles to equator)
         EA_array[i].Bo_ratio = sqrt(norm(B_eq,3)/norm(Bo,3));
+
+        // Area of EA disc:
+        EA_array[i].area = pow(R_E*EA_array[i].radius,2)*PI;
+
 
         // cout << "ratio: " << EA_array[i].Bo_ratio << "\n";
         // // analytical (for comparison)
@@ -1013,7 +1017,7 @@ vector< vector<double> > find_adjacent_rays(vector< vector<double> > available_r
     sort(uLats.begin(), uLats.end());
     it = unique(uLats.begin(), uLats.end());
     uLats.resize(distance(uLats.begin(), it));
-    
+    cout << "ray lats: ";
     print_vector(uLats);
     // Sorted list of unique longitudes
     // copy(start_lons.begin(), start_lons.end(), back_inserter(uLons));
@@ -1021,6 +1025,7 @@ vector< vector<double> > find_adjacent_rays(vector< vector<double> > available_r
     it = unique(uLons.begin(), uLons.end());
     uLons.resize(distance(uLons.begin(), it));
 
+    cout << "ray lons: ";
     print_vector(uLons);
 
     for (int la = 0; la < uLats.size()-1; ++la) {
@@ -1171,10 +1176,12 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
 
         // pwr = cell.pwr*FREQ_STEP_SIZE/cell.num_rays;
         // pwr = cell.pwr/cell.num_rays/TIME_STEP/EA.ds;
-        pwr = sqrt(cell.pwr)/EA.ds;  
+        // pwr = sqrt(cell.pwr)/EA.ds;  
+        pwr = sqrt(cell.pwr);
 
         psi = D2R*cell.psi/cell.num_rays;
 
+        
 
         if(pwr > WAVE_PWR_THRESH) {
 

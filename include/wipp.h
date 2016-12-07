@@ -161,9 +161,7 @@ typedef struct EA_segment {
 
     double Bo_ratio;                   // ratio of field at equator vs local
     
-    // Should we do Stix parameters here? They're a constant of the background
-    // medium, not of the wave... but we'd have to get the plasmasphere model.
-
+    double area;                       // Area of the EA segment
 } EA_segment;
 
 

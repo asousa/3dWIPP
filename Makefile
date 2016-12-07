@@ -25,13 +25,23 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 
 # Objects to build
-_OBJ = wipp_main.o \
-	   wipp_fileutils.o \
-	   math_utils.o \
-	   wipp_methods.o \
-	   wipp_legacy_methods.o \
-	   bmodel.o \
-	   coord_transforms.o \
+sources = \
+	wipp_main.cpp \
+	wipp_fileutils.cpp \
+	math_utils.cpp \
+	wipp_methods.cpp \
+	wipp_legacy_methods.cpp \
+	bmodel.cpp \
+	coord_transforms.cpp \
+
+_OBJ = ${sources:.cpp=.o}	
+# _OBJ = wipp_main.o \
+# 	   wipp_fileutils.o \
+# 	   math_utils.o \
+# 	   wipp_methods.o \
+# 	   wipp_legacy_methods.o \
+# 	   bmodel.o \
+# 	   coord_transforms.o \
 
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
@@ -46,7 +56,7 @@ IRBEM = $(LDIR)/irbem-code
 # GEOPACK = lib/geopack
 # Rules for making individual objects (from .cpp files in src/)
 $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS) -L$(LDIR) 
+	$(CC) -c -o $@ $< $(CFLAGS) -L$(LDIR)
 
 # Rule to link everything together + generate executable
 wipp: $(OBJ) $(LDIR)/libxformd.a $(LDIR)/libgeopackd.a $(LDIR)/libfoust.a
@@ -79,6 +89,7 @@ $(LDIR)/libgeopackd.a:
 # Legacy coordinate transforms, used in raytracer
 $(LDIR)/libxformd.a:
 	$(MAKE) -C $(XFORM)
+
 
 # IRBEM utility library:
 $(LDIR)/liboneradesp.a:
