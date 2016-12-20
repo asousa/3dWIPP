@@ -478,7 +478,7 @@ void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
         //         fwrite(&arr[ei][ti], sizeof(float), 1, file);
         //     }
         // }
-        fwrite(arr, NUM_E*NUM_TIMES*sizeof(arr), 1, file);
+        fwrite(arr, NUM_E*NUM_TIMES*sizeof(double), 1, file);
 
     }
     fclose(file);

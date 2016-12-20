@@ -65,10 +65,6 @@ wipp: $(OBJ) $(LDIR)/libxformd.a $(LDIR)/libgeopackd.a $(LDIR)/libfoust.a
 flux: $(FLUX_OBJ)
 	$(CC) $(CFLAGS) $(FLUX_OBJ) -L $(LDIR) $(LIBS) -o $(BDIR)/$@
 
-# $(ODIR)/sm2geo.o: $(SRC_DIR)/sm2geo.c
-
-# 	gcc -c -o $@ $< $(CFLAGS)
-
 
 $(LDIR)/libfoust.a: $(LDIR)/foust/*.f95 
 # Fortran code from Forrest Foust

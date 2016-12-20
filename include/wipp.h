@@ -3,6 +3,7 @@
 #define wipp_H
 #include <Eigen/Core>
 #include <Eigen/Dense>  // Cross product lives here
+// #include <unsupported/Eigen/NonLinearOptimization>
 
 #include <algorithm>    // std::next_permutation, std::sort
 
@@ -26,6 +27,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <ftw.h>
+
 
 // #include <integrand.h>
 // #include <psd_model.h>
@@ -334,8 +336,6 @@ vector < vector<double> > find_adjacent_rays(vector < vector<double> > start_loc
 
 
 int check_memory_usage();
-
-// flux.h
 
 
 #endif

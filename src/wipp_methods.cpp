@@ -54,6 +54,8 @@ double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, d
 }
 
 
+
+
 double total_input_power(double flash_pos_sm[3], double i0, 
                         double latmin, double latmax, double lonmin, double lonmax, double wmin, double wmax, int itime_in[2]) {
     // Determine the total input power tracked by the set of guide rays:
@@ -1174,14 +1176,17 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
         t = cell.t + TIME_STEP/2;           // We want the time and freq to be in the 
         f = cell.f + FREQ_STEP_SIZE/2;      // center of the cell, so add DT/2 or DF/2
 
+
+
         // pwr = cell.pwr*FREQ_STEP_SIZE/cell.num_rays;
         // pwr = cell.pwr/cell.num_rays/TIME_STEP/EA.ds;
         // pwr = sqrt(cell.pwr)/EA.ds;  
-        pwr = sqrt(cell.pwr);
+        // pwr = sqrt(cell.pwr);
+        pwr = cell.pwr/cell.num_rays;
 
         psi = D2R*cell.psi/cell.num_rays;
 
-        
+        printf("t: %g f: %g pwr: %g \n",t,f,pwr);
 
         if(pwr > WAVE_PWR_THRESH) {
 
@@ -1404,7 +1409,6 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
 
 double polygon_frame_area(rayT frame[8]) {
     // Calculates the area enclosed by the set of guide rays.
-    // 
 
     Vector3d cp(0,0,0);
     int inds[4] = {0,1,2,3};
@@ -1423,7 +1427,7 @@ double polygon_frame_area(rayT frame[8]) {
             cp += v1.cross(v2);
         }
 
-        area = pow(R_E*1e-3, 2)*cp.norm()/2.;
+        area = pow(R_E, 2)*cp.norm()/2.;
 
         if (area > max_area) { max_area = area;}
     } while ( next_permutation(inds,inds + 2) );

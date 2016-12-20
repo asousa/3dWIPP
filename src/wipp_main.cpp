@@ -1,5 +1,4 @@
 #include <wipp.h>
-
 using namespace std;
 using namespace Eigen;
 
@@ -197,6 +196,16 @@ int main(int argc, char *argv[])
     itime_in[1] = isec*1e3;
 
 
+
+    
+
+
+
+
+
+
+
+
 // --------------- Set up output grid + EA array -----------------------
     EA_array = init_EA_array(out_lat, out_lon, itime_in, model_number);
     
@@ -252,7 +261,7 @@ int main(int argc, char *argv[])
         avg_distance_from_flash /= 4000.0;  // Average dist of the 4 corner rays, in km
                                             // (Assuming both frequencies have same ray spacing) 
 
-        if (avg_distance_from_flash <= MAX_GROUND_DISTANCE) {
+        if ( (avg_distance_from_flash <= MAX_GROUND_DISTANCE) ) {
 
             // -------------- Load current rays ----------------------------------:
             for (int jj=0; jj<8; ++jj) {
@@ -279,7 +288,7 @@ int main(int argc, char *argv[])
 
             }
             
-            if (DEBUG) {check_memory_usage();}
+            // if (DEBUG) {check_memory_usage();}
         
             // Find minimum and maximum frequencies, start lats, and start lons:
             wmin   = cur_rays[0].w;         wmax = cur_rays[0].w;
@@ -341,7 +350,7 @@ int main(int argc, char *argv[])
 
 
             // Always do at least 1 step in each axis:
-            num_freqs_fine = max(1, (int)floor( (wmax - wmin)/(2*PI*FREQ_STEP_SIZE )));
+            num_freqs_fine = max(1, (int)floor( (wmax - wmin)/(2.*PI*FREQ_STEP_SIZE )));
             num_lats_fine  = max(1, (int)floor( (dlat*1e-3)/(LAT_STEP_SIZE) ));
             num_lons_fine  = max(1, (int)floor( (dlon*1e-3)/(LON_STEP_SIZE) ));
 
@@ -364,7 +373,7 @@ int main(int argc, char *argv[])
             for (int zz=0; zz<8; zz++) { interp_rayF(&cur_rays[zz], &(prev_frames[zz]), 0); }
 
             // Get input area at top of ionosphere:
-            initial_area = polygon_frame_area(prev_frames);
+            // initial_area = polygon_frame_area(prev_frames);
 
 
             // Step forward in time:
@@ -456,10 +465,14 @@ int main(int argc, char *argv[])
                                         // (total power / frame area)
                                         //      * (damping losses @ this cell)
                                         //      * (cell size in frequency axis)
-                                        //      (squared so we can RMS average multiple hits)            
-                                        cell_cur.pwr = pow(inp_pwr * r_cur.damping * 
-                                                            (FREQ_STEP_SIZE/num_freqs_fine) / frame_area, 2);
+                                        // cout << "inp pwr: " << inp_pwr;
+                                        // cout << " frame area: " << frame_area;
+                                        // cout << " other factor: " << (1.0*FREQ_STEP_SIZE/num_freqs_fine);
+                                        // cout << " damping: " << r_cur.damping;
 
+                                        cell_cur.pwr = (inp_pwr / frame_area)*(1.0*FREQ_STEP_SIZE/num_freqs_fine)*(r_cur.damping);
+                                        cout << "t: " << t_grid << " f: " << f_grid;
+                                        cout << " cell pwr: " << cell_cur.pwr << "\n";
                                         if (crossing_db[rr].count(grid_ind)==0) {
                                             // If we haven't hit this same (time, freq, EA) combo yet, add it:
                                             crossing_db[rr].insert(make_pair(grid_ind, cell_cur));

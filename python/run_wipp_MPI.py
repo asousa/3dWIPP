@@ -36,7 +36,7 @@ ray_datenum = dt.datetime(2010, 06, 04, 07, 00, 00);
 inp_lat = 30
 inp_lon = 0
 launch_alt = ((R_E + 5)*1e3)/R_E;
-flash_I0 = -10e3
+flash_I0 = -100e3
 
 # Frequencies
 f1 = 200; f2 = 30000;
@@ -46,7 +46,7 @@ freqs = np.round(pow(10, flogs)/10.)*10
 freq_pairs = zip(freqs[0:], freqs[1:])
 
 # Output coordinates (geomagnetic)
-out_lat = [25, 30, 35, 40, 45, 50, 55]
+out_lat = [40, 50]
 out_lon = [0]
 
 model_number = 0        # b-field model (0 = dipole, 1 = IGRF)
@@ -56,7 +56,6 @@ output_directory    = os.path.join(project_root, "outputs", "wipp_test")
 log_directory       = os.path.join(output_directory, "logs")
 
 # ----------------------------------------------------------
-
 
 iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
@@ -78,8 +77,8 @@ if rank==0:
     if not os.path.exists(log_directory):
         os.mkdir(log_directory)
 
-    print "Clearing data from previous runs..."
-    os.system('rm %s/*'%(output_directory))
+    # print "Clearing data from previous runs..."
+    # os.system('rm %s/*'%(output_directory))
 
     # print '-------- Building WIPP ------'
     # os.chdir(project_root)
@@ -92,7 +91,7 @@ else:
     pass
 
 
-comm.barrier()
+comm.Barrier()
 
 # --------------- Prep input vector and make chunks -----------
 
@@ -106,7 +105,7 @@ else:
     tasklist = None
     chunks   = None
 
-comm.barrier()
+comm.Barrier()
 
 tasklist = comm.bcast(tasklist, root=0)
 chunks   = comm.bcast(chunks, root=0)
@@ -159,15 +158,15 @@ if (rank < len(chunks)):
 
         logfile = os.path.join(log_directory, "wipp_%g_%g_%g.log"%(olat, olon, flo));
         # os.system(wipp_cmd)
-        file = open(logfile, "w+")
-        subprocess.call(wipp_cmd, shell=True, stdout=file)
-        file.close()
-
-
-        # wipp_log = subprocess.check_output(wipp_cmd, shell=True)
-        # file = open(os.path.join(log_directory, "wipp_%g_%g_%g.log"%(olat, olon, flo)),'w+')
-        # file.write(wipp_log)
+        # file = open(logfile, "w+")
+        # subprocess.call(wipp_cmd, shell=True, stdout=file)
         # file.close()
+
+
+        wipp_log = subprocess.check_output(wipp_cmd, shell=True)
+        file = open(logfile,'w')
+        file.write(wipp_log)
+        file.close()
 
 
 comm.Barrier()
