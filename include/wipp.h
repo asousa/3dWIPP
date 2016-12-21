@@ -338,4 +338,7 @@ vector < vector<double> > find_adjacent_rays(vector < vector<double> > start_loc
 int check_memory_usage();
 
 
+void find_crossing(rayT cur_frames[8], rayT prev_frames[8], Vector3d targ_point, double n_f, double *n_x, double *n_y);
+
+
 #endif

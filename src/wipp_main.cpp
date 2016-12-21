@@ -356,7 +356,8 @@ int main(int argc, char *argv[])
 
             cout << "num steps: " << num_freqs_fine << ", " << num_lats_fine << ", " << num_lons_fine << "\n";
 
-            // crossing_log = fopen(crossingFileName.c_str(), "w");
+            crossing_log = fopen(crossingFileName.c_str(), "w");
+
             // FILE* area_log = fopen("/shared/users/asousa/WIPP/3dWIPP/area_log.txt","w");
 
             double hit_counter = 0;
@@ -411,79 +412,144 @@ int main(int argc, char *argv[])
                         // geometric_factor = initial_area/frame_area;
                         // cell_area = FREQ_STEP_SIZE*1.0/(num_lons_fine*num_lats_fine*num_freqs_fine);
 
-                        // Interpolate on fine-scale grid:
-                        for (double ii=0; ii < 1; ii+=1./num_lons_fine) {         
-                            for (double jj=0; jj < 1; jj+= 1./num_lats_fine) {     
-                                for (double kk=0; kk < 1; kk+= 1./num_freqs_fine) { 
-                                    
-                                    // Clear previous values
-                                    r_cur =  {};
-                                    r_prev = {};
+                        if (CROSSING_METHOD==1) {  
+                            // Calculate crossings using the optmization method
+                            // Vector2d soln;
+                            // soln << 0.5, 0.5;
+                            double ii_up, jj_up;
+                            double ii_dn, jj_dn;
+                            double ii, jj;
+                            double S1, S2;
+                            // find_crossing(cur_frames, prev_frames, EA_array[rr].ea_pos, 0, &ii_dn, &jj_dn);
+                            // find_crossing(cur_frames, prev_frames, EA_array[rr].ea_pos, 1, &ii_up, &jj_up);
+                            // cout << "lower f: " << ii_dn << ", " << jj_dn << "\n";
+                            // cout << "upper f: " << ii_up << ", " << jj_up << "\n";
 
-                                    // (to do: Save r_curs to avoid having to recalculate it)
-                                    interp_ray_positions(cur_frames, ii, jj, kk, &r_cur);
-                                    interp_ray_positions(prev_frames,ii, jj, kk, &r_prev);
+                            // if ((S1 >= 0 ) && (S1 <= 1) && (S2 >= 0) && (S2 <= 1)) {
 
-                                    // Bam -- we finally have some little rays to check for crossings.
-                                    if (crosses_EA(r_cur.pos, r_prev.pos, EA_array[rr])) {
-                                        crossing_counter++;
+                                // if ( (ii_dn >= 0 ) && (ii_dn <= 1) && (jj_dn >=0) && (jj_dn <=1) &&
+                                     // (ii_up >= 0 ) && (ii_up <= 1) && (jj_up >=0) && (jj_up <=1) ) {
+                                // cout << "lower f: " << ii_dn << ", " << jj_dn << "\n";
+                                // cout << "upper f: " << ii_up << ", " << jj_up << "\n";
 
-                                        interp_ray_data(cur_frames, ii, jj, kk, &r_cur);
-                                        interp_ray_data(prev_frames,ii, jj, kk, &r_prev);
+                                    for (double kk=0; kk < 1; kk += 1./num_freqs_fine) {
 
-                                        // // Write crossing to log (for plotting)
-                                        // crossing_log = fopen(crossingFileName.c_str(), "a");
-                                        // fprintf(crossing_log, "%g %g %g %g %g %g\n",
-                                        //     r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
-                                        //     r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
-                                        // fclose(crossing_log);
+                                        find_crossing(cur_frames, prev_frames, EA_array[rr].ea_pos, kk, &ii, &jj);
+                                        // ii = (1.-kk)*ii_dn + kk*ii_up;
+                                        // jj = (1.-kk)*jj_dn + kk*jj_up;
+                                        // if ( (ii >= 0 ) && (ii <= 1) && (jj >=0) && (jj <=1) && (S1 >= 0) && (S2 <= 1)) {
+                                        if ( (ii >= 0 ) && (ii <= 1) && (jj >=0) && (jj <=1)) {
+                                            r_cur =  {};
+                                            r_prev = {};
+                                            
+                                            interp_ray_positions(cur_frames, ii, jj, kk, &r_cur);
+                                            interp_ray_positions(prev_frames,ii, jj, kk, &r_prev);
+                                            interp_ray_data(cur_frames, ii, jj, kk, &r_cur);
+                                            interp_ray_data(prev_frames,ii, jj, kk, &r_prev);
+                                            
 
-                                        // store time and frequency for the middle of this interpolation
-                                        // r_cur.dt = (r_cur.time - r_prev.time);
-                                        r_cur.dlat = dlat;
-                                        r_cur.dlon = dlon;
-                                        // r_cur.ds   = (r_cur.pos - r_prev.pos).norm()*R_E;   // Jacob uses ds between the EA segments... hm
+                                            // Write crossing to log (for plotting)
+                                            crossing_log = fopen("crossing_log_newway.txt", "a");
+                                            fprintf(crossing_log, "%g %g %g %g %g %g\n",
+                                                r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
+                                                r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
+                                            fclose(crossing_log);
 
-                                        // t_grid = floor(r_cur.time/(TIME_STEP));
-                                        // f_grid = floor(kk*num_freqs_fine); 
+                                            t_grid = floor(tt/TIME_STEP); //floor(r_cur.time/(TIME_STEP));
+                                            f_grid = floor(r_cur.w); //floor(kk*num_freqs_fine); 
+      
+                                            grid_ind = make_pair(t_grid, f_grid);
+                                            cellT cell_cur = new_cell(r_cur);
 
-                                        t_grid = floor(tt/TIME_STEP); //floor(r_cur.time/(TIME_STEP));
-                                        f_grid = floor(r_cur.w); //floor(kk*num_freqs_fine); 
-
-                                                                               
-                                        grid_ind = make_pair(t_grid, f_grid);
-                                        // cout << "grid inds: " << t_grid << ", " << f_grid << "\n";
-                                        cellT cell_cur = new_cell(r_cur);
-
-                                        // cell_cur.Lsh = EA_array[rr].Lsh;
-                                        // cell_cur.lat = EA_array[rr].lat;
-
-                                        // Total power within this cell
-                                        // cell_cur.pwr = pow(inp_pwr * geometric_factor * cell_area
-                                        //      * r_cur.damping, 2);
-
-                                        // (total power / frame area)
-                                        //      * (damping losses @ this cell)
-                                        //      * (cell size in frequency axis)
-                                        // cout << "inp pwr: " << inp_pwr;
-                                        // cout << " frame area: " << frame_area;
-                                        // cout << " other factor: " << (1.0*FREQ_STEP_SIZE/num_freqs_fine);
-                                        // cout << " damping: " << r_cur.damping;
-
-                                        cell_cur.pwr = (inp_pwr / frame_area)*(1.0*FREQ_STEP_SIZE/num_freqs_fine)*(r_cur.damping);
-                                        cout << "t: " << t_grid << " f: " << f_grid;
-                                        cout << " cell pwr: " << cell_cur.pwr << "\n";
-                                        if (crossing_db[rr].count(grid_ind)==0) {
-                                            // If we haven't hit this same (time, freq, EA) combo yet, add it:
+                        
+                                            cell_cur.pwr = (inp_pwr / frame_area)*(1.0*FREQ_STEP_SIZE/num_freqs_fine)*(r_cur.damping);
+                                            cout << "t: " << t_grid << " f: " << f_grid;
+                                            cout << " cell pwr: " << cell_cur.pwr << "\n";
                                             crossing_db[rr].insert(make_pair(grid_ind, cell_cur));
-                                        } else {
-                                            // Else, sum the current frame with previous frames, so we can average:
-                                            add_cell(&(crossing_db[rr].at(grid_ind)), &cell_cur);
-                                        }
-                                    }   // Crossings
-                                }   // kk
-                            }   // jj
-                        }   // ii
+                   
+
+
+
+                                    }
+                                }
+                            // }
+                        } else {
+                            // Calculate crossings by interpolating and checking
+
+                            // Interpolate on fine-scale grid:
+                            for (double ii=0; ii < 1; ii+=1./num_lons_fine) {         
+                                for (double jj=0; jj < 1; jj+= 1./num_lats_fine) {     
+                                    for (double kk=0; kk < 1; kk+= 1./num_freqs_fine) { 
+                                        
+                                        // Clear previous values
+                                        r_cur =  {};
+                                        r_prev = {};
+
+                                        // (to do: Save r_curs to avoid having to recalculate it)
+                                        interp_ray_positions(cur_frames, ii, jj, kk, &r_cur);
+                                        interp_ray_positions(prev_frames,ii, jj, kk, &r_prev);
+
+                                        // Bam -- we finally have some little rays to check for crossings.
+                                        if (crosses_EA(r_cur.pos, r_prev.pos, EA_array[rr])) {
+                                            crossing_counter++;
+
+                                            interp_ray_data(cur_frames, ii, jj, kk, &r_cur);
+                                            interp_ray_data(prev_frames,ii, jj, kk, &r_prev);
+
+                                            // Write crossing to log (for plotting)
+                                            crossing_log = fopen("crossing_log_oldway.txt", "a");
+                                            fprintf(crossing_log, "%g %g %g %g %g %g\n",
+                                                r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
+                                                r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
+                                            fclose(crossing_log);
+
+                                            // store time and frequency for the middle of this interpolation
+                                            // r_cur.dt = (r_cur.time - r_prev.time);
+                                            r_cur.dlat = dlat;
+                                            r_cur.dlon = dlon;
+                                            // r_cur.ds   = (r_cur.pos - r_prev.pos).norm()*R_E;   // Jacob uses ds between the EA segments... hm
+
+                                            // t_grid = floor(r_cur.time/(TIME_STEP));
+                                            // f_grid = floor(kk*num_freqs_fine); 
+
+                                            t_grid = floor(tt/TIME_STEP); //floor(r_cur.time/(TIME_STEP));
+                                            f_grid = floor(r_cur.w); //floor(kk*num_freqs_fine); 
+
+                                                                                   
+                                            grid_ind = make_pair(t_grid, f_grid);
+                                            // cout << "grid inds: " << t_grid << ", " << f_grid << "\n";
+                                            cellT cell_cur = new_cell(r_cur);
+
+                                            // cell_cur.Lsh = EA_array[rr].Lsh;
+                                            // cell_cur.lat = EA_array[rr].lat;
+
+                                            // Total power within this cell
+                                            // cell_cur.pwr = pow(inp_pwr * geometric_factor * cell_area
+                                            //      * r_cur.damping, 2);
+
+                                            // (total power / frame area)
+                                            //      * (damping losses @ this cell)
+                                            //      * (cell size in frequency axis)
+                                            // cout << "inp pwr: " << inp_pwr;
+                                            // cout << " frame area: " << frame_area;
+                                            // cout << " other factor: " << (1.0*FREQ_STEP_SIZE/num_freqs_fine);
+                                            // cout << " damping: " << r_cur.damping;
+
+                                            cell_cur.pwr = (inp_pwr / frame_area)*(1.0*FREQ_STEP_SIZE/num_freqs_fine)*(r_cur.damping);
+                                            cout << "t: " << t_grid << " f: " << f_grid;
+                                            cout << " cell pwr: " << cell_cur.pwr << "\n";
+                                            if (crossing_db[rr].count(grid_ind)==0) {
+                                                // If we haven't hit this same (time, freq, EA) combo yet, add it:
+                                                crossing_db[rr].insert(make_pair(grid_ind, cell_cur));
+                                            } else {
+                                                // Else, sum the current frame with previous frames, so we can average:
+                                                add_cell(&(crossing_db[rr].at(grid_ind)), &cell_cur);
+                                            }
+                                        }   // Crossings
+                                    }   // kk
+                                }   // jj
+                            }   // ii */
+                        } // Detection mode
                     }   // Coarse mask
                 }   // EA array (single fieldline)
 

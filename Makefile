@@ -33,6 +33,7 @@ sources = \
 	wipp_legacy_methods.cpp \
 	bmodel.cpp \
 	coord_transforms.cpp \
+	nonlinear_optimization.cpp \
 
 _OBJ = ${sources:.cpp=.o}	
 # _OBJ = wipp_main.o \
