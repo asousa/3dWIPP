@@ -180,8 +180,8 @@ double haversine_distance(double latitude1, double longitude1, double latitude2,
     double lat2 = D2R*latitude2;
     double lon2 = D2R*longitude2;
 
-    double d_lat = abs(lat1 - lat2);
-    double d_lon = abs(lon1 - lon2);
+    double d_lat = fabs(lat1 - lat2);
+    double d_lon = fabs(lon1 - lon2);
 
     double a = pow(sin(d_lat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(d_lon / 2), 2);
 

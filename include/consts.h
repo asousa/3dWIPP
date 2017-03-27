@@ -44,22 +44,22 @@
 // // EA array grid settings:
 #define		EALimS		-40
 #define		EALimN	    40
-#define     NUM_EA      81
+#define     NUM_EA      41
 #define		EAIncr	    ((EALimN - EALimS)/(NUM_EA - 1))	
 
 #define     TRACER_MAX  20000    // Maximum steps in field line tracer
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)
 
 // Fine-scale interpolation step sizes:
-#define     FREQ_STEP_SIZE  1  // Hz
-#define     LAT_STEP_SIZE   1  // km
-#define     LON_STEP_SIZE   1  // km
+#define     FREQ_STEP_SIZE  30  // Hz
+#define     LAT_STEP_SIZE   20  // km
+#define     LON_STEP_SIZE   20  // km
 
 // Maximum distance from source to consider a ray
 #define     MAX_GROUND_DISTANCE     100 // km
 
 // Radius around field line, in L-shells, in which to consider a crossing
-#define		L_MARGIN    6e-4 //0.1     // 6e-4 is approx 1km at the surface at 40 deg...
+#define		L_MARGIN    0.05     // 6e-4 is approx 1km at the surface at 40 deg...
 
 // Output time axis:
 #define     TIME_MAX    10.0      // Seconds
