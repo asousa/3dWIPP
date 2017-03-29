@@ -24,8 +24,11 @@ from mpi4py import MPI
 
 project_root = '/shared/users/asousa/WIPP/3dWIPP/'
 
-
+# ---------------------- Constants -------------------------
 R_E = 6371.0    # km
+R2D = 180./np.pi
+D2R = np.pi/180.
+
 
 # ------------------ Simulation params ---------------------
 
@@ -46,13 +49,22 @@ freqs = np.round(pow(10, flogs)/10.)*10
 freq_pairs = zip(freqs[0:], freqs[1:])
 
 # Output coordinates (geomagnetic)
-out_lat = [40, 50]
+# out_lat = [40, 50]
+# Select latitudes for a uniform spread across L-shells
+out_Lsh = np.arange(1.2, 8.0, 0.1)
+out_lat = np.round(10.0*np.arccos(1.0/out_Lsh)*R2D)/10.0
+
+
 out_lon = [0]
 
 model_number = 0        # b-field model (0 = dipole, 1 = IGRF)
+num_freq_steps = 20     # number of interpolating steps between 
+                        # each guide frequency.
 
-ray_input_directory = os.path.join(project_root, "outputs", "fl_ngo_dipole")
-output_directory    = os.path.join(project_root, "outputs", "wipp_test")
+vec_ind = 0     # Which set of default params to use for the gcpm model
+
+ray_input_directory = '/shared/users/asousa/WIPP/rays/2d/nightside/mode6/kp0/'
+output_directory    = os.path.join(project_root, "outputs", "main_2d_test")
 log_directory       = os.path.join(output_directory, "logs")
 
 # ----------------------------------------------------------
@@ -117,20 +129,38 @@ nSteps = np.ceil(nTasks/nProcs).astype(int)
 
 # ------------ Load Kp, Dst, etc ---------------------
 # Load solar wind parameters (for Tsykadenko corrections)
-Pdyn, ByIMF, BzIMF, W = load_TS_params(ray_datenum)
+# Pdyn, ByIMF, BzIMF, W = load_TS_params(ray_datenum)
 
 # Load Dst
-Dst = load_Dst(ray_datenum)
+# Dst = load_Dst(ray_datenum)
 
-# Load Kp
-tvec, kvec = load_Kp()
-tt = bisect.bisect_left(tvec, ray_datenum)
-Kp = kvec[tt]
+# # Load Kp
+# tvec, kvec = load_Kp()
+# tt = bisect.bisect_left(tvec, ray_datenum)
+# Kp = kvec[tt]
 
-# Get closest AE value
-tvec, avec = load_ae()
-tt = bisect.bisect_left(tvec, ray_datenum)
-AE = np.log10(avec[tt])
+# # Get closest AE value
+# tvec, avec = load_ae()
+# tt = bisect.bisect_left(tvec, ray_datenum)
+# AE = np.log10(avec[tt])
+
+
+# Mean parameter vals for set Kp:
+Kpvec = [0, 2, 4, 6, 8]
+Aevec = [1.6, 2.2, 2.7, 2.9, 3.0]
+Dstvec= [-3, -15, -38, -96, -215]
+Pdynvec=[1.4, 2.3, 3.4, 5.8, 7.7]
+ByIMFvec=[-0.1, -0.1, 0.1, 0.5, -0.2]
+BzIMFvec=[1.0, 0.6, -0.5, -2.3, -9.2]
+
+
+Kp   = Kpvec[vec_ind]
+AE   = Aevec[vec_ind]
+Pdyn = Pdynvec[vec_ind]
+Dst  = Dstvec[vec_ind]
+ByIMF= ByIMFvec[vec_ind]
+BzIMF= BzIMFvec[vec_ind]
+W = np.zeros(6)   # Doesn't matter if we're not using Tsyg
 
 # Tsyganenko input vector
 TS_params = [Pdyn, Dst, ByIMF, BzIMF, W[0], W[1], W[2], W[3], W[4], W[5]]
@@ -152,22 +182,28 @@ if (rank < len(chunks)):
                     ' --iyr %s --idoy %d --isec %d --I0 %d'%(iyr, idoy, isec, flash_I0) + \
                     ' --f_alt %g --f_lat %g --f_lon %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) + \
                     ' --out_lat %g --out_lon %g --b_model %d'%(olat, olon, model_number) + \
-                    ' --f1 %g --f2 %g --ray_dir %s'%(flo, fhi, ray_input_directory)
+                    ' --f1 %g --f2 %g --ray_dir %s'%(flo, fhi, ray_input_directory) +\
+                    ' --num_freq_steps %d'%num_freq_steps
 
         print wipp_cmd
 
         logfile = os.path.join(log_directory, "wipp_%g_%g_%g.log"%(olat, olon, flo));
-        # os.system(wipp_cmd)
+        # # os.system(wipp_cmd)
         # file = open(logfile, "w+")
         # subprocess.call(wipp_cmd, shell=True, stdout=file)
         # file.close()
-
 
         wipp_log = subprocess.check_output(wipp_cmd, shell=True)
         file = open(logfile,'w')
         file.write(wipp_log)
         file.close()
 
+        # Zip output files to keep everything from getting too huge
+        n_filename = os.path.join(output_directory,'pN_%2.1f_%d_%d.dat'%(olat, olon, flo))
+        s_filename = os.path.join(output_directory,'pS_%2.1f_%d_%d.dat'%(olat, olon, flo))   
+
+        os.system("gzip %s"%n_filename)
+        os.system("gzip %s"%s_filename)
 
 comm.Barrier()
 

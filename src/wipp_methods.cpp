@@ -4,92 +4,92 @@ using namespace std;
 using namespace Eigen;
 
 
-double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, double w, double i0) {
-    // Returns ray power at the top of the ionosphere
-    // per unit in area and frequency.
+// double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, double w, double i0) {
+//     // Returns ray power at the top of the ionosphere
+//     // per unit in area and frequency.
 
-    double theta;        // angle between two vectors
-    double gc_distance; // great circle distance between two points
-    double dist_tot;
-    double xi;
+//     double theta;        // angle between two vectors
+//     double gc_distance; // great circle distance between two points
+//     double dist_tot;
+//     double xi;
 
-    double S, S_vert;
-    double attn_factor;
-    double w_sq, f;
+//     double S, S_vert;
+//     double attn_factor;
+//     double w_sq, f;
 
-    // Vector3d v1;
-    // Vector3d v2;
-    double v1[3];
-    double v2[3];
+//     // Vector3d v1;
+//     // Vector3d v2;
+//     double v1[3];
+//     double v2[3];
 
-    f = w/(2.0*PI);
+//     f = w/(2.0*PI);
     
-    cardeg(flash_loc, v1);
-    cardeg(ray_loc,   v2);
-    gc_distance = haversine_distance(v1[1], v1[2], v2[1], v2[2]);
-    // v1 = Map<VectorXd>(flash_loc,3,1);
-    // v2 = Map<VectorXd>(ray_loc,  3,1);
+//     cardeg(flash_loc, v1);
+//     cardeg(ray_loc,   v2);
+//     gc_distance = haversine_distance(v1[1], v1[2], v2[1], v2[2]);
+//     // v1 = Map<VectorXd>(flash_loc,3,1);
+//     // v2 = Map<VectorXd>(ray_loc,  3,1);
 
-    // theta = acos(v1.dot(v2)/(v1.norm()*v2.norm()));
-    // // Arc length (~great-circle distance) between vI0ectors
-    // gc_distance = (R_E)*theta;
+//     // theta = acos(v1.dot(v2)/(v1.norm()*v2.norm()));
+//     // // Arc length (~great-circle distance) between vI0ectors
+//     // gc_distance = (R_E)*theta;
 
-    // cout << "gc_distance: " << gc_distance << "\n";
-    // total distance up to ionosphere:
-    dist_tot = hypot(gc_distance, H_IONO);
-    xi = atan2(gc_distance, H_IONO);  // Incident angle
+//     // cout << "gc_distance: " << gc_distance << "\n";
+//     // total distance up to ionosphere:
+//     dist_tot = hypot(gc_distance, H_IONO);
+//     xi = atan2(gc_distance, H_IONO);  // Incident angle
 
-    w_sq =  pow( w , 2 );
-    S = ( (1/Z0) * pow( (H_E*i0*2E-7*(sin(xi)/dist_tot)*w*(P_A-P_B)) , 2 ) 
-                   /  (  (w_sq+pow(P_A,2))*(w_sq+pow(P_B,2))  )      ) ;
-    S_vert = S * cos(xi) ;  // factor for vert prop.
+//     w_sq =  pow( w , 2 );
+//     S = ( (1/Z0) * pow( (H_E*i0*2E-7*(sin(xi)/dist_tot)*w*(P_A-P_B)) , 2 ) 
+//                    /  (  (w_sq+pow(P_A,2))*(w_sq+pow(P_B,2))  )      ) ;
+//     S_vert = S * cos(xi) ;  // factor for vert prop.
 
-    // Ionosphere absorption model
-    attn_factor = pow(10,-(ionoAbsorp(mag_lat,f)/10)  );
-    S_vert = S_vert * attn_factor;
+//     // Ionosphere absorption model
+//     attn_factor = pow(10,-(ionoAbsorp(mag_lat,f)/10)  );
+//     S_vert = S_vert * attn_factor;
 
-    // printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
+//     // printf("i0: %2.3f, dist_tot: %2.3f, xi: %2.3f, S_vert; %e\n",i0, dist_tot, xi, S_vert);
     
-    return S_vert;
-}
+//     return S_vert;
+// }
 
 
 
 
-double total_input_power(double flash_pos_sm[3], double i0, 
-                        double latmin, double latmax, double lonmin, double lonmax, double wmin, double wmax, int itime_in[2]) {
-    // Determine the total input power tracked by the set of guide rays:
+// double total_input_power(double flash_pos_sm[3], double i0, 
+//                         double latmin, double latmax, double lonmin, double lonmax, double wmin, double wmax, int itime_in[2]) {
+//     // Determine the total input power tracked by the set of guide rays:
 
-    double tot_pwr = 0;
-    double pwr = 0;
-    // Integration step sizes
-    double dlat = 0.05; 
-    double dlon = 0.05;
-    double dw   = 5*2*PI;
-    double tmp_coords[3] = {0,0,0};
-    double x_sm[3];
+//     double tot_pwr = 0;
+//     double pwr = 0;
+//     // Integration step sizes
+//     double dlat = 0.05; 
+//     double dlon = 0.05;
+//     double dw   = 5*2*PI;
+//     double tmp_coords[3] = {0,0,0};
+//     double x_sm[3];
 
-    for (double w = wmin + dw/2; w < wmax; w+=dw) {
-        for (double lat = latmin + dlat/2; lat < latmax; lat+=dlat) {
-            for (double lon=lonmin; lon < lonmax; lon+=dlon) {
-                // cout << "(" << lat << ", " << lon << ")\n";
-                tmp_coords = {1 + H_IONO/R_E, lat, lon};
-                degcar(tmp_coords);
-                mag_to_sm_d_(itime_in, tmp_coords, x_sm);
+//     for (double w = wmin + dw/2; w < wmax; w+=dw) {
+//         for (double lat = latmin + dlat/2; lat < latmax; lat+=dlat) {
+//             for (double lon=lonmin; lon < lonmax; lon+=dlon) {
+//                 // cout << "(" << lat << ", " << lon << ")\n";
+//                 tmp_coords = {1 + H_IONO/R_E, lat, lon};
+//                 degcar(tmp_coords);
+//                 mag_to_sm_d_(itime_in, tmp_coords, x_sm);
 
-                pwr = input_power_scaling(flash_pos_sm, x_sm, lat, w, i0);
+//                 pwr = input_power_scaling(flash_pos_sm, x_sm, lat, w, i0);
 
-                double dist_lat = (R_E + H_IONO)*dlat*D2R;
-                double dist_lon = (R_E + H_IONO)*dlon*sin(D2R*lat)*D2R;
-                                // Latitude distance      longitude distance       freq dist
-                // cout << "dist_lat: " << dist_lat << ", dist_lon: " << dist_lon << "\n";
-                tot_pwr += pwr * dist_lat * dist_lon * dw;
-            }
-        }
-    }
+//                 double dist_lat = (R_E + H_IONO)*dlat*D2R;
+//                 double dist_lon = (R_E + H_IONO)*dlon*sin(D2R*lat)*D2R;
+//                                 // Latitude distance      longitude distance       freq dist
+//                 // cout << "dist_lat: " << dist_lat << ", dist_lon: " << dist_lon << "\n";
+//                 tot_pwr += pwr * dist_lat * dist_lon * dw;
+//             }
+//         }
+//     }
 
-    return tot_pwr;
-}
+//     return tot_pwr;
+// }
 
 
 
@@ -1046,6 +1046,50 @@ vector< vector<double> > find_adjacent_rays(vector< vector<double> > available_r
 }
 
 
+vector< vector<double> > find_adjacent_rays_2d(vector< vector<double> > available_rays) {
+    // Returns a list of latitude pairs, corresponding to adjacent rays
+    vector< vector<double> > adjacent_rays;
+    vector<double>::iterator it;
+    vector<double> uLats, uLons;
+    double row[8];
+
+    for (vector< vector<double> >::iterator itt=available_rays.begin(); itt!=available_rays.end(); ++itt) {
+        // print_vector(*itt);
+        uLats.push_back((*itt)[1]);
+        uLons.push_back((*itt)[2]);
+    }
+
+    // Sorted list of unique latitudes
+    // copy(start_lats.begin(), start_lats.end(), back_inserter(uLats));
+    sort(uLats.begin(), uLats.end());
+    it = unique(uLats.begin(), uLats.end());
+    uLats.resize(distance(uLats.begin(), it));
+    cout << "ray lats: ";
+    print_vector(uLats);
+    // Sorted list of unique longitudes
+    // copy(start_lons.begin(), start_lons.end(), back_inserter(uLons));
+    sort(uLons.begin(), uLons.end());
+    it = unique(uLons.begin(), uLons.end());
+    uLons.resize(distance(uLons.begin(), it));
+
+    cout << "ray lons: ";
+    print_vector(uLons);
+
+    for (int la = 0; la < uLats.size()-1; ++la) {
+        for (int lo = 0; lo < uLons.size(); ++lo) {
+              
+            row = {uLats[la],   uLons[lo],   
+                   uLats[la+1], uLons[lo],
+                   uLats[la],   uLons[lo],   
+                   uLats[la+1], uLons[lo]};
+
+            adjacent_rays.push_back(vector<double>(row, row+8));
+        }
+    }
+
+    return adjacent_rays;
+}
+
 
 
 
@@ -1408,7 +1452,7 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
 
 
 double polygon_frame_area(rayT frame[8]) {
-    // Calculates the area enclosed by the set of guide rays.
+    // Calculates the area, in meters, enclosed by the set of guide rays.
 
     Vector3d cp(0,0,0);
     int inds[4] = {0,1,2,3};
@@ -1434,6 +1478,4 @@ double polygon_frame_area(rayT frame[8]) {
 
     return max_area;
 }
-
-
 

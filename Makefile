@@ -11,7 +11,7 @@ ODIR =build
 # Libraries
 LDIR =/shared/users/asousa/WIPP/3dWIPP/lib
 
-LIBS=-lgfortran -lxformd -lgeopackd
+LIBS=-lgfortran -lxformd -lgeopackd -lz
 	
 	
 # output binary directory
@@ -26,7 +26,7 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 # Objects to build
 sources = \
-	wipp_main.cpp \
+	wipp_main_2d.cpp \
 	wipp_fileutils.cpp \
 	math_utils.cpp \
 	wipp_methods.cpp \
@@ -34,22 +34,18 @@ sources = \
 	bmodel.cpp \
 	coord_transforms.cpp \
 	nonlinear_optimization.cpp \
+	graf_iono_absorp.cpp 
 
 _OBJ = ${sources:.cpp=.o}	
-# _OBJ = wipp_main.o \
-# 	   wipp_fileutils.o \
-# 	   math_utils.o \
-# 	   wipp_methods.o \
-# 	   wipp_legacy_methods.o \
-# 	   bmodel.o \
-# 	   coord_transforms.o \
+
 
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 _FLUX_OBJ = flux_main.o \
 			math_utils.o \
 			wipp_fileutils.o \
-			coord_transforms.o
+			coord_transforms.o \
+			flux_methods.o
 FLUX_OBJ = $(patsubst %,$(ODIR)/%,$(_FLUX_OBJ))
 
 XFORM = $(LDIR)/xform_double
@@ -62,6 +58,7 @@ $(ODIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
 # Rule to link everything together + generate executable
 wipp: $(OBJ) $(LDIR)/libxformd.a $(LDIR)/libgeopackd.a $(LDIR)/libfoust.a
 	$(CC) $(CFLAGS) $(OBJ) -L $(LDIR) $(LIBS) -o $(BDIR)/$@
+
 
 flux: $(FLUX_OBJ)
 	$(CC) $(CFLAGS) $(FLUX_OBJ) -L $(LDIR) $(LIBS) -o $(BDIR)/$@

@@ -11,7 +11,8 @@ int main(int argc, char *argv[])
     string out_dir;
     string flux_filename;
     ostringstream alpha_N_name, alpha_S_name;
-
+    ostringstream summed_N_name, summed_S_name;
+    int alpha_dist, flux_dist;
     vector <double> freqs;
     double out_lat, out_lon;
 
@@ -25,6 +26,8 @@ int main(int argc, char *argv[])
     flux_filename = "/shared/users/asousa/WIPP/3dWIPP/data/EQFLUXMA.dat";
     out_lat = 45;
     out_lon = 0;
+    alpha_dist = 0; // Which pitch-angle distribution to use: 0=ramp, 1=square 
+    flux_dist = 0;  // Which flux distribution to use: 0=ae8 file, 1=Bell 2002, 2=flat.
 
 
 
@@ -32,9 +35,13 @@ int main(int argc, char *argv[])
     static struct option long_options[] =
     {
         {"inp_dir",     required_argument,    0, 'a'},
-        {"flux_file",   required_argument,    0, 'b'},
-        {"lat",         required_argument,    0, 'c'},
-        {"lon",         required_argument,    0, 'd'},
+        {"out_dir",     required_argument,    0, 'b'},
+        {"flux_file",   required_argument,    0, 'c'},
+        {"lat",         required_argument,    0, 'd'},
+        {"lon",         required_argument,    0, 'e'},
+        {"f",           required_argument,    0, 'f'},
+        {"alpha_dist",  required_argument,    0, 'g'},
+        {"flux_dist",   required_argument,    0, 'h'},
         {0, 0, 0, 0}
     };
 
@@ -50,13 +57,19 @@ int main(int argc, char *argv[])
             case 'a':   // inp_dir
                 inp_dir = (string) optarg;              break;
             case 'b':
-                flux_filename = (string) optarg;        break;
+                out_dir = (string) optarg;              break;
             case 'c':
-                out_lat = strtod(optarg, NULL);         break;
+                flux_filename = (string) optarg;        break;
             case 'd':
+                out_lat = strtod(optarg, NULL);         break;
+            case 'e':
                 out_lon = strtod(optarg, NULL);         break;
             case 'f':
                 freqs.push_back(strtod(optarg,NULL));   break;
+            case 'g':
+                alpha_dist = strtod(optarg, NULL);      break;
+            case 'h':
+                flux_dist = strtod(optarg, NULL);       break;
             case '?':
                  printf("\nUnknown option: %s\n",opt);
             break;
@@ -73,26 +86,46 @@ int main(int argc, char *argv[])
     cout << "Flux file:\t\t" << flux_filename <<"\n";
     cout << "Latitude:\t\t"  << out_lat << "\n";
     cout << "longitude:\t\t" << out_lon << "\n";
-    cout << "Frequencies:\t\t";
-    print_vector(freqs);
+    cout << "Frequencies:\t\t"; print_vector(freqs);
 
     // Output file names:
     alpha_N_name << out_dir << "/alpha_" << out_lat << "_" << out_lon << "N.dat";
     alpha_S_name << out_dir << "/alpha_" << out_lat << "_" << out_lon << "S.dat";
 
-    // Load all p-files and sum them:
-    for (int k=0; k<1; ++k) {
-        string NS = (k==0 ? "N" : "S");
-        for ( int f_ind=0; f_ind < freqs.size(); ++f_ind) {
-            ostringstream pname;
-            pname << inp_dir << "/p" << NS << "_" << out_lat << "_" << out_lon << "_" << freqs[f_ind] << ".dat";
 
+    // // Load flux file:
+    double J[100][100];
+    readJ(J, flux_filename);
+
+    // Print out the J array for debuggins
+    // for (int x=0; x<100; ++x) {
+    //     cout << x << ": ";
+    //     for (int y=0; y<100; ++y) {
+    //         cout << J[x][y] << " ";
+    //     }
+    //     cout << endl;
+    // }
+
+    // Load all p-files and sum them:
+    for (int k=0; k<=1; ++k) {
+
+        string NS = (k==0 ? "N" : "S");
+        cout << NS << endl;
+        for ( int f_ind=0; f_ind < freqs.size(); ++f_ind) {
+            ostringstream pname, pname_zipped, zip_cmd;
+
+            pname << inp_dir << "/p" << NS << "_" << out_lat << "_" << out_lon << "_" << freqs[f_ind] << ".dat";
+            zip_cmd << "gunzip " << pname.str() << ".gz";
             double ptmp[NUM_E][NUM_TIMES];
 
+            // Unzip
+            exec(zip_cmd.str().c_str());
+            // Read
             read_p_array(ptmp, pname.str());
 
+            // Sum
             for (int row=0; row < NUM_E; ++row) {
-                for (int col=0; col < NUM_TIMES; ++col){        
+                for (int col=0; col < NUM_TIMES; ++col){
                     if (k==0) {
                         dA_N[row][col]+= ptmp[row][col];
                     } else {
@@ -100,9 +133,29 @@ int main(int argc, char *argv[])
                     }
                 }
             }
+
+            // Re-zip
+            zip_cmd.str("");
+            zip_cmd << "gzip " << pname.str();
+            exec(zip_cmd.str().c_str());
         }
     }
 
+    // Save the summed arrays:
+    summed_N_name << out_dir << "/Psum_" << out_lat << "_" << out_lon << "_N.dat";
+    summed_S_name << out_dir << "/Psum_" << out_lat << "_" << out_lon << "_S.dat";
+    cout << "Nname: " << summed_N_name.str() << endl;
+    cout << "Sname: " << summed_S_name.str() << endl;
+    write_p_array(dA_N, summed_N_name.str());
+    write_p_array(dA_S, summed_S_name.str());
+
     // Call the flux calculation:
+    compFlux(dA_N, out_lat, out_lon, 0, out_dir, 
+              J, flux_dist, alpha_dist);
+    compFlux(dA_S, out_lat, out_lon, 1, out_dir, 
+              J, flux_dist, alpha_dist);
 
 }
+
+
+

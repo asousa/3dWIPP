@@ -459,7 +459,7 @@ void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
     cout << "file shape: " << NUM_E << ", " << NUM_TIMES << "\n";
     file = fopen(filename.c_str(),"wb");
 
-    cout << "sizeof (arr): " << sizeof(arr) << "\n";
+    // cout << "sizeof (arr): " << sizeof(arr) << "\n";
     if (file == NULL) {
         cout << "Failed to open file " << filename << "\n";
     } else {
@@ -486,34 +486,90 @@ void write_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
 
 
 
+
 void read_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
-    ifstream file;
-    vector <double> v;
-    istringstream iss;
-    string line;
+    FILE * pFile;
+    long lSize;
+    char * buffer;
+    size_t result;
 
-    file.open(filename.c_str());
-    if (file.is_open()) {
-        while (getline(file, line)) {
+    pFile = fopen(filename.c_str(),"rb");
 
-            v.clear();
-            iss.clear();
-            iss.str(line);
+    if (pFile != NULL) {
+  // obtain file size:
+      fseek(pFile, 0, SEEK_END);
+      lSize = ftell(pFile);
+      rewind(pFile);
+      // cout << "size: " << lSize << " bytes" << endl;
+      // cout << "intended size: " << NUM_E*NUM_TIMES*sizeof(double) << " bytes" <<endl;
 
-            copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
+      if (lSize != NUM_E*NUM_TIMES*sizeof(double)) {
+        cout << "File size mismatch! " << endl;
+        return;
+      }
 
-            if (v.size() != NUM_E*NUM_TIMES) {
-                cout << "size mismatch!\n";
-            } else {
-                for (int row=0; row < NUM_E; ++row) {
-                    for (int col=0; col < NUM_TIMES; ++col){
-                        arr[row][col] = v[row*NUM_TIMES + col];
-                    }
-                }
-            }
-        }
+      // copy the file into the buffer:
+      result = fread (arr,1,lSize,pFile);
+      if (result != lSize) {fputs ("Reading error",stderr); exit (3);}
+
+      /* the whole file is now loaded in the memory buffer. */
+      
+      // terminate
+      fclose(pFile);
+      return;
+    } else {
+        cout << "failed to open file " << filename << endl;
     }
+
 }
+
+
+
+
+
+
+
+
+
+
+// void read_p_array(double arr[NUM_E][NUM_TIMES], string filename) {
+//      // this version for ascii-formatted arrays. Untested, ~3.2017.
+
+//     ifstream file;
+//     vector <double> v;
+//     istringstream iss;
+//     string line;
+//     long lSize;
+//     char * buffer;
+
+//     cout << "opening " << filename << endl;
+//     cout << "presumed shape: " << NUM_E << ", " << NUM_TIMES << "\n";
+
+//     ASCII-formatted. Hrumpf.
+//     file.open(filename.c_str());
+//     if (file.is_open()) {
+//         while (getline(file, line)) {
+
+//             v.clear();
+//             iss.clear();
+//             iss.str(line);
+
+//             copy(istream_iterator<double>(iss), istream_iterator<double>(), back_inserter(v));
+//             print_vector(v)
+//             if (v.size() != NUM_E*NUM_TIMES) {
+
+//                 cout << "size mismatch!\n";
+//                 cout << "size is " << v.size() << endl;
+//             } else {
+//                 for (int row=0; row < NUM_E; ++row) {
+//                     for (int col=0; col < NUM_TIMES; ++col){
+//                         arr[row][col] = v[row*NUM_TIMES + col];
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 
 
 
@@ -582,7 +638,7 @@ void get_available_rays(string raypath, vector <vector<double> > *data) {
     float freq, lat, lon;
     DIR *dp;
     struct dirent *ep;    
-    cout << raypath << "\n";
+    // cout << raypath << "\n";
     dp = opendir (raypath.c_str());
     if (dp != NULL) {
         while (ep = readdir(dp)) {
@@ -621,6 +677,28 @@ int check_memory_usage() {
     return 0;
 }
 
+
+
+string exec(const char* cmd) {
+    // Execute a shell command and capture the output as a string.
+    char buffer[128];
+    string result = "";
+    cout << "executing: " << cmd << endl;
+
+    FILE* pipe = popen(cmd, "r");
+    // if (!pipe) throw runtime_error("popen() failed!");
+    try {
+        while (!feof(pipe)) {
+            if (fgets(buffer, 128, pipe) != NULL)
+                result += buffer;
+        }
+    } catch (...) {
+        pclose(pipe);
+        throw;
+    }
+    pclose(pipe);
+    return result;
+}
 
 // static int ftw_callback(const char *fpath, const struct stat *sb, int typeflag) {
 //     float freq, lat, lon;

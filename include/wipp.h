@@ -185,8 +185,8 @@ map<int, rayF> read_rayfile(string fileName);
 map <int, rayF> read_dampfile(string fileName);
 
 // Science!
-double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, double w, double i0);
-double ionoAbsorp(float lat, long f);
+// double input_power_scaling(double* flash_loc, double* ray_loc, double mag_lat, double w, double i0);
+// double ionoAbsorp(float lat, long f);
 float interpPt(float *xI, float *yI, int n, float xO);
 
 void interp_ray_positions(rayT framelist[8],  double n_x, double n_y, double n_z, rayT* rayout);
@@ -323,10 +323,10 @@ void getFltConst(double L, double lat, double alpha_eq,
 cellT new_cell(rayT ray);
 void add_cell(cellT* cell1, cellT* cell2);
 
-double total_input_power(double flash_pos_sm[3], double i0,
-                         double latmin, double latmax, 
-                         double lonmin, double lonmax, 
-                         double wmin, double wmax, int itime_in[2]);
+// double total_input_power(double flash_pos_sm[3], double i0,
+//                          double latmin, double latmax, 
+//                          double lonmin, double lonmax, 
+//                          double wmin, double wmax, int itime_in[2]);
 
 double polygon_frame_area(rayT frame[8]);
 
@@ -340,5 +340,27 @@ int check_memory_usage();
 
 void find_crossing(rayT cur_frames[8], rayT prev_frames[8], Vector3d targ_point, double n_f, double *n_x, double *n_y);
 
+double MLT(int itime[2], double lon);
+
+double graf_iono_absorp(float lat, long f, double mlt);
+double input_power_scaling(double* flash_loc, double* ray_loc,
+                         double mag_lat, double w, double i0, double MLT);
+double total_input_power(double flash_pos_sm[3], double i0,
+                         double latmin, double latmax, 
+                         double lonmin, double lonmax, 
+                         double wmin, double wmax, int itime_in[2]);
+vector< vector<double> > find_adjacent_rays_2d(vector< vector<double> > available_rays);
+
+string exec(const char* cmd);
+
+void readJ(double J[][100], string filename);
+double getJdiff(double J[][100], double E, double alpha_lc, double L_sh);
+
+void compFlux(double arr[NUM_E][NUM_TIMES], double out_lat, double out_lon, int k, string out_dir, 
+              double J[100][100], int flux_dist, int alpha_dist);
+
+
+double lat2L(double lat);
+double L2lat(double L);
 
 #endif

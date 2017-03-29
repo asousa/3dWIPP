@@ -192,3 +192,30 @@ double haversine_distance(double latitude1, double longitude1, double latitude2,
 }
 
 
+
+double MLT(int itime[2], double lon) {
+    // Input: itime, lon in geomagnetic dipole coords.
+    // Ref: "Magnetic Coordinate Systems", Laundal and Richmond
+    // Space Science Review 2016, DOI 10.1007/s11214-016-0275-y 
+
+    double ut_hr = itime[1]/1000.0/60.0;  // Milliseconds to fractional hours (UT)
+    double A1[3] = {1, 51.48, 0};         // Location of Greenwich (for UT reference) 
+    double B1[3];                         // Location of Greenwich in geomag
+
+    degcar(A1);
+    geo_to_mag_d_(itime, A1, B1);
+    cardeg(B1);
+
+    return fmod(ut_hr + (lon - B1[2])/15.0,  24);
+}
+
+double lat2L(double lat) {
+    // Latitude (degrees) to L-shell (Earth radii) (dipole model)
+    return pow(cos(D2R*lat),-2.0);
+}
+double L2lat(double L) {
+    // L-shell (earth radii) to latitude (degrees) (dipole model)
+    return acos(sqrt(1.0/L))*R2D;
+}
+
+
