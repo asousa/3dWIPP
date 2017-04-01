@@ -24,7 +24,8 @@ import subprocess
 
 
 project_root = '/shared/users/asousa/WIPP/3dWIPP/'
-flux_file = os.path.join(project_root,'data','EQFLUXMA.dat')
+flux_file = os.path.join(project_root,'data','AE8MaxFlux_expanded.dat')
+# flux_file = os.path.join(project_root,'data','EQFLUXMA.dat')
 
 # ---------------------- Constants -------------------------
 R_E = 6371.0    # km
@@ -53,15 +54,18 @@ freq_pairs = zip(freqs[0:], freqs[1:])
 # Output coordinates (geomagnetic)
 # out_lat = [40, 50]
 # Select latitudes for a uniform spread across L-shells
-out_Lsh = np.arange(1.2, 8.0, 0.1)
-out_lat = np.round(10.0*np.arccos(1.0/out_Lsh)*R2D)/10.0
-
+# out_Lsh = np.arange(1.2, 8.0, 0.1)
+# out_lat = np.round(10.0*np.arccos(1.0/out_Lsh)*R2D)/10.0
+out_lat = [66.4]
 
 out_lon = [0]
 
 model_number = 0        # b-field model (0 = dipole, 1 = IGRF)
 num_freq_steps = 20     # number of interpolating steps between 
                         # each guide frequency.
+
+flux_dist = 0
+alpha_dist = 0
 
 vec_ind = 0     # Which set of default params to use for the gcpm model
 
@@ -82,7 +86,8 @@ for olat in out_lat:
     olon = out_lon[0]
     flux_cmd = '%sbin/flux --inp_dir %s'%(project_root, output_directory) +\
                ' --out_dir %s'%(output_directory) +\
-               ' --flux_file %s --lat %g --lon %g'%(flux_file, olat, olon)
+               ' --flux_file %s --lat %g --lon %g'%(flux_file, olat, olon) +\
+               ' --flux_dist %d --alpha_dist %d'%(flux_dist, alpha_dist)
 
     for freq in freqs[:-1]:
         flux_cmd += ' --f %g'%freq

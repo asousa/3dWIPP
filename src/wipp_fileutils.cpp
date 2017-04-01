@@ -683,7 +683,7 @@ string exec(const char* cmd) {
     // Execute a shell command and capture the output as a string.
     char buffer[128];
     string result = "";
-    cout << "executing: " << cmd << endl;
+    // cout << "executing: " << cmd << endl;
 
     FILE* pipe = popen(cmd, "r");
     // if (!pipe) throw runtime_error("popen() failed!");

@@ -232,9 +232,10 @@ void calc_stix_parameters(rayF* ray) {
 
 vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int model_number) {
 
-    vector<EA_segment> EA_array(NUM_EA);
+    // vector<EA_segment> EA_array(NUM_EA);
+    vector<EA_segment> EA_array;
 
-    double x_in[3], x_in_geocar[3], x_sm[3];         
+    double x_in[3], x_in_magcar[3], x_sm[3];         
     double x_cur[3], x_prev[3], x_out[3];
 
     double w1, w2;  // Interpolation weights
@@ -262,17 +263,17 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
 
 
 
-    x_in = {1, lat, lon};
+    x_in = {1, lat, lon}; // Start at the Earth; we'll select bins above H_MAGNETO down below.
 
     // Get start coordinate in SM cartesian:
-    x_in_geocar = {x_in[0], x_in[1], x_in[2]};
-    degcar(x_in_geocar);
-    mag_to_sm_d_(itime_in, x_in_geocar, x_sm);
+    x_in_magcar = {x_in[0], x_in[1], x_in[2]};
+    degcar(x_in_magcar);
+    mag_to_sm_d_(itime_in, x_in_magcar, x_sm);
 
-    cout << "\torig: ";
-    print_array(x_in, 3);
-    cout << "\tSM: ";
-    print_array(x_sm, 3);
+    // cout << "\torig: ";
+    // print_array(x_in, 3);
+    // cout << "\tSM: ";
+    // print_array(x_sm, 3);
 
     
     // This works!
@@ -297,7 +298,6 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
     double dist_n[Nsteps];
     double ftc_n[Nsteps];   // Flight time constant to northern hemi
 
-    double target_lat = EALimN;
     int EA_index = 0;
     
     // Get magnetic latitudes of entries
@@ -379,31 +379,40 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
 
 
 
-    double targ_lat = EALimN;
+    // double targ_lat = EALimN;
+    // Starting latitude
+    double start_lat = acos(sqrt((1. + H_MAGNETO/R_E)/Lsh))*R2D;
+    double stop_lat  =-1.0*start_lat;  
+    start_lat = floor(start_lat/EAIncr)*EAIncr;
+    double targ_lat = start_lat;
+//  generate entries for each EA segment
 
-    // generate entries for each EA segment
-    for (int i=0; i < NUM_EA; i++) {
+    // for (int i=0; i < NUM_EA; i++) {
+    while (targ_lat > (stop_lat)) {
         ind = nearest(lats, Nsteps, targ_lat, true);
+
+        EA_segment seg;
+
         // cout << "lat: " << lats[ind] << "\n";
         // cout << "Lsh: " << Lsh << "\n";
         // L shell:
-        EA_array[i].Lsh = Lsh;
+        seg.Lsh = Lsh;
 
         // Latitude:
-        EA_array[i].lat = lats[ind];
-        EA_array[i].lon = lons[ind];
+        seg.lat = lats[ind];
+        seg.lon = lons[ind];
 
         // Distance to northern and southern ionosphere intersections:
-        EA_array[i].dist_to_n = dist_n[ind]                    - H_IONO/R_E;
-        EA_array[i].dist_to_s = dist_n[Nsteps-1] - dist_n[ind] - H_IONO/R_E;
+        seg.dist_to_n = dist_n[ind]                    - H_IONO/R_E;
+        seg.dist_to_s = dist_n[Nsteps-1] - dist_n[ind] - H_IONO/R_E;
 
         // Flight-time constants:
-        EA_array[i].ftc_n     = ftc_n[ind];
-        EA_array[i].ftc_s     = ftc_n[Nsteps-1] - ftc_n[ind];
+        seg.ftc_n     = ftc_n[ind];
+        seg.ftc_s     = ftc_n[Nsteps-1] - ftc_n[ind];
         // cout << "ftc n: " << EA_array[i].ftc_n << " ftc s: " << EA_array[i].ftc_s << "\n";
 
         // Intersection point:
-        EA_array[i].ea_pos = Map<VectorXd>(x_fl[ind],3,1);
+        seg.ea_pos = Map<VectorXd>(x_fl[ind],3,1);
         // Get B:
         // Bomag = b_fl[ind];
         // cout << "Bo: " << Bomag << "\n";
@@ -413,7 +422,7 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
         // (i.e., normal vector to this EA segment)
         Bomag = norm(Bo, 3);
         // Bomag = b_fl[ind];
-        EA_array[i].ea_norm = Map<VectorXd>(Bo, 3, 1)/Bomag;
+        seg.ea_norm = Map<VectorXd>(Bo, 3, 1)/Bomag;
 
         // Calculate the width in the same way Jacob did:
         // (Width in L_MARGIN, assuming a dipole field)
@@ -444,18 +453,18 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
         EA_b = x2 - x1;
         EA_c = x1*y2 - y1*x2;
         
-        EA_array[i].radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2.0; 
+        seg.radius = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))/2.0; 
         // printf("EA_length: %g\n",2*R_E*EA_array[i].radius);
 
 
         // Calculate electron gyrofrequency:
-        EA_array[i].wh = (Q_EL/M_EL)*Bomag;
+        seg.wh = (Q_EL/M_EL)*Bomag;
 
         // Spatial derivative of gyrofrequency:
         // (Currently evaluating using Jacob's formula -- dipole model assumption!!)
         slat_term = sqrt(1+3*slam*slam);
 
-        EA_array[i].dwh_ds = 3*(EA_array[i].wh)/(Lsh*R_E)*slam/slat_term*
+        seg.dwh_ds = 3*(seg.wh)/(Lsh*R_E)*slam/slat_term*
                 (1/(slat_term*slat_term) + 2/(clam*clam));
 
 
@@ -463,7 +472,7 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
         // Calculate local loss cone:
         // double alpha_lc_calc = asin(sqrt( slat_term/pow(clam,6) )*sin(alpha_eq));
         // EA_array[i].alpha_lc = asin(sqrt( slat_term/pow(clam,6) )*sin(alpha_eq));
-        EA_array[i].alpha_lc = asin(sqrt(Bomag/norm(B_iono,3)));
+        seg.alpha_lc = asin(sqrt(Bomag/norm(B_iono,3)));
         
         // printf("lat: %g alpha_lc (mine): %g alpha_lc (theirs): %g\n",
         //     lats[ind], R2D*EA_array[i].alpha_lc, R2D*alpha_lc_calc);
@@ -471,18 +480,18 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
 
 
         // Save equatorial loss cone:
-        EA_array[i].alpha_eq = alpha_eq;
+        seg.alpha_eq = alpha_eq;
 
         // dv_|| / ds:  (again, Jacob's formula -- dipole model assumption)
-        EA_array[i].dv_para_ds = -0.5*pow(sin(EA_array[i].alpha_lc),2)/
-                                      cos(EA_array[i].alpha_lc)/
-                                      EA_array[i].wh*EA_array[i].dwh_ds;
+        seg.dv_para_ds = -0.5*pow(sin(seg.alpha_lc),2)/
+                                      cos(seg.alpha_lc)/
+                                      seg.wh*seg.dwh_ds;
 
         // Ratio of B-field at equator vs local: (used in mapping pitch angles to equator)
-        EA_array[i].Bo_ratio = sqrt(norm(B_eq,3)/norm(Bo,3));
+        seg.Bo_ratio = sqrt(norm(B_eq,3)/norm(Bo,3));
 
         // Area of EA disc:
-        EA_array[i].area = pow(R_E*EA_array[i].radius,2)*PI;
+        seg.area = pow(R_E*seg.radius,2)*PI;
 
 
         // cout << "ratio: " << EA_array[i].Bo_ratio << "\n";
@@ -494,18 +503,19 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
 
         // cout << "alpha_lc: " << EA_array[i].alpha_lc << " calculated: " << alpha_calc << "\n";
 
-
+        EA_array.push_back(seg);
         // Bump index
         targ_lat-= EAIncr;
     }
 
 
+
     // Loop through again to calculate ds:
     // (Distance along field line between EA segments)
-    for (int i=0; i < NUM_EA; i++) {
+    for (int i=0; i < EA_array.size(); i++) {
         if (i==0) {
             EA_array[i].ds = EA_array[i+1].dist_to_n - EA_array[i].dist_to_n;
-        } else if (i== NUM_EA - 1) {
+        } else if (i== EA_array.size() - 1) {
             EA_array[i].ds = EA_array[i].dist_to_n - EA_array[i-1].dist_to_n;
         } else {
             EA_array[i].ds = (EA_array[i+1].dist_to_n - EA_array[i].dist_to_n)*0.5
@@ -513,15 +523,6 @@ vector<EA_segment> init_EA_array(double lat, double lon, int itime_in[2], int mo
         }
 
         EA_array[i].ds *= R_E;  // Meters
-
-        // clam = cos(EA_array[i].lat*D2R);
-        // slam = sin(EA_array[i].lat*D2R);
-        // slat_term = sqrt(1+3*slam*slam);
-        // double ds_calc = EA_array[i].Lsh*slat_term*clam*EAIncr*D2R*R_E; 
-        // cout << "lat: " << EA_array[i].lat << " lon: " << EA_array[i].lon << "\n";
-        // printf("lat: %2.2f lon: %2.2f\n",EA_array[i].lat, EA_array[i].lon);
-        // cout << "lat: " << EA_array[i].lat << " ds: " << EA_array[i].ds << " calc: " << ds_calc << 
-        //      "dist to n: " << EA_array[i].dist_to_n << "\n";
     }
 
 
@@ -760,7 +761,7 @@ void dump_EA_array(vector<EA_segment> EA_array, string filename) {
     file = fopen(filename.c_str(), "w");
     if (file != NULL) {
         
-        for (int i=0; i < NUM_EA; i++) {
+        for (int i=0; i < EA_array.size(); i++) {
             fprintf(file, "%g %g %g %g %g %g %g\n",
                 EA_array[i].ea_pos[0], EA_array[i].ea_pos[1],  EA_array[i].ea_pos[2],
                 EA_array[i].ea_norm[0],EA_array[i].ea_norm[1], EA_array[i].ea_norm[2],
@@ -1145,13 +1146,16 @@ void add_cell(cellT* cell1, cellT* cell2) {
     cell1->stixR     += cell2->stixR;
     cell1->stixL     += cell2->stixL;
     cell1->num_rays  += 1; 
+
+    for (int i=0; i< cell1->pwr_vec.size(); i++) {
+        cell1->pwr_vec[i] += cell2->pwr_vec[i];
+    }
 }
 
 
 
-
-
-void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]) {
+void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, 
+    double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES], int lon_index) {
 
     int i, j=0, kk, mres, noutN, noutS, ei, ti, e_toti;
     cellT *next;
@@ -1226,7 +1230,13 @@ void calc_resonance(map<pair<int,int>, cellT> db, EA_segment EA, double da_N[NUM
         // pwr = cell.pwr/cell.num_rays/TIME_STEP/EA.ds;
         // pwr = sqrt(cell.pwr)/EA.ds;  
         // pwr = sqrt(cell.pwr);
-        pwr = cell.pwr/cell.num_rays;
+
+        // cout << "lon_index = " << lon_index << endl;
+        // cout << "size of power vector: " << cell.pwr_vec.size() << endl;
+        // print_vector(cell.pwr_vec);
+
+        pwr = cell.pwr_vec[lon_index]/cell.num_rays;
+        // pwr = cell.pwr/cell.num_rays;
 
         psi = D2R*cell.psi/cell.num_rays;
 

@@ -33,7 +33,7 @@
 //#define 	E_EXP_BOT	
 #define 	E_MIN	1.0E1 	// ev
 #define 	E_MAX	1.0E8 	// ev
-#define 	NUM_E 	512 //32 //128 //1000 	// Number of energy bins
+#define 	NUM_E 	256 //32 //128 //1000 	// Number of energy bins
 // #define 	SQUARE	1		// Square vs Sin particle distribution
 
 // Calculated params
@@ -41,13 +41,13 @@
 #define 	E_EXP_TOP 	log10(E_MAX)
 #define 	DE_EXP	    ((E_EXP_TOP - E_EXP_BOT)/(NUM_E))
 
-// // EA array grid settings:
-#define		EALimS		-50
-#define		EALimN	    50
-#define     NUM_EA      101
-#define		EAIncr	    ((EALimN - EALimS)/(NUM_EA - 1))	
-
-#define     TRACER_MAX  20000    // Maximum steps in field line tracer
+// // // EA array grid settings:
+// #define		EALimS		-50
+// #define		EALimN	    50
+// #define     NUM_EA      101
+// #define		EAIncr	    ((EALimN - EALimS)/(NUM_EA - 1))	
+#define     EAIncr 1  // Degree spacing
+#define     TRACER_MAX  50000   // Maximum steps in field line tracer
 #define     TRACER_STEP 1e-3     // Step size in field line tracer (units of Earth radii)
 
 // Fine-scale interpolation step sizes:
@@ -56,10 +56,13 @@
 #define     LON_STEP_SIZE   20  // km
 
 // Maximum distance from source to consider a ray
-#define     MAX_GROUND_DISTANCE     1200 // km
+#define     MAX_GROUND_DISTANCE     1000 // km
 
 // Radius around field line, in L-shells, in which to consider a crossing
-#define		L_MARGIN    0.005     // 6e-4 is approx 1km at the surface at 40 deg...
+// L_MARGIN is important for the old interpolation method, but
+// for the new method we only use it in coarse masking. Smaller values
+// should improve speed (but not significantly once the rays spread out)
+#define		L_MARGIN    1e-8 //0.005     // 6e-4 is approx 1km at the surface at 40 deg...
 
 // Output time axis:
 #define     TIME_MAX    20.0      // Seconds
@@ -72,7 +75,7 @@
 #define     WAVE_PWR_THRESH   0
 #define     DAMPING_THRESH    1e-3   
 
-#define     DEBUG       true
+#define     DEBUG       false
 
 #define     CROSSING_METHOD 1   // 0 for old interpolation, 1 for nonlinear center fit
 

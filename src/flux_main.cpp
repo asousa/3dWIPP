@@ -87,6 +87,8 @@ int main(int argc, char *argv[])
     cout << "Latitude:\t\t"  << out_lat << "\n";
     cout << "longitude:\t\t" << out_lon << "\n";
     cout << "Frequencies:\t\t"; print_vector(freqs);
+    cout << "Flux distribution:\t\t" << flux_dist << "\n";
+    cout << "Alpha distribution:\t\t" << alpha_dist << "\n";
 
     // Output file names:
     alpha_N_name << out_dir << "/alpha_" << out_lat << "_" << out_lon << "N.dat";

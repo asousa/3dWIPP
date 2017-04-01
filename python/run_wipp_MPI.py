@@ -33,10 +33,10 @@ D2R = np.pi/180.
 # ------------------ Simulation params ---------------------
 
 # Simulation time
-ray_datenum = dt.datetime(2010, 06, 04, 07, 00, 00);
+ray_datenum = dt.datetime(2010, 01, 01, 0, 00, 00);
 
 # Flash location
-inp_lat = 30
+inp_lats = [40]
 inp_lon = 0
 launch_alt = ((R_E + 5)*1e3)/R_E;
 flash_I0 = -100e3
@@ -52,19 +52,24 @@ freq_pairs = zip(freqs[0:], freqs[1:])
 # out_lat = [40, 50]
 # Select latitudes for a uniform spread across L-shells
 out_Lsh = np.arange(1.2, 8.0, 0.1)
-out_lat = np.round(10.0*np.arccos(1.0/out_Lsh)*R2D)/10.0
+out_lat = np.round(10.0*np.arccos(np.sqrt(1./out_Lsh))*R2D)/10.0
 
+print "Out L-shells: ", out_Lsh
+print "Out lats: ", out_lat
 
 out_lon = [0]
 
+num_offset_lons = 10 # on each side of center
+offset_lon_spacing = 1
+
 model_number = 0        # b-field model (0 = dipole, 1 = IGRF)
-num_freq_steps = 20     # number of interpolating steps between 
+num_freq_steps = 40     # number of interpolating steps between 
                         # each guide frequency.
 
 vec_ind = 0     # Which set of default params to use for the gcpm model
 
 ray_input_directory = '/shared/users/asousa/WIPP/rays/2d/nightside/mode6/kp0/'
-output_directory    = os.path.join(project_root, "outputs", "main_2d_test")
+output_directory    = os.path.join(project_root, "outputs", "testing", "kp0")
 log_directory       = os.path.join(output_directory, "logs")
 
 # ----------------------------------------------------------
@@ -73,8 +78,6 @@ iyr = ray_datenum.year
 idoy= ray_datenum.timetuple().tm_yday 
 isec = (ray_datenum.second + (ray_datenum.minute)*60 + ray_datenum.hour*60*60)
 
-# Flash input coordinates:
-inp_coords = [launch_alt, inp_lat, inp_lon]
 
 # -------------- set up MPI -----------------------------
 comm = MPI.COMM_WORLD
@@ -86,8 +89,15 @@ nProcs = 1.0*comm.Get_size()
 if rank==0:
     if not os.path.exists(output_directory):
         os.mkdir(output_directory)
-    if not os.path.exists(log_directory):
-        os.mkdir(log_directory)
+    # if not os.path.exists(log_directory):
+    #     os.mkdir(log_directory)
+    for ilat in inp_lats:
+        subdir = os.path.join(output_directory, 'in_%g'%ilat)
+        if not os.path.exists(subdir):
+            os.mkdir(subdir)
+        logdir = os.path.join(subdir,'logs')
+        if not os.path.exists(logdir):
+            os.mkdir(logdir)        
 
     # print "Clearing data from previous runs..."
     # os.system('rm %s/*'%(output_directory))
@@ -110,7 +120,7 @@ comm.Barrier()
 
 if rank==0:
 
-    tasklist = [(w,x,y) for w,x,y in itertools.product(out_lat, out_lon, freq_pairs)]
+    tasklist = [(w,x,y,z) for w,x,y,z in itertools.product(inp_lats, out_lat, out_lon, freq_pairs)]
     np.random.shuffle(tasklist)
     chunks = partition(tasklist, nProcs)
 else:
@@ -172,39 +182,57 @@ if (rank < len(chunks)):
 
     for job in chunks[rank]:
         print job
+        ilat = job[0]
+        olat = job[1]
+        olon = job[2]
+        flo  = job[3][0]
+        fhi  = job[3][1]
 
-        olat = job[0]
-        olon = job[1]
-        flo  = job[2][0]
-        fhi  = job[2][1]
+        subdir = os.path.join(output_directory, 'in_%g'%ilat)
 
-        wipp_cmd = '%sbin/wipp --out_dir %s'%(project_root, output_directory) + \
-                    ' --iyr %s --idoy %d --isec %d --I0 %d'%(iyr, idoy, isec, flash_I0) + \
-                    ' --f_alt %g --f_lat %g --f_lon %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) + \
-                    ' --out_lat %g --out_lon %g --b_model %d'%(olat, olon, model_number) + \
-                    ' --f1 %g --f2 %g --ray_dir %s'%(flo, fhi, ray_input_directory) +\
-                    ' --num_freq_steps %d'%num_freq_steps
+        # Flash input coordinates:
+        inp_coords = [launch_alt, ilat, inp_lon]
 
-        print wipp_cmd
+        n_filename = os.path.join(subdir,'pN_%g_%g_%g.dat.gz'%(olat, olon, flo))
+        s_filename = os.path.join(subdir,'pS_%g_%g_%g.dat.gz'%(olat, olon, flo))   
 
-        logfile = os.path.join(log_directory, "wipp_%g_%g_%g.log"%(olat, olon, flo));
-        # # os.system(wipp_cmd)
-        # file = open(logfile, "w+")
-        # subprocess.call(wipp_cmd, shell=True, stdout=file)
-        # file.close()
+        if not (os.path.exists(n_filename) and os.path.exists(s_filename)):
+            # print "doing ", n_filename
 
-        wipp_log = subprocess.check_output(wipp_cmd, shell=True)
-        file = open(logfile,'w')
-        file.write(wipp_log)
-        file.close()
+            wipp_cmd = '%sbin/wipp --out_dir %s'%(project_root, subdir) + \
+                        ' --iyr %s --idoy %d --isec %d --I0 %d'%(iyr, idoy, isec, flash_I0) + \
+                        ' --f_alt %g --f_lat %g --f_lon %g'%(inp_coords[0], inp_coords[1], inp_coords[2]) + \
+                        ' --out_lat %g --out_lon %g --b_model %d'%(olat, olon, model_number) + \
+                        ' --f1 %g --f2 %g --ray_dir %s'%(flo, fhi, ray_input_directory) +\
+                        ' --num_freq_steps %d'%num_freq_steps +\
+                        ' --num_lons %d --lon_spacing %g'%(num_offset_lons, offset_lon_spacing)
 
-        # Zip output files to keep everything from getting too huge
-        n_filename = os.path.join(output_directory,'pN_%2.1f_%d_%d.dat'%(olat, olon, flo))
-        s_filename = os.path.join(output_directory,'pS_%2.1f_%d_%d.dat'%(olat, olon, flo))   
+            # Don't save the log files --- they're *huge*
+            log_directory = os.path.join(subdir, 'logs')
+            logfile = os.path.join(log_directory, "wipp_%g_%g_%g.log"%(olat, olon, flo));
+            file = open(logfile, "w+")
+            subprocess.call(wipp_cmd, shell=True, stdout=file)
+            file.close()
 
-        os.system("gzip %s"%n_filename)
-        os.system("gzip %s"%s_filename)
+            # print wipp_cmd
+            # os.system(wipp_cmd)
 
+            # wipp_log = subprocess.check_output(wipp_cmd, shell=True)
+            # file = open(logfile,'w')
+            # file.write(wipp_log)
+            # file.close()
+
+            gridzy_lons = np.arange(olon,
+                            olon+(num_offset_lons +1)*offset_lon_spacing, offset_lon_spacing)
+            for bleh in gridzy_lons:
+                # Zip output files to keep everything from getting too huge
+                n_filename = os.path.join(subdir,'pN_%g_%g_%g.dat'%(olat, bleh, flo))
+                s_filename = os.path.join(subdir,'pS_%g_%g_%g.dat'%(olat, bleh, flo))   
+
+                os.system("gzip %s"%n_filename)
+                os.system("gzip %s"%s_filename)
+        # else:
+        #     print "skipping ", n_filename
 comm.Barrier()
 
 if rank == 0:

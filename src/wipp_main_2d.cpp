@@ -55,11 +55,12 @@ int main(int argc, char *argv[])
     // rayF* ray;
     rayF ray;
 
-    // // Output arrays (change in pitch angle, north and south hemispheres)
-    double da_N[NUM_E][NUM_TIMES] = {0};
-    double da_S[NUM_E][NUM_TIMES] = {0};
+    // // // Output arrays (change in pitch angle, north and south hemispheres)
+    // double da_N[NUM_E][NUM_TIMES] = {0};
+    // double da_S[NUM_E][NUM_TIMES] = {0};
 
-    map <pair<int, int>, cellT> crossing_db[NUM_EA];
+    // map <pair<int, int>, cellT> crossing_db[NUM_EA];
+    // map <pair<int, int>, cellT> crossing_db;
     pair<int, int> grid_ind;
     int t_grid, f_grid;
 
@@ -91,7 +92,7 @@ int main(int argc, char *argv[])
     int num_lons_fine;   
     int num_freqs_fine; 
    
-    vector<EA_segment> EA_array(NUM_EA);
+    vector<EA_segment> EA_array;
 
     // For calculating longitude variation -- pseudo-3d method
     vector<double> inp_pwrs;
@@ -243,6 +244,7 @@ int main(int argc, char *argv[])
         dump_fieldlines(itime_in, n_lats, n_lons, model_number, dumpFileName);
     }
 
+
 // --------------- Get flash input coordinates -----------------------    
     lat0 = D2R*flash_pos[1];
     lon0 = D2R*flash_pos[2];
@@ -253,6 +255,14 @@ int main(int argc, char *argv[])
     pol_to_cart_d_(&lat0, &lon0, &rad0, tmp_coords);
     mag_to_sm_d_(itime_in, tmp_coords, flash_pos_sm);
 
+    // Vector of longitude offsets:
+    if (num_lons > 0) {
+        for (double ll=lon0; ll <= lon0 + num_lons*lon_spacing; ll+=lon_spacing) {
+            offset_lons.push_back(ll);
+        }
+    }
+    cout << "doing offset longitudes: ";
+    print_vector(offset_lons);
 // ---------------- Find all available rays --------------------------
     ostringstream tmp;
     tmp << ray_inp_dir << "/f_" << f1;
@@ -267,7 +277,8 @@ int main(int argc, char *argv[])
 
 
     // Start with a fresh crossing db:
-    for (int rr=0; rr < NUM_EA; ++rr) { crossing_db[rr].clear();} 
+    // for (int rr=0; rr < EA_array.size(); ++rr) { crossing_db[rr].clear();} 
+    map <pair<int, int>, cellT> crossing_db[EA_array.size()];
 
 
     // // -------------- Iterate through adjacent ray sets: -----------------
@@ -379,6 +390,19 @@ int main(int argc, char *argv[])
             // (ray spacing may not be consistent)
             double inp_pwr = 0;
             inp_pwrs.clear();
+            for (vector<double>::iterator offlon=offset_lons.begin(); offlon!=offset_lons.end(); ++offlon) {
+                double tmp_lonmin = lonmin + *offlon;
+                double tmp_lonmax = lonmax + *offlon;
+                cout << tmp_lonmin << " " << tmp_lonmax << " " << *offlon << endl;
+                inp_pwr = total_input_power(flash_pos_sm, flash_I0, 
+                    latmin, latmax, tmp_lonmin, tmp_lonmax, wmin, wmax, itime_in);
+
+                inp_pwrs.push_back(inp_pwr);
+
+            }
+
+            cout << "input power vec: ";
+            print_vector(inp_pwrs);
 
             inp_pwr = total_input_power(flash_pos_sm, flash_I0, 
                                         latmin, latmax, lonmin, lonmax, wmin, wmax, itime_in);
@@ -437,12 +461,13 @@ int main(int argc, char *argv[])
 
                 // Check each EA segment:
                 // #pragma omp parallel for
-                for (int rr = 0; rr < NUM_EA; rr++) {
+                // for (int rr = 0; rr < NUM_EA; rr++) {
+                for (int rr = 0; rr < EA_array.size(); rr++) {
 
                     // Ignore anything that looks way out of range
                     if (coarse_mask(cur_frames, prev_frames, EA_array[rr])) {
                         hit_counter ++;
-
+                        // cout << "hit" << endl;
                         // Calculate the geometric factor (spreading of guide rays)
                         frame_area = polygon_frame_area(cur_frames);
                         // geometric_factor = initial_area/frame_area;
@@ -484,12 +509,12 @@ int main(int argc, char *argv[])
                                             interp_ray_data(prev_frames,ii, jj, kk, &r_prev);
                                             
 
-                                            // Write crossing to log (for plotting)
-                                            crossing_log = fopen("crossing_log_newway.txt", "a");
-                                            fprintf(crossing_log, "%g %g %g %g %g %g\n",
-                                                r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
-                                                r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
-                                            fclose(crossing_log);
+                                            // // Write crossing to log (for plotting)
+                                            // crossing_log = fopen("crossing_log_newway.txt", "a");
+                                            // fprintf(crossing_log, "%g %g %g %g %g %g\n",
+                                            //     r_cur.pos[0], r_cur.pos[1], r_cur.pos[2], 
+                                            //     r_prev.pos[0], r_prev.pos[1], r_prev.pos[2]);
+                                            // fclose(crossing_log);
 
                                             t_grid = floor(tt/TIME_STEP); //floor(r_cur.time/(TIME_STEP));
                                             f_grid = floor(r_cur.w); //floor(kk*num_freqs_fine); 
@@ -505,8 +530,18 @@ int main(int argc, char *argv[])
                                             // cell_cur.pwr = (inp_pwr / frame_area)*(1.0*FREQ_STEP_SIZE/num_freqs_fine)*(r_cur.damping);
                                             cell_cur.pwr = (inp_pwr / cell_vol)*(1.0/num_freqs_fine)*(r_cur.damping);
 
-                                            cout << "t: " << t_grid << " f: " << f_grid/2./PI;
-                                            cout << " cell energy density: " << cell_cur.pwr << " J/m^3\n";
+                                            // current power for adjacent longitude bins
+
+                                            for (vector<double>::iterator inpwr=inp_pwrs.begin(); 
+                                                                inpwr!=inp_pwrs.end(); ++inpwr) {
+                                                cell_cur.pwr_vec.push_back((*inpwr / frame_area)*
+                                                    (1.0*FREQ_STEP_SIZE/num_freqs_fine)*(r_cur.damping));
+                                            }
+
+                                            // cout << "t: " << t_grid << " f: " << f_grid/2./PI;
+                                            // cout << " energy density vector: ";
+                                            print_vector(cell_cur.pwr_vec);
+                                            // cout << " cell energy density: " << cell_cur.pwr << " J/m^3\n";
                                             crossing_db[rr].insert(make_pair(grid_ind, cell_cur));
                                     }
                                 }
@@ -574,8 +609,16 @@ int main(int argc, char *argv[])
                                             // cout << " damping: " << r_cur.damping;
 
                                             cell_cur.pwr = (inp_pwr / frame_area)*(1.0*FREQ_STEP_SIZE/num_freqs_fine)*(r_cur.damping);
-                                            cout << "t: " << t_grid << " f: " << f_grid;
-                                            cout << " cell pwr: " << cell_cur.pwr << "\n";
+                                            // cout << "t: " << t_grid << " f: " << f_grid;
+                                            // cout << " cell pwr: " << cell_cur.pwr << "\n";
+
+                                            // // current power for adjacent longitude bins
+                                            // for (vector<double>::iterator inpwr=inp_pwrs.begin(); 
+                                            //                     inpwr!=inp_pwrs.end(); ++inpwr) {
+                                            //     cell_cur.pwr_vec.push_back((*inpwr / frame_area)*
+                                            //         (1.0*FREQ_STEP_SIZE/num_freqs_fine)*(r_cur.damping));
+                                            // }
+
                                             if (crossing_db[rr].count(grid_ind)==0) {
                                                 // If we haven't hit this same (time, freq, EA) combo yet, add it:
                                                 crossing_db[rr].insert(make_pair(grid_ind, cell_cur));
@@ -608,21 +651,34 @@ int main(int argc, char *argv[])
     cout << "crossing detection took " << (run_tend - run_tstart) << " sec\n";
 
     // Calculate scattering at crossings:
-    for (int rr=NUM_EA-1; rr>=0; rr--) {
-        calc_resonance(crossing_db[rr], EA_array[rr], da_N, da_S);
+
+    // Loop over offset longitudes
+    for (int offset_index=0; offset_index < offset_lons.size(); ++offset_index) {
+        cout << "doing offset " << offset_index << ", offset_lon: " << offset_lons[offset_index] << endl;
+        // Clear output arrays
+        // // Output arrays (change in pitch angle, north and south hemispheres)
+        double da_N[NUM_E][NUM_TIMES] = {0};
+        double da_S[NUM_E][NUM_TIMES] = {0};
+
+        // Calc resonance at each EA segment:
+        // for (int rr=NUM_EA-1; rr>=0; rr--) {
+        for (int rr=EA_array.size()-1; rr>=0; rr--) {
+            calc_resonance(crossing_db[rr], EA_array[rr], da_N, da_S, offset_index);
+        }
+
+        // Write pN, pS files:
+        cout << "Saving pN, pS files\n";
+
+        ostringstream pN_name, pS_name;
+
+        pN_name << out_dir << "/pN_" << out_lat << "_" << offset_lons[offset_index] << "_" << round(wmin/(2*PI)) << ".dat";
+        pS_name << out_dir << "/pS_" << out_lat << "_" << offset_lons[offset_index] << "_" << round(wmin/(2*PI)) << ".dat";
+        cout << pN_name.str() << "\n";
+        cout << pS_name.str() << "\n";
+        write_p_array(da_N, pN_name.str());
+        write_p_array(da_S, pS_name.str());
     }
 
-    // Write pN, pS files:
-    cout << "Saving pN, pS files\n";
-
-    ostringstream pN_name, pS_name;
-
-    pN_name << out_dir << "/pN_" << out_lat << "_" << out_lon << "_" << round(wmin/(2*PI)) << ".dat";
-    pS_name << out_dir << "/pS_" << out_lat << "_" << out_lon << "_" << round(wmin/(2*PI)) << ".dat";
-    cout << pN_name.str() << "\n";
-    cout << pS_name.str() << "\n";
-    write_p_array(da_N, pN_name.str());
-    write_p_array(da_S, pS_name.str());
 
 
     return 0; // Return statement.

@@ -210,8 +210,9 @@ void bmodel(int itime_in[2], double x_in[3], double tsyg_params[10], int model_n
 
 int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3], 
     double b_out[TRACER_MAX], double ds_in, int model_number, double tsyg_params[10]) {
-// x_in: R, Lat, Lon in magnetic dipole coordinates (earth radii)
-// x_out: [nx3] array of field line coordinates
+    // x_in: position in SM cartesian coordinates
+    // x_out: [nx3] array of field line positions (SM cartesian coordinates)
+    // b_out: magnitude of B-field at each position
 
     double Bo[3] = {0};
     double Bomag;
@@ -238,6 +239,9 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
     double Req = x_mag[0]/pow(cos(D2R*x_mag[1]),2);
     double Rdip = 0;
 
+    double dipole_lat_spacing = (2.*fabs(x_mag[1]))/TRACER_MAX;
+    if (x_mag[1] < 0) { dipole_lat_spacing*= -1.0;}
+
     // Determine which direction to step initially:
     //  -- Make one step, and see if we got closer or further away
     bmodel(itime_in, x_cur, tsyg_params, model_number, Bo);
@@ -251,7 +255,7 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
     x_tmp[1] += dy*ds;
     x_tmp[2] += dz*ds;
 
-    ds = (norm(x_tmp, 3) <= norm(x_cur, 3) ? -ds_in : ds_in);
+    ds = (norm(x_tmp, 3) <= norm(x_cur, 3) ? ds_in : -ds_in);
     // cout << "ds is: " << ds << "\n";
     int i=0;
     while (i < TRACER_MAX) {
@@ -261,7 +265,6 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
 
         // Get unit vectors:
         Bomag = norm(Bo, 3);
-        dx = Bo[0]/Bomag; dy = Bo[1]/Bomag; dz = Bo[2]/Bomag;
 
         x_out[i][0] = x_cur[0];
         x_out[i][1] = x_cur[1];
@@ -269,24 +272,38 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
 
         b_out[i] = Bomag;
 
+        if (model_number == 0) {
+            // Dipole model; we can calculate this directly:
+            sm_to_mag_d_(itime_in, x_cur, x_mag);
+            cardeg(x_mag);
+            x_mag[1] -= dipole_lat_spacing;
+            x_mag[0] = Req*pow(cos(x_mag[1]*D2R),2.);
+            degcar(x_mag);
+            mag_to_sm_d_(itime_in, x_mag, x_cur);
+        } else {
 
-        // Update x_cur:
-        x_cur[0] += dx*ds;
-        x_cur[1] += dy*ds;
-        x_cur[2] += dz*ds;
+            // Update x_cur:
+            dx = Bo[0]/Bomag; dy = Bo[1]/Bomag; dz = Bo[2]/Bomag;
 
+            x_cur[0] += dx*ds;
+            x_cur[1] += dy*ds;
+            x_cur[2] += dz*ds;
+        }
         x_alt = norm(x_cur, 3);
+        // cout << x_alt << endl;
 
+        // Analytical dipole calculation:
 
-    //     // Analytical dipole calculation:
+        Rdip = Req*pow(cos(D2R*x_cur[1]),2);
 
-    //     Rdip = Req*pow(cos(D2R*x_cur[1]),2);
+        // cout << "xcur(" << i << ") : ";
+        // sm_to_mag_d_(itime_in, x_cur, x_mag);
+        // cardeg(x_mag);
+        // print_array(x_mag, 3);
 
-    //     cout << "xcur(" << i << ") : ";
-    //     print_array(x_cur,3);
-    //     cout << "Rcalc: " << Rdip << "\n";
 
         if (x_alt < 1) {
+            // cout << "alt less than 1" << endl;
             break;
         }
 
@@ -294,6 +311,5 @@ int trace_fieldline(int itime_in[2], double x_in[3], double x_out[TRACER_MAX][3]
     }
     // cout << "Stopped after " << i << " steps\n";
     return i;
-
 }
 

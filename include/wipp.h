@@ -129,7 +129,8 @@ typedef struct cellT {
   double        stixR;
   double        stixL;
   Eigen::Vector3d      pos;
-  double         num_rays;   
+  double         num_rays;
+  vector <double> pwr_vec;  // Vector of powers for adjacent longitudes    
 } cellT;
 
 
@@ -296,7 +297,7 @@ double longitude_interval(double ra, double r0, double width_deg);
 //     double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
 // void calc_resonance(cellT cell, EA_segment EA, double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
 void calc_resonance(map<pair<int,int>,cellT> db, EA_segment EA, 
-    double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES]);
+    double da_N[NUM_E][NUM_TIMES], double da_S[NUM_E][NUM_TIMES], int lon_index);
 
 
 // void calc_resonance(rayT* ray, EA_segment* EA, double v_tot_arr[NUM_E], 
